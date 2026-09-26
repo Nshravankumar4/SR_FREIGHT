@@ -531,7 +531,98 @@ function renderMetricCounters() {
   if (document.getElementById('count-partial')) document.getElementById('count-partial').textContent = countPartial;
   if (document.getElementById('count-profit')) document.getElementById('count-profit').textContent = countProfit;
   if (document.getElementById('count-done')) document.getElementById('count-done').textContent = countDone;
+
+  // Total Outstanding Unpaid Balance calculation
+  const pendingTrips = monthTrips.filter(t => t.status === 'Pending' || t.status === 'Partially Paid');
+  const totalPendingAmount = pendingTrips.reduce((acc, t) => acc + (t.statusAmount || t.balance), 0);
+  const totalPendingCount = pendingTrips.length;
+
+  const bannerContainer = document.getElementById('banner-outstanding-container');
+  const bannerAmount = document.getElementById('banner-pending-amount');
+  const bannerCount = document.getElementById('banner-pending-count');
+  const bannerTag = document.getElementById('banner-tag');
+  const bannerIcon = document.getElementById('banner-alert-icon');
+  const cardPending = document.getElementById('card-pending');
+  const cardPartial = document.getElementById('card-partial');
+
+  if (bannerAmount) {
+    bannerAmount.textContent = formatCurrency(totalPendingAmount);
+  }
+
+  if (totalPendingAmount > 0) {
+    if (bannerContainer) {
+      bannerContainer.className = 'rounded-3xl border-2 border-rose-500 bg-gradient-to-r from-rose-600 via-rose-700 to-amber-600 text-white p-6 shadow-xl transition-all';
+    }
+    if (bannerIcon) {
+      bannerIcon.textContent = '🚨';
+      bannerIcon.className = 'w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-3xl shadow-inner shrink-0 animate-bounce';
+    }
+    if (bannerTag) {
+      bannerTag.textContent = 'URGENT • UNCOLLECTED REVENUE';
+      bannerTag.className = 'text-xs sm:text-sm font-black uppercase tracking-widest text-rose-100';
+    }
+    if (bannerCount) {
+      bannerCount.textContent = `${totalPendingCount} TRIP${totalPendingCount > 1 ? 'S' : ''} DUE`;
+      bannerCount.className = 'px-2.5 py-0.5 text-xs font-black bg-white text-rose-700 rounded-full shadow-xs';
+    }
+
+    // High visual emphasis & pulse on Pending and Partially Paid warning cards
+    if (cardPending) {
+      cardPending.classList.add('ring-4', 'ring-amber-400', 'ring-offset-2', 'animate-pulse');
+    }
+    if (cardPartial && countPartial > 0) {
+      cardPartial.classList.add('ring-4', 'ring-orange-400', 'ring-offset-2', 'animate-pulse');
+    }
+  } else {
+    // Zero pending balance: Calm emerald settled state
+    if (bannerContainer) {
+      bannerContainer.className = 'rounded-3xl border-2 border-emerald-500 bg-gradient-to-r from-emerald-600 via-teal-700 to-emerald-800 text-white p-6 shadow-xl transition-all';
+    }
+    if (bannerIcon) {
+      bannerIcon.textContent = '✅';
+      bannerIcon.className = 'w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-3xl shadow-inner shrink-0';
+    }
+    if (bannerTag) {
+      bannerTag.textContent = 'ALL BALANCES SETTLED & RECEIVED';
+      bannerTag.className = 'text-xs sm:text-sm font-black uppercase tracking-widest text-emerald-100';
+    }
+    if (bannerCount) {
+      bannerCount.textContent = 'CLEARED (₹0 DUE)';
+      bannerCount.className = 'px-2.5 py-0.5 text-xs font-black bg-white text-emerald-800 rounded-full shadow-xs';
+    }
+
+    if (cardPending) {
+      cardPending.classList.remove('ring-4', 'ring-amber-400', 'ring-offset-2', 'animate-pulse');
+    }
+    if (cardPartial) {
+      cardPartial.classList.remove('ring-4', 'ring-orange-400', 'ring-offset-2', 'animate-pulse');
+    }
+  }
 }
+
+// Quick trigger from the Outstanding Balance Banner
+window.triggerPendingFilter = function() {
+  document.querySelectorAll('.metric-card').forEach(c => {
+    c.classList.remove('border-brand-500', 'border-amber-500', 'border-rose-500', 'border-orange-500', 'border-emerald-500', 'border-teal-500', 'shadow-md');
+    c.classList.add('border-gray-200');
+  });
+
+  const card = document.getElementById('card-pending');
+  if (card) {
+    card.classList.remove('border-gray-200');
+    card.classList.add('border-amber-500', 'shadow-md');
+  }
+
+  state.activeFilter = 'PENDING';
+  renderTable();
+
+  const tbody = document.getElementById('trips-tbody');
+  if (tbody) {
+    tbody.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  showToast('⚠️ Filtered table to show pending trips with unpaid balance.');
+};
 
 function renderTable() {
   const trips = getDisplayTrips();
@@ -985,69 +1076,214 @@ function showToast(message, durationMs = 4000) {
 }
 
 // ==========================================================================
-// 8. Excel CSV Export (Strictly 24 Columns with UTF-8 BOM)
+// 8. True Excel (.xlsx) Export with Exact UI Colors & Auto-Fit Widths
 // ==========================================================================
 
-function exportToExcel() {
+async function exportToExcel() {
   const trips = getDisplayTrips();
   if (!trips.length) {
     showToast('⚠️ No trip records available to export for this view.');
     return;
   }
 
-  // Exactly 24 Business Column Headers in order
-  const headers = [
-    'S.No.', 'Trip Date', 'Vehicle No', 'From', 'To', 'Freight Amount',
-    'Advance Date', 'Advance Amount', 'Balance Amount', 'Halting Details', 'TRSP Name',
-    'TRSP Commission', 'Diesel', 'Toll Charges', 'Loading Charges', 'Unloading Charges',
-    'Police Exp', 'RTA C/P', 'Other Expenses', 'Driver Trip Commission',
-    'Status Amount', 'Status', 'P/L', 'Route'
-  ];
+  if (typeof ExcelJS === 'undefined') {
+    showToast('❌ ExcelJS library not loaded. Please check your internet connection.');
+    return;
+  }
 
-  const rows = trips.map((t, idx) => {
-    const plFormatted = t.netPL >= 0 ? `P +${t.netPL}` : `L -${Math.abs(t.netPL)}`;
-    const routeStr = `${t.from} ➔ ${t.to}`;
+  showToast('⏳ Generating styled Excel spreadsheet...');
 
-    return [
-      t.sNo || idx + 1,
-      `"${formatDateDisplay(t.tripDate)}"`,
-      `"${t.vehicleNo}"`,
-      `"${(t.from || '').replace(/"/g, '""')}"`,
-      `"${(t.to || '').replace(/"/g, '""')}"`,
-      t.freight,
-      `"${formatDateDisplay(t.advanceDate)}"`,
-      t.advance,
-      t.balance,
-      `"${(t.halting || '').replace(/"/g, '""')}"`,
-      `"${(t.trspName || '').replace(/"/g, '""')}"`,
-      t.trspCommission,
-      t.diesel,
-      t.toll,
-      t.loading,
-      t.unloading,
-      t.police,
-      t.rta,
-      t.other,
-      t.driverCommission,
-      t.statusAmount,
-      `"${t.status}"`,
-      `"${plFormatted}"`,
-      `"${routeStr.replace(/"/g, '""')}"`
+  try {
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'SR_T Freight Management';
+    workbook.lastModifiedBy = 'SR_T Fleet Engine';
+    workbook.created = new Date();
+
+    const worksheet = workbook.addWorksheet('Lorry Trips Reconciliation', {
+      views: [{ showGridLines: true }]
+    });
+
+    // Exactly 24 Business Column Headers in order
+    const headers = [
+      'S.No.', 'Trip Date', 'Vehicle No', 'From', 'To', 'Freight Amount',
+      'Advance Date', 'Advance Amount', 'Balance Amount', 'Halting Details', 'TRSP Name',
+      'TRSP Commission', 'Diesel', 'Toll Charges', 'Loading Charges', 'Unloading Charges',
+      'Police Exp', 'RTA C/P', 'Other Expenses', 'Driver Trip Commission',
+      'Status Amount', 'Status', 'P/L', 'Route'
     ];
-  });
 
-  // UTF-8 BOM (\uFEFF) ensures Excel properly reads special symbols (e.g. ₹, ➔)
-  const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `Lorry_Trips_${state.selectedMonth}_${state.activeFilter}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+    // Initialize columns
+    worksheet.columns = headers.map(h => ({ header: h, key: h, width: 16 }));
 
-  showToast(`📊 Downloaded ${trips.length} trips as Excel CSV.`);
+    // 1. Style Header Row
+    const headerRow = worksheet.getRow(1);
+    headerRow.height = 32;
+    headerRow.eachCell((cell) => {
+      cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FF0F172A' } // Dark Navy matching UI
+      };
+      cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: false };
+      cell.border = {
+        top: { style: 'thin', color: { argb: 'FF334155' } },
+        bottom: { style: 'medium', color: { argb: 'FF000000' } },
+        left: { style: 'thin', color: { argb: 'FF334155' } },
+        right: { style: 'thin', color: { argb: 'FF334155' } }
+      };
+    });
+
+    // 2. Add Data Rows
+    trips.forEach((t, idx) => {
+      const plFormatted = t.netPL >= 0 ? `P +₹${t.netPL.toLocaleString('en-IN')}` : `L -₹${Math.abs(t.netPL).toLocaleString('en-IN')}`;
+      const routeStr = `${t.from || ''} ➔ ${t.to || ''}`;
+
+      const rowValues = [
+        t.sNo || idx + 1,
+        formatDateDisplay(t.tripDate),
+        t.vehicleNo,
+        t.from || '',
+        t.to || '',
+        t.freight,
+        formatDateDisplay(t.advanceDate),
+        t.advance,
+        t.balance,
+        t.halting || '',
+        t.trspName || '',
+        t.trspCommission,
+        t.diesel,
+        t.toll,
+        t.loading,
+        t.unloading,
+        t.police,
+        t.rta,
+        t.other,
+        t.driverCommission,
+        t.statusAmount,
+        t.status,
+        plFormatted,
+        routeStr
+      ];
+
+      const row = worksheet.addRow(rowValues);
+      row.height = 24;
+
+      // Style every cell in data row
+      row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+        cell.font = { name: 'Calibri', size: 10.5 };
+        cell.alignment = { vertical: 'middle' };
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+          bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+          left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+          right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
+        };
+
+        // Numeric Currency columns
+        const numericCols = [6, 8, 9, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21];
+        if (numericCols.includes(colNumber)) {
+          cell.alignment = { vertical: 'middle', horizontal: 'right' };
+          cell.numFmt = '[$₹-4009]#,##0;([$₹-4009]#,##0);"-"';
+        } else if ([1, 2, 7].includes(colNumber)) {
+          // S.No and Dates
+          cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        } else if (colNumber === 3) {
+          // Vehicle No
+          cell.alignment = { vertical: 'middle', horizontal: 'center' };
+          cell.font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: 'FF1D4ED8' } };
+        }
+
+        // Balance Amount emphasis
+        if (colNumber === 9 && Number(cell.value) > 0) {
+          cell.font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: 'FFB45309' } };
+        }
+
+        // Column 22: Status Styling
+        if (colNumber === 22) {
+          cell.alignment = { vertical: 'middle', horizontal: 'center' };
+          if (t.status === 'Paid') {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } }; // Light emerald
+            cell.font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: 'FF047857' } }; // Dark emerald
+          } else if (t.status === 'Partially Paid') {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFEDD5' } }; // Light orange
+            cell.font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: 'FFC2410C' } }; // Dark orange
+          } else {
+            // Pending
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } }; // Light amber
+            cell.font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: 'FFB45309' } }; // Dark amber
+          }
+        }
+
+        // Column 23: P/L Styling
+        if (colNumber === 23) {
+          cell.alignment = { vertical: 'middle', horizontal: 'center' };
+          if (t.netPL >= 0) {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } }; // Light green
+            cell.font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: 'FF15803D' } }; // Dark green
+          } else {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } }; // Light red
+            cell.font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: 'FFB91C1C' } }; // Dark red
+          }
+        }
+
+        // Column 24: Route Styling
+        if (colNumber === 24) {
+          cell.font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: 'FF0F172A' } };
+        }
+      });
+    });
+
+    // 3. Programmatically Auto-Fit Column Widths (Prevents ### in Excel)
+    worksheet.columns.forEach((column) => {
+      let maxLength = 0;
+      column.eachCell({ includeEmpty: true }, (cell) => {
+        let cellLength = 0;
+        if (cell.value !== null && cell.value !== undefined) {
+          if (typeof cell.value === 'number') {
+            cellLength = cell.value.toLocaleString('en-IN').length + 4;
+          } else {
+            cellLength = String(cell.value).length;
+          }
+        }
+        if (cellLength > maxLength) {
+          maxLength = cellLength;
+        }
+      });
+
+      const colIdx = Number(column.number);
+      let safeMinWidth = 16;
+      if (colIdx === 1) safeMinWidth = 8;          // S.No
+      else if (colIdx === 2 || colIdx === 7) safeMinWidth = 16; // Dates (Prevents ###)
+      else if (colIdx === 3) safeMinWidth = 16;     // Vehicle No
+      else if (colIdx === 4 || colIdx === 5) safeMinWidth = 24; // From / To
+      else if (colIdx === 10) safeMinWidth = 32;    // Halting Details
+      else if (colIdx === 22) safeMinWidth = 16;    // Status
+      else if (colIdx === 23) safeMinWidth = 18;    // P/L
+      else if (colIdx === 24) safeMinWidth = 42;    // Route (e.g. Hyderabad, Telangana ➔ Purnia, Bihar)
+
+      column.width = Math.max(maxLength + 4, safeMinWidth);
+    });
+
+    // 4. Generate true .xlsx file buffer and trigger download
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Lorry_Trips_${state.selectedMonth}_${state.activeFilter}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    showToast(`✅ Successfully exported ${trips.length} trips to true Excel (.xlsx).`);
+  } catch (err) {
+    console.error('Excel Export Error:', err);
+    showToast(`❌ Excel export failed: ${err.message}`);
+  }
 }
 
 // ==========================================================================

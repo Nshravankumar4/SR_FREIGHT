@@ -6,6 +6,8 @@
   <title>SR_T Lorry Freight Management | Fleet Operations & Broker Reconciliation</title>
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- ExcelJS CDN for True .XLSX Exports with Colors & Auto-Widths -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
   <script>
     tailwind.config = {
       theme: {
@@ -161,6 +163,38 @@
   <!-- ========================================================================= -->
   <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-5">
 
+    <!-- ========================================================================= -->
+    <!-- UNMISSABLE TOTAL OUTSTANDING BALANCE ALERT BANNER                         -->
+    <!-- ========================================================================= -->
+    <section id="banner-outstanding-container" class="rounded-3xl border-2 border-rose-500 bg-gradient-to-r from-rose-600 via-rose-700 to-amber-600 text-white p-6 shadow-xl transition-all">
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        
+        <div class="flex items-center gap-4 sm:gap-5">
+          <div id="banner-alert-icon" class="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-3xl shadow-inner shrink-0 animate-bounce">
+            🚨
+          </div>
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span id="banner-tag" class="text-xs sm:text-sm font-black uppercase tracking-widest text-rose-100">URGENT &bull; UNCOLLECTED REVENUE</span>
+              <span id="banner-pending-count" class="px-2.5 py-0.5 text-xs font-black bg-white text-rose-700 rounded-full shadow-xs">2 TRIPS DUE</span>
+            </div>
+            <div class="flex items-baseline gap-3 flex-wrap">
+              <span class="text-xs sm:text-sm font-bold text-rose-100 uppercase">TOTAL OUTSTANDING BALANCE:</span>
+              <span id="banner-pending-amount" class="text-4xl sm:text-6xl font-black tracking-tight text-white drop-shadow-lg">₹1,65,000</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <button onclick="triggerPendingFilter()" class="px-5 py-3.5 bg-white hover:bg-rose-50 active:scale-95 text-rose-700 font-black text-xs sm:text-sm rounded-2xl shadow-lg transition flex items-center gap-2 cursor-pointer select-none">
+            <span>⚠️ VIEW UNPAID TRIPS</span>
+            <svg class="w-4 h-4 text-rose-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+          </button>
+        </div>
+
+      </div>
+    </section>
+
     <!-- TOP CONTROL & FILTER DASHBOARD BAR -->
     <section class="bg-white rounded-2xl border border-gray-200 shadow-xs p-4">
       <div class="flex flex-wrap items-center justify-between gap-3">
@@ -231,7 +265,7 @@
       </button>
 
       <!-- 2. Warning Card: Pending Payments -->
-      <button data-filter="PENDING" class="metric-card text-left p-3.5 bg-white rounded-2xl border-2 border-amber-300 shadow-sm transition hover:border-amber-500 hover:shadow-md cursor-pointer flex flex-col justify-between">
+      <button id="card-pending" data-filter="PENDING" class="metric-card text-left p-3.5 bg-white rounded-2xl border-2 border-amber-400 shadow-sm transition hover:border-amber-500 hover:shadow-md cursor-pointer flex flex-col justify-between">
         <div class="flex items-center justify-between mb-1.5">
           <span class="text-xs font-bold text-amber-700 tracking-wider">⚠️ PENDING</span>
           <span class="p-1 rounded-lg bg-amber-50 text-amber-600 text-xs">⏳</span>
@@ -255,7 +289,7 @@
       </button>
 
       <!-- 4. Warning Card: Partially Paid -->
-      <button data-filter="PARTIAL" class="metric-card text-left p-3.5 bg-white rounded-2xl border-2 border-orange-300 shadow-sm transition hover:border-orange-500 hover:shadow-md cursor-pointer flex flex-col justify-between">
+      <button id="card-partial" data-filter="PARTIAL" class="metric-card text-left p-3.5 bg-white rounded-2xl border-2 border-orange-400 shadow-sm transition hover:border-orange-500 hover:shadow-md cursor-pointer flex flex-col justify-between">
         <div class="flex items-center justify-between mb-1.5">
           <span class="text-xs font-bold text-orange-700 tracking-wider">🟠 PARTIAL PAID</span>
           <span class="p-1 rounded-lg bg-orange-50 text-orange-600 text-xs">⚖️</span>
