@@ -128,7 +128,9 @@ const INITIAL_TRIPS = [
   }
 ];
 
-// Clean Application State
+// Clean Application State (Cloud Database First)
+const DEFAULT_CLOUD_API_URL = 'https://script.google.com/macros/s/AKfycbwFo4Ejy4zI7nKzOpPQbtWw3lYn3jHUOWSva0Oa_YZ1G3pFqOSy9QpHdS_lkIIL7vUK/exec';
+
 const state = {
   trips: [],
   viewType: 'ALL_TRIPS', // 'TODAY' | 'SELECTED_DATE' | 'DATE_RANGE' | 'ENTIRE_MONTH' | 'ALL_TRIPS'
@@ -139,7 +141,7 @@ const state = {
   statusFilter: 'ALL',   // 'ALL' | 'NEW' | 'PROFIT' | 'LOSS' | 'PENDING' | 'PARTIAL' | 'PAID' | 'BALANCE_MISMATCH'
   searchQuery: '',
   selectedTripId: null,
-  apiUrl: localStorage.getItem('lorry_api_url') || '',
+  apiUrl: localStorage.getItem('lorry_api_url') || DEFAULT_CLOUD_API_URL,
   pendingEditTripId: null,
   pendingDeleteTripId: null,
   currentUser: localStorage.getItem('lorry_auth_user') || null,
@@ -439,11 +441,10 @@ function loadTrips() {
     try {
       state.trips = JSON.parse(saved);
     } catch {
-      state.trips = INITIAL_TRIPS.map(t => calculateTrip(t));
+      state.trips = [];
     }
   } else {
-    state.trips = INITIAL_TRIPS.map(t => calculateTrip(t));
-    saveTrips();
+    state.trips = [];
   }
 
   // Sort trips cleanly by S.No ascending
@@ -2257,14 +2258,20 @@ async function syncWithGoogleSheet() {
     const cleanUrl = state.apiUrl.trim();
     const fetchUrl = cleanUrl.includes('?') ? `${cleanUrl}&action=getTrips` : `${cleanUrl}?action=getTrips`;
     const res = await fetch(fetchUrl);
+    const text = await res.text();
     
     // Check if response is HTML instead of JSON (happens when Google redirects to sign-in page)
-    const contentType = res.headers.get('content-type') || '';
-    if (contentType.includes('text/html')) {
-      throw new Error("Web App returned Google Sign-in page. Please set 'Who has access' to 'Anyone' in Apps Script Deployment.");
+    if (text.includes('accounts.google.com') || text.includes('ServiceLogin') || text.includes('<!doctype html>')) {
+      throw new Error("Web App returned Google Sign-in page. In Google Apps Script Manage Deployments, change 'Who has access' from 'Only myself' to 'Anyone'.");
     }
 
-    const json = await res.json();
+    let json;
+    try {
+      json = JSON.parse(text);
+    } catch (parseErr) {
+      throw new Error("Invalid response format from cloud server.");
+    }
+
     if (json.status === 'success' && Array.isArray(json.data)) {
       state.trips = json.data.map((row, idx) => calculateTrip({
         id: idx + 1,
@@ -2296,15 +2303,15 @@ async function syncWithGoogleSheet() {
       saveTrips();
       renderScopeControls();
       render();
-      showToast(`✅ Synchronized ${state.trips.length} trips from Google Sheets!`);
+      showToast(`☁️ Cloud Database: Synchronized ${state.trips.length} trips from Google Sheets!`);
     } else {
       throw new Error(json.message || 'Invalid server response format');
     }
   } catch (err) {
     if (err.message && err.message.toLowerCase().includes('failed to fetch')) {
-      showToast(`❌ Sync Error: Failed to fetch. Ensure Google Apps Script deployment has 'Who has access' set to 'Anyone' (not 'Only myself').`, 7000);
+      showToast(`❌ Cloud Sync Error: Failed to fetch. Ensure Google Apps Script deployment has 'Who has access' set to 'Anyone' (not 'Only myself').`, 7000);
     } else {
-      showToast(`❌ Sync Error: ${err.message}`, 6000);
+      showToast(`❌ Cloud Sync Error: ${err.message}`, 6500);
     }
   } finally {
     if (syncBtn) {
