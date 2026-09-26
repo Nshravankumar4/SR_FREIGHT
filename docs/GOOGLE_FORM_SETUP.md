@@ -118,9 +118,8 @@ This document specifies the exact fields, question types, validation rules, and 
 
 ## Automated Business Columns
 
-The following 5 columns are calculated automatically by the Apps Script & Web Dashboard and must **NOT** be prompted in the form:
-- **Balance Amount:** `Freight Amount - Advance Amount`
-- **Total Expenses:** Sum of the 9 operating expenses
-- **Status Amount:** Balance for Pending, ₹0 for Paid, remaining balance for Partially Paid
-- **P/L:** `P +₹...` or `L -₹...` calculated as `Freight Amount - Total Expenses`
-- **Route:** `${From} ➔ ${To}`
+The following columns are calculated automatically by the Apps Script & Web Dashboard and must **NOT** be prompted in the form:
+- **20. Sum OF Total Exp:** Sum of the 9 operating expenses (TRSP Comm + Diesel + Toll + Loading + Unloading + Police + RTA + Other + Driver Comm)
+- **21. Total Exp Given:** `Advance Amount + Sum OF Total Exp`
+- **23. P/L:** Net profit or loss calculated as `Freight Amount - Total Exp Given`
+- **25. Balance Amount:** Net pending freight calculated as `Freight Amount - Total Exp Given`

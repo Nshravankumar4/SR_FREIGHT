@@ -612,14 +612,14 @@ function calculateTrip(t) {
   // 23. P/L = Freight Amount - Total Exp Amount Given
   const netPL = freight - totalExpGiven;
 
-  // 25. Balance Amount = Freight Amount - Total Exp Amount Given (or custom balance)
-  const expectedBalance = freight - totalExpGiven;
+  // 25. Balance Amount = Freight Amount - Advance Amount (or custom balance)
+  const expectedBalance = freight - advance;
   const balance = (t.balance !== undefined && t.balance !== null && t.balance !== '' && !isNaN(Number(t.balance)))
     ? Number(t.balance)
     : expectedBalance;
 
-  // Balance discrepancy check
-  const hasBalanceMismatch = balance !== expectedBalance;
+  // Balance discrepancy check: only flag if recorded balance != freight - advance
+  const hasBalanceMismatch = Math.abs(balance - expectedBalance) > 1;
 
   // Status: 'New' | 'Pending' | 'Partially Paid' | 'Paid'
   let status = t.status || 'Pending';
@@ -1118,7 +1118,7 @@ function renderTableOnly() {
       balanceDisplay = `
         <div class="flex items-center justify-end gap-1.5">
           <span class="text-rose-600 font-black">${formatCurrency(t.balance)}</span>
-          <span class="px-1.5 py-0.5 text-[9px] font-black bg-rose-100 text-rose-800 rounded border border-rose-300" title="Expected: ${formatCurrency(t.freight - t.totalExpGiven)}">⚠️ Mismatch</span>
+          <span class="px-1.5 py-0.5 text-[9px] font-black bg-rose-100 text-rose-800 rounded border border-rose-300" title="Expected: ${formatCurrency(t.freight - t.advance)}">⚠️ Mismatch</span>
         </div>
       `;
     }
@@ -1131,14 +1131,14 @@ function renderTableOnly() {
         <!-- Dedicated ACTIONS (View, Edit, Delete) BEFORE S.No (Sticky Left) -->
         <td class="py-3 px-3 text-center whitespace-nowrap bg-blue-50/70 sticky left-0 z-10 border-r border-blue-200 shadow-xs">
           <div class="inline-flex items-center gap-1 justify-center">
-            <button onclick="viewTripDetails(${t.id})" class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-black text-blue-700 bg-white border border-blue-200 hover:bg-blue-600 hover:text-white transition shadow-2xs cursor-pointer" title="View Full Trip Details & Breakdown">
+            <button onclick="viewTripDetails('${t.tripId || t.id}')" class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-black text-blue-700 bg-white border border-blue-200 hover:bg-blue-600 hover:text-white transition shadow-2xs cursor-pointer" title="View Full Trip Details & Breakdown">
               <span>👁️ View</span>
             </button>
-            <button onclick="promptEditTrip(${t.id})" class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold text-amber-800 bg-amber-50 hover:bg-amber-600 hover:text-white border border-amber-200 transition shadow-2xs cursor-pointer" title="Edit Trip">
+            <button onclick="promptEditTrip('${t.tripId || t.id}')" class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold text-amber-800 bg-amber-50 hover:bg-amber-600 hover:text-white border border-amber-200 transition shadow-2xs cursor-pointer" title="Edit Trip">
               <span>✏️ Edit</span>
             </button>
             ${canDelete() ? `
-            <button onclick="promptDeleteTrip(${t.id})" class="p-1.5 rounded-lg text-gray-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer" title="Delete Trip">
+            <button onclick="promptDeleteTrip('${t.tripId || t.id}')" class="p-1.5 rounded-lg text-gray-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer" title="Delete Trip">
               <svg class="w-4 h-4 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
             </button>
             ` : ''}
@@ -1227,20 +1227,6 @@ function renderTableOnly() {
 
         <!-- 25. Balance Amount -->
         <td class="py-3.5 px-3.5 text-right whitespace-nowrap font-black text-amber-700 bg-amber-50/40">${balanceDisplay}</td>
-        
-        <!-- Row Actions (Separated from business data columns) -->
-        <td class="py-3.5 px-3.5 text-center whitespace-nowrap bg-gray-50/50">
-          <div class="inline-flex items-center gap-1.5 justify-center">
-            <button onclick="promptEditTrip(${t.id})" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-gray-700 bg-white border border-gray-300 hover:bg-blue-50 hover:text-blue-700 active:scale-95 transition cursor-pointer shadow-xs" title="Edit Trip">
-              <span>✏️ Edit</span>
-            </button>
-            ${canDelete() ? `
-            <button onclick="promptDeleteTrip(${t.id})" class="p-2 rounded-lg text-gray-400 hover:text-rose-600 hover:bg-rose-50 active:scale-95 transition cursor-pointer" title="Delete Trip">
-              <svg class="w-4 h-4 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-            </button>
-            ` : ''}
-          </div>
-        </td>
       </tr>
     `;
   }).join('');
@@ -1265,7 +1251,7 @@ function getEmptyDetailsHTML() {
 }
 
 window.viewTripDetails = function(tripId) {
-  const trip = state.trips.find(t => t.id === Number(tripId) || t.sNo === Number(tripId) || t.sNo === String(tripId));
+  const trip = state.trips.find(t => String(t.tripId || t.id) === String(tripId) || Number(t.id) === Number(tripId) || Number(t.sNo) === Number(tripId));
   if (!trip) return;
 
   state.selectedTripId = trip.id;
@@ -1324,7 +1310,7 @@ function renderTripDetails(t) {
   // Mismatch Alert Box
   let mismatchBanner = '';
   if (t.hasBalanceMismatch) {
-    const expected = t.freight - t.totalExpGiven;
+    const expected = t.freight - t.advance;
     mismatchBanner = `
       <div class="p-4 rounded-2xl bg-gradient-to-r from-red-500/10 via-rose-50 to-red-50 border-2 border-red-400 flex items-start gap-3.5 text-red-950 shadow-sm">
         <span class="text-2xl mt-0.5">⚠️</span>
@@ -1332,7 +1318,7 @@ function renderTripDetails(t) {
           <div class="text-xs font-black uppercase tracking-wider text-red-800">Financial Audit Alert &bull; Balance Discrepancy Detected</div>
           <div class="text-xs font-semibold text-red-900 mt-1 leading-relaxed">
             Recorded Balance is <span class="px-2 py-0.5 bg-red-100 rounded-md font-mono font-black text-red-950">${formatCurrency(t.balance)}</span>, 
-            but Contract Freight (<strong class="font-mono">${formatCurrency(t.freight)}</strong>) &minus; Total Expenses Given (<strong class="font-mono">${formatCurrency(t.totalExpGiven)}</strong>) equals <span class="px-2 py-0.5 bg-emerald-100 text-emerald-900 rounded-md font-mono font-black">${formatCurrency(expected)}</span>. 
+            but Contract Freight (<strong class="font-mono">${formatCurrency(t.freight)}</strong>) &minus; Advance Amount (<strong class="font-mono">${formatCurrency(t.advance)}</strong>) equals <span class="px-2 py-0.5 bg-emerald-100 text-emerald-900 rounded-md font-mono font-black">${formatCurrency(expected)}</span>. 
             Please review with the transport broker or adjust this record.
           </div>
         </div>
@@ -1855,64 +1841,7 @@ window.executeSaveNewTrip = executeSaveNewTrip;
 // ==========================================================================
 
 function setupModals() {
-  const modalAddConfirm = document.getElementById('modal-add-confirm');
-  const modalAddCancel = document.getElementById('modal-add-cancel');
-  if (modalAddConfirm) {
-    modalAddConfirm.addEventListener('click', () => {
-      executeSaveNewTrip();
-    });
-  }
-  if (modalAddCancel) {
-    modalAddCancel.addEventListener('click', () => {
-      closeModal('modal-confirm-add');
-    });
-  }
-
-  const modalEditConfirm = document.getElementById('modal-edit-confirm');
-  const modalEditCancel = document.getElementById('modal-edit-cancel');
-  if (modalEditConfirm) {
-    modalEditConfirm.addEventListener('click', () => {
-      closeModal('modal-confirm-edit');
-      if (state.pendingEditTripId) {
-        openEditSlideOver(state.pendingEditTripId);
-      }
-    });
-  }
-  if (modalEditCancel) {
-    modalEditCancel.addEventListener('click', () => {
-      closeModal('modal-confirm-edit');
-      state.pendingEditTripId = null;
-    });
-  }
-
-  const modalSaveConfirm = document.getElementById('modal-save-confirm');
-  const modalSaveCancel = document.getElementById('modal-save-cancel');
-  if (modalSaveConfirm) {
-    modalSaveConfirm.addEventListener('click', () => {
-      closeModal('modal-confirm-save');
-      executeSaveTripEdits();
-    });
-  }
-  if (modalSaveCancel) {
-    modalSaveCancel.addEventListener('click', () => {
-      closeModal('modal-confirm-save');
-    });
-  }
-
-  const modalDeleteConfirm = document.getElementById('modal-delete-confirm');
-  const modalDeleteCancel = document.getElementById('modal-delete-cancel');
-  if (modalDeleteConfirm) {
-    modalDeleteConfirm.addEventListener('click', () => {
-      closeModal('modal-confirm-delete');
-      executeDeleteTrip();
-    });
-  }
-  if (modalDeleteCancel) {
-    modalDeleteCancel.addEventListener('click', () => {
-      closeModal('modal-confirm-delete');
-      state.pendingDeleteTripId = null;
-    });
-  }
+  // Modal buttons are wired with direct inline onclick handlers to ensure 100% reliable, duplicate-free execution
 }
 
 function openModal(modalId) {
@@ -1926,14 +1855,13 @@ function closeModal(modalId) {
 }
 
 window.promptEditTrip = function(tripId) {
-  const idNum = Number(tripId);
-  const trip = state.trips.find(t => Number(t.id) === idNum);
+  const trip = state.trips.find(t => String(t.tripId || t.id) === String(tripId) || Number(t.id) === Number(tripId));
   if (!trip) return;
 
-  state.pendingEditTripId = idNum;
+  state.pendingEditTripId = trip.tripId || trip.id;
   const msgEl = document.getElementById('modal-edit-message');
   if (msgEl) {
-    msgEl.textContent = `Are you sure you want to edit Trip #${trip.sNo || idNum} (${trip.vehicleNo})?`;
+    msgEl.textContent = `Are you sure you want to edit Trip #${trip.sNo || trip.id} (${trip.vehicleNo})?`;
   }
   openModal('modal-confirm-edit');
 };
@@ -1947,14 +1875,13 @@ window.promptDeleteTrip = function(tripId) {
     showToast('❌ You do not have permission to delete trips.');
     return;
   }
-  const idNum = Number(tripId);
-  const trip = state.trips.find(t => Number(t.id) === idNum);
+  const trip = state.trips.find(t => String(t.tripId || t.id) === String(tripId) || Number(t.id) === Number(tripId));
   if (!trip) return;
 
-  state.pendingDeleteTripId = idNum;
+  state.pendingDeleteTripId = trip.tripId || trip.id;
   const msgEl = document.getElementById('modal-delete-message');
   if (msgEl) {
-    msgEl.textContent = `Are you sure you want to delete Trip #${trip.sNo || idNum} (${trip.vehicleNo})?`;
+    msgEl.textContent = `Are you sure you want to delete Trip #${trip.sNo || trip.id} (${trip.vehicleNo})?`;
   }
   openModal('modal-confirm-delete');
 };
@@ -1966,8 +1893,8 @@ async function executeDeleteTrip() {
     return;
   }
   if (!state.pendingDeleteTripId) return;
-  const idNum = Number(state.pendingDeleteTripId);
-  const trip = state.trips.find(t => Number(t.id) === idNum);
+  const targetId = state.pendingDeleteTripId;
+  const trip = state.trips.find(t => String(t.tripId || t.id) === String(targetId) || Number(t.id) === Number(targetId));
   if (!trip) return;
 
   pendingMutationCount++;
@@ -1980,9 +1907,9 @@ async function executeDeleteTrip() {
   renderTableOnly();
 
   // Create point-in-time snapshot backup
-  BackupModule.onRecordMutated(`Delete Trip #${trip.sNo || idNum} (${trip.vehicleNo})`);
+  BackupModule.onRecordMutated(`Delete Trip #${trip.sNo || targetId} (${trip.vehicleNo})`);
 
-  showToast(`✅ Trip #${trip.sNo || idNum} (${trip.vehicleNo}) deleted successfully.`);
+  showToast(`✅ Trip #${trip.sNo || targetId} (${trip.vehicleNo}) deleted successfully.`);
   state.pendingDeleteTripId = null;
 
   try {
@@ -2019,9 +1946,12 @@ function setupSlideOverEvents() {
 }
 
 function openEditSlideOver(tripId) {
-  const idNum = Number(tripId);
-  const trip = state.trips.find(t => Number(t.id) === idNum);
+  const trip = state.trips.find(t => String(t.tripId || t.id) === String(tripId) || Number(t.id) === Number(tripId));
   if (!trip) return;
+
+  const targetId = trip.tripId || trip.id;
+  state.editingTripId = targetId;
+  state.pendingEditTripId = targetId;
 
   const backdrop = document.getElementById('drawer-backdrop');
   const panel = document.getElementById('drawer-panel');
@@ -2066,13 +1996,14 @@ window.closeSlideOver = function() {
     panel.classList.add('translate-x-full');
     backdrop.classList.add('hidden');
   }
+  state.editingTripId = null;
   state.pendingEditTripId = null;
 };
 
 async function executeSaveTripEdits() {
-  if (!state.pendingEditTripId) return;
-  const idNum = Number(state.pendingEditTripId);
-  const trip = state.trips.find(t => Number(t.id) === idNum);
+  const targetId = state.pendingEditTripId || state.editingTripId;
+  if (!targetId) return;
+  const trip = state.trips.find(t => String(t.tripId || t.id) === String(targetId) || Number(t.id) === Number(targetId));
   if (!trip) return;
 
   const getVal = (id, defaultVal = '') => {
@@ -2110,7 +2041,7 @@ async function executeSaveTripEdits() {
   }
 
   const recalculated = calculateTrip(trip);
-  const idx = state.trips.findIndex(t => Number(t.id) === idNum);
+  const idx = state.trips.findIndex(t => String(t.tripId || t.id) === String(targetId) || Number(t.id) === Number(targetId));
   if (idx !== -1) {
     state.trips[idx] = recalculated;
   }
@@ -2121,13 +2052,13 @@ async function executeSaveTripEdits() {
   saveTrips();
 
   // Create point-in-time snapshot backup
-  BackupModule.onRecordMutated(`Edit Trip #${recalculated.sNo || idNum} (${recalculated.vehicleNo})`);
+  BackupModule.onRecordMutated(`Edit Trip #${recalculated.sNo || targetId} (${recalculated.vehicleNo})`);
 
   closeSlideOver();
   updateSidebarCounters();
   renderTableOnly();
 
-  showToast(`✅ Trip #${recalculated.sNo || idNum} updated successfully & synced to cloud.`);
+  showToast(`✅ Trip #${recalculated.sNo || targetId} updated successfully & synced to cloud.`);
 
   try {
     await sendCloudMutation('updateTrip', recalculated);
@@ -2428,35 +2359,39 @@ async function syncWithGoogleSheet() {
 
     if ((json.status === 'success' || json.success) && Array.isArray(json.data)) {
       if (json.data.length > 0) {
-        state.trips = json.data.map((row, idx) => calculateTrip({
-          id: idx + 1,
-          sNo: row.sNo || idx + 1,
-          tripDate: row.tripDate,
-          vehicleNo: row.vehicleNo,
-          from: row.from,
-          to: row.to,
-          freight: row.freight,
-          advanceDate: row.advanceDate,
-          advance: row.advance,
-          balance: row.balance,
-          halting: row.halting,
-          trspName: row.trspName,
-          trspCommission: row.trspCommission || 0,
-          diesel: row.diesel || 0,
-          toll: row.toll || 0,
-          loading: row.loading || 0,
-          unloading: row.unloading || 0,
-          police: row.police || 0,
-          rta: row.rta || 0,
-          other: row.other || 0,
-          driverCommission: row.driverCommission || 0,
-          status: row.status || 'New',
-          statusAmount: row.statusAmount !== undefined ? row.statusAmount : 0,
-          balanceReceivedDate: row.balanceReceivedDate || '',
-          balance: row.balance,
-          tripId: row.tripId || ('TR-' + (row.sNo || idx + 1)),
-          deleted: false
-        }));
+        state.trips = json.data.map((row, idx) => {
+          const sNoVal = row.sNo || idx + 1;
+          const localMatch = state.trips.find(lt => String(lt.sNo) === String(sNoVal) || (lt.vehicleNo && row.vehicleNo && lt.vehicleNo === row.vehicleNo && lt.tripDate === row.tripDate));
+          const persistentId = row.tripId || (localMatch ? localMatch.tripId : null) || ('TR-' + sNoVal);
+          return calculateTrip({
+            id: idx + 1,
+            sNo: sNoVal,
+            tripDate: row.tripDate,
+            vehicleNo: row.vehicleNo,
+            from: row.from,
+            to: row.to,
+            freight: row.freight,
+            advanceDate: row.advanceDate,
+            advance: row.advance,
+            balance: row.balance,
+            halting: row.halting,
+            trspName: row.trspName,
+            trspCommission: row.trspCommission || 0,
+            diesel: row.diesel || 0,
+            toll: row.toll || 0,
+            loading: row.loading || 0,
+            unloading: row.unloading || 0,
+            police: row.police || 0,
+            rta: row.rta || 0,
+            other: row.other || 0,
+            driverCommission: row.driverCommission || 0,
+            status: row.status || 'New',
+            statusAmount: row.statusAmount !== undefined ? row.statusAmount : 0,
+            balanceReceivedDate: row.balanceReceivedDate || '',
+            tripId: persistentId,
+            deleted: false
+          });
+        });
 
         saveTrips();
         renderScopeControls();
@@ -2709,34 +2644,39 @@ async function autoSyncCloud(isSilent = true) {
       const json = JSON.parse(text);
       if (json && (json.status === 'success' || json.success) && Array.isArray(json.data) && json.data.length > 0) {
         const cloudTrips = json.data;
-        const newTrips = cloudTrips.map((row, idx) => calculateTrip({
-          id: idx + 1,
-          sNo: row.sNo || idx + 1,
-          tripDate: row.tripDate,
-          vehicleNo: row.vehicleNo,
-          from: row.from,
-          to: row.to,
-          freight: row.freight,
-          advanceDate: row.advanceDate,
-          advance: row.advance,
-          balance: row.balance,
-          halting: row.halting,
-          trspName: row.trspName,
-          trspCommission: row.trspCommission || 0,
-          diesel: row.diesel || 0,
-          toll: row.toll || 0,
-          loading: row.loading || 0,
-          unloading: row.unloading || 0,
-          police: row.police || 0,
-          rta: row.rta || 0,
-          other: row.other || 0,
-          driverCommission: row.driverCommission || 0,
-          status: row.status || 'New',
-          statusAmount: row.statusAmount !== undefined ? row.statusAmount : 0,
-          balanceReceivedDate: row.balanceReceivedDate || '',
-          tripId: row.tripId || ('TR-' + (row.sNo || idx + 1)),
-          deleted: false
-        }));
+        const newTrips = cloudTrips.map((row, idx) => {
+          const sNoVal = row.sNo || idx + 1;
+          const localMatch = state.trips.find(lt => String(lt.sNo) === String(sNoVal) || (lt.vehicleNo && row.vehicleNo && lt.vehicleNo === row.vehicleNo && lt.tripDate === row.tripDate));
+          const persistentId = row.tripId || (localMatch ? localMatch.tripId : null) || ('TR-' + sNoVal);
+          return calculateTrip({
+            id: idx + 1,
+            sNo: sNoVal,
+            tripDate: row.tripDate,
+            vehicleNo: row.vehicleNo,
+            from: row.from,
+            to: row.to,
+            freight: row.freight,
+            advanceDate: row.advanceDate,
+            advance: row.advance,
+            balance: row.balance,
+            halting: row.halting,
+            trspName: row.trspName,
+            trspCommission: row.trspCommission || 0,
+            diesel: row.diesel || 0,
+            toll: row.toll || 0,
+            loading: row.loading || 0,
+            unloading: row.unloading || 0,
+            police: row.police || 0,
+            rta: row.rta || 0,
+            other: row.other || 0,
+            driverCommission: row.driverCommission || 0,
+            status: row.status || 'New',
+            statusAmount: row.statusAmount !== undefined ? row.statusAmount : 0,
+            balanceReceivedDate: row.balanceReceivedDate || '',
+            tripId: persistentId,
+            deleted: false
+          });
+        });
 
         // Non-destructive merge: preserve any local trips that are still awaiting cloud persistence
         const cloudTripIds = new Set(newTrips.map(t => String(t.tripId || t.sNo)));

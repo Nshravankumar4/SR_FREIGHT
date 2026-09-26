@@ -36,7 +36,7 @@ This guide provides the complete documentation for the live production architect
                          ▼                                   ▼
           ┌─────────────────────────────┐     ┌─────────────────────────────┐
           │     Master Google Sheet     │     │      Google Drive Cloud     │
-          │    (Trips - 24 Columns)     │     │      (Lorry_Backups Folder) │
+          │    (Trips - 25 Columns)     │     │      (Lorry_Backups Folder) │
           └─────────────────────────────┘     └─────────────────────────────┘
 ```
 

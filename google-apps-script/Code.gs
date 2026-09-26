@@ -176,9 +176,16 @@ function doPost(e) {
         var rowSNo = String(data[i][0]).trim();
         var rowVeh = String(data[i][2] || '').trim().toUpperCase();
 
-        if ((targetTripId && rowTripId === targetTripId) ||
-            (!targetTripId && targetSNo && rowSNo === targetSNo) ||
-            (!targetTripId && !targetSNo && targetVehicle && rowVeh === targetVehicle)) {
+        var isMatch = false;
+        if (targetTripId && rowTripId && rowTripId === targetTripId) {
+          isMatch = true;
+        } else if (targetSNo && rowSNo && rowSNo === targetSNo) {
+          isMatch = true;
+        } else if (targetVehicle && rowVeh && rowVeh === targetVehicle) {
+          isMatch = true;
+        }
+
+        if (isMatch) {
           sheet.deleteRow(i + 1);
           deleted = true;
           break;
@@ -243,13 +250,16 @@ function doPost(e) {
         var rowVeh = String(data[i][2] || '').trim().toUpperCase();
         var rowDate = String(data[i][1] || '').trim();
 
-        if (targetTripId && rowTripId === targetTripId) {
-          targetRow = i + 1;
-          break;
-        } else if (!targetTripId && targetSNo && rowSNo === targetSNo) {
-          targetRow = i + 1;
-          break;
-        } else if (!targetTripId && !targetSNo && targetVehicle && rowVeh === targetVehicle && rowDate === String(item.tripDate || '').trim()) {
+        var isMatch = false;
+        if (targetTripId && rowTripId && rowTripId === targetTripId) {
+          isMatch = true;
+        } else if (targetSNo && rowSNo && rowSNo === targetSNo) {
+          isMatch = true;
+        } else if (targetVehicle && rowVeh && rowVeh === targetVehicle && (!rowDate || !item.tripDate || rowDate === String(item.tripDate || '').trim())) {
+          isMatch = true;
+        }
+
+        if (isMatch) {
           targetRow = i + 1;
           break;
         }
@@ -352,8 +362,8 @@ function calculateTripRow(p, nextSNo) {
   var netPL = freight - totalExpGiven;
   var plFormatted = netPL >= 0 ? ('P +₹' + Math.abs(netPL).toLocaleString('en-IN')) : ('L -₹' + Math.abs(netPL).toLocaleString('en-IN'));
 
-  // 25. Balance = Freight - Total Exp Given
-  var expectedBalance = freight - totalExpGiven;
+  // 25. Balance = Freight - Advance
+  var expectedBalance = freight - advance;
   var balance = (p.balance !== undefined && p.balance !== null && p.balance !== '' && !isNaN(Number(p.balance)))
     ? Number(p.balance)
     : expectedBalance;
@@ -471,8 +481,12 @@ function fetchAllTrips(sheet) {
 
     var pl = r[22] ? String(r[22]).trim() : '';
     var balanceReceivedDate = formatDate(r[23]);
-    var balance = Number(r[24]) !== undefined && r[24] !== '' ? Number(r[24]) : (freight - totalExpGiven);
-    var tripId = String(r[25] || ('TR-' + sNo));
+    var balance = Number(r[24]) !== undefined && r[24] !== '' ? Number(r[24]) : (freight - advance);
+    var tripId = String(r[25] || '').trim();
+    if (!tripId) {
+      tripId = 'TR-' + (sNo || i);
+      try { sheet.getRange(i + 1, 26).setValue(tripId); } catch (e) {}
+    }
 
     var netPL = freight - totalExpGiven;
     if (!pl) {

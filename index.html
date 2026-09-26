@@ -501,8 +501,6 @@
                 <th scope="col" class="py-4 px-3.5 whitespace-nowrap font-black text-center">23. P/L</th>
                 <th scope="col" class="py-4 px-3.5 whitespace-nowrap">24. Date Balance Recd</th>
                 <th scope="col" class="py-4 px-3.5 text-right whitespace-nowrap font-black text-amber-700 bg-amber-50/50">25. Balance Amount</th>
-                <!-- Row Action (Not counted as a business column) -->
-                <th scope="col" class="py-4 px-3.5 text-center whitespace-nowrap text-gray-600 font-black bg-gray-200/50">Actions</th>
               </tr>
             </thead>
             <tbody id="trips-tbody" class="divide-y divide-gray-100 bg-white">
@@ -863,10 +861,10 @@
         Are you sure you want to edit Trip #1 (TS15UE1122)?
       </p>
       <div class="flex items-center justify-end gap-2.5 pt-2">
-        <button id="modal-edit-cancel" class="px-4 py-2 text-xs font-bold text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition cursor-pointer">
+        <button id="modal-edit-cancel" onclick="closeModal('modal-confirm-edit'); state.pendingEditTripId=null;" class="px-4 py-2 text-xs font-bold text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition cursor-pointer">
           CANCEL
         </button>
-        <button id="modal-edit-confirm" class="px-4 py-2 text-xs font-extrabold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition shadow-sm cursor-pointer">
+        <button id="modal-edit-confirm" onclick="closeModal('modal-confirm-edit'); if(state.pendingEditTripId) openEditSlideOver(state.pendingEditTripId);" class="px-4 py-2 text-xs font-extrabold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition shadow-sm cursor-pointer">
           YES, EDIT
         </button>
       </div>
@@ -889,10 +887,10 @@
         Are you sure you want to save these changes and recalculate this trip?
       </p>
       <div class="flex items-center justify-end gap-2.5 pt-2">
-        <button id="modal-save-cancel" class="px-4 py-2 text-xs font-bold text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition cursor-pointer">
+        <button id="modal-save-cancel" onclick="closeModal('modal-confirm-save')" class="px-4 py-2 text-xs font-bold text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition cursor-pointer">
           CANCEL
         </button>
-        <button id="modal-save-confirm" class="px-4 py-2 text-xs font-extrabold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition shadow-sm cursor-pointer">
+        <button id="modal-save-confirm" onclick="closeModal('modal-confirm-save'); executeSaveTripEdits();" class="px-4 py-2 text-xs font-extrabold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition shadow-sm cursor-pointer">
           SAVE & RECALCULATE
         </button>
       </div>
@@ -915,10 +913,10 @@
         Are you sure you want to save this trip?
       </p>
       <div class="flex items-center justify-end gap-2.5 pt-2">
-        <button id="modal-add-cancel" class="px-4 py-2 text-xs font-bold text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition cursor-pointer">
+        <button id="modal-add-cancel" onclick="closeModal('modal-confirm-add')" class="px-4 py-2 text-xs font-bold text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition cursor-pointer">
           CANCEL
         </button>
-        <button id="modal-add-confirm" class="px-4 py-2 text-xs font-extrabold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition shadow-sm cursor-pointer">
+        <button id="modal-add-confirm" onclick="executeSaveNewTrip()" class="px-4 py-2 text-xs font-extrabold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition shadow-sm cursor-pointer">
           SAVE TRIP
         </button>
       </div>
@@ -941,14 +939,15 @@
         Are you sure you want to delete Trip #1 (TS15UE1122)? This action cannot be undone.
       </p>
       <div class="flex items-center justify-end gap-2.5 pt-2">
-        <button id="modal-delete-cancel" class="px-4 py-2 text-xs font-bold text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition cursor-pointer">
+        <button id="modal-delete-cancel" onclick="closeModal('modal-confirm-delete'); state.pendingDeleteTripId=null;" class="px-4 py-2 text-xs font-bold text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition cursor-pointer">
           CANCEL
         </button>
-        <button id="modal-delete-confirm" class="px-4 py-2 text-xs font-extrabold text-white bg-rose-600 hover:bg-rose-700 rounded-xl transition shadow-sm cursor-pointer">
+        <button id="modal-delete-confirm" onclick="closeModal('modal-confirm-delete'); executeDeleteTrip();" class="px-4 py-2 text-xs font-extrabold text-white bg-rose-600 hover:bg-rose-700 rounded-xl transition shadow-sm cursor-pointer">
           DELETE
         </button>
       </div>
     </div>
+  </div>
   <!-- 5. Cloud Database & Backup Settings Modal (Admin Only) -->
   <div id="modal-settings" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 backdrop-blur-xs p-4 hidden">
     <div class="bg-white rounded-3xl shadow-2xl border border-gray-100 max-w-lg w-full p-6 sm:p-7 space-y-5 animate-modal">
