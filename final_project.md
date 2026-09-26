@@ -198,6 +198,10 @@ Arranged in an 8-column responsive grid across the top of the dashboard:
    - Exports native `.xlsx` binary spreadsheet.
    - Column auto-fit width calculation prevents `###` text truncation on long route fields.
    - Preserves navy header row (`#1E293B`) and exact UI status / profit colors.
+6. **Multi-User Cloud Synchronization & Point-in-Time Backup Engine (Ref: `D:\Repo\SR_T`)**:
+   - **Real-Time Cross-Device Reflection**: Whenever employee Rudra or Admin adds or edits a trip, the app pushes directly to the Google Sheet backend (`action: 'addTrip'` / `'updateTrip'`) so changes reflect across devices for Admin.
+   - **Automated Snapshot Backups (`BackupModule`)**: Every Add, Edit, or Delete automatically saves a timestamped snapshot in `localStorage` and triggers a cloud backup in Google Drive / snapshot sheet tab in Google Sheets.
+   - **Role-Enforced Deletion Security**: Rudra cannot delete trips. Only Admin is permitted to delete, and all deletions are backed up to the audit trail.
 
 ---
 

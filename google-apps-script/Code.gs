@@ -61,7 +61,7 @@ function doPost(e) {
   let responseData = {};
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
-    let sheet = ss.getSheetByName(SHEET_TRIPS) || ss.getSheets()[0];
+    let sheet = ss.getSheetByName(SHEET_TRIPS) || setupTripsSheet(ss);
     
     let payload = {};
     if (e && e.postData && e.postData.contents) {
@@ -72,8 +72,9 @@ function doPost(e) {
 
     const action = payload.action || 'addTrip';
     const userRole = String(payload.role || payload.currentRole || '').trim();
+    const currentUser = String(payload.user || payload.currentUser || 'System').trim();
 
-    // STRICT BACKEND SECURITY ENFORCEMENT: Delete Operation
+    // STRICT BACKEND SECURITY ENFORCEMENT: Delete Operation (Admin only)
     if (action === 'deleteTrip') {
       if (userRole !== 'Admin') {
         return ContentService.createTextOutput(JSON.stringify({
@@ -82,17 +83,21 @@ function doPost(e) {
         })).setMimeType(ContentService.MimeType.JSON);
       }
 
-      const targetSNo = payload.sNo || payload.id;
+      const targetSNo = String(payload.sNo || payload.id || '').trim();
       const targetVehicle = String(payload.vehicleNo || '').trim().toUpperCase();
       const data = sheet.getDataRange().getValues();
       let deleted = false;
 
       for (let i = 1; i < data.length; i++) {
-        if (String(data[i][0]) === String(targetSNo) || (targetVehicle && String(data[i][2]).toUpperCase() === targetVehicle)) {
+        if (String(data[i][0]).trim() === targetSNo || (targetVehicle && String(data[i][2]).trim().toUpperCase() === targetVehicle)) {
           sheet.deleteRow(i + 1);
           deleted = true;
           break;
         }
+      }
+
+      if (deleted) {
+        createCloudBackup(ss, 'Delete_Trip_' + targetSNo + '_by_' + currentUser);
       }
 
       return ContentService.createTextOutput(JSON.stringify({
@@ -101,7 +106,7 @@ function doPost(e) {
       })).setMimeType(ContentService.MimeType.JSON);
     }
 
-    // STRICT BACKEND SECURITY ENFORCEMENT: Settings Access
+    // STRICT BACKEND SECURITY ENFORCEMENT: Settings Access (Admin only)
     if (action === 'updateSettings' || action === 'settings') {
       if (userRole !== 'Admin') {
         return ContentService.createTextOutput(JSON.stringify({
@@ -115,9 +120,81 @@ function doPost(e) {
       })).setMimeType(ContentService.MimeType.JSON);
     }
 
+    // UPDATE / EDIT TRIP HANDLER
+    if (action === 'updateTrip' || action === 'editTrip') {
+      const item = payload.data || payload;
+      const targetSNo = String(item.sNo || item.id || '').trim();
+      const targetVehicle = String(item.vehicleNo || '').trim().toUpperCase();
+      const data = sheet.getDataRange().getValues();
+      let targetRow = -1;
+
+      for (let i = 1; i < data.length; i++) {
+        if (String(data[i][0]).trim() === targetSNo || 
+           (targetVehicle && String(data[i][2]).trim().toUpperCase() === targetVehicle && String(data[i][1]).trim() === String(item.tripDate || '').trim())) {
+          targetRow = i + 1;
+          break;
+        }
+      }
+
+      const calculated = calculateTripRow(item, targetSNo || (targetRow > 0 ? targetRow - 1 : sheet.getLastRow()));
+
+      if (targetRow > 0) {
+        sheet.getRange(targetRow, 1, 1, 24).setValues([[
+          calculated.sNo,
+          calculated.tripDate,
+          calculated.vehicleNo,
+          calculated.from,
+          calculated.to,
+          calculated.freight,
+          calculated.advanceDate,
+          calculated.advance,
+          calculated.balance,
+          calculated.halting,
+          calculated.trspName,
+          calculated.trspCommission,
+          calculated.diesel,
+          calculated.toll,
+          calculated.loading,
+          calculated.unloading,
+          calculated.police,
+          calculated.rta,
+          calculated.other,
+          calculated.driverCommission,
+          calculated.statusAmount,
+          calculated.status,
+          calculated.pl,
+          calculated.route
+        ]]);
+        createCloudBackup(ss, 'Edit_Trip_' + calculated.sNo + '_by_' + currentUser);
+        return ContentService.createTextOutput(JSON.stringify({
+          success: true,
+          status: 'success',
+          message: 'Trip #' + calculated.sNo + ' updated successfully in Google Sheet'
+        })).setMimeType(ContentService.MimeType.JSON);
+      } else {
+        appendTripToMaster(sheet, calculated);
+        createCloudBackup(ss, 'Add_Trip_' + calculated.sNo + '_by_' + currentUser);
+        return ContentService.createTextOutput(JSON.stringify({
+          success: true,
+          status: 'success',
+          message: 'Trip appended to Google Sheet'
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+    }
+
+    // CREATE CLOUD BACKUP
+    if (action === 'createBackup') {
+      const bRes = createCloudBackup(ss, payload.reason || 'Manual');
+      return ContentService.createTextOutput(JSON.stringify(bRes))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // ADD TRIP HANDLER
+    const item = payload.data || payload;
     const nextSNo = sheet.getLastRow();
-    const newTrip = calculateTripRow(payload, nextSNo);
+    const newTrip = calculateTripRow(item, nextSNo);
     appendTripToMaster(sheet, newTrip);
+    createCloudBackup(ss, 'Add_Trip_' + newTrip.sNo + '_by_' + currentUser);
 
     responseData = { status: 'success', message: 'Trip added successfully', data: newTrip };
   } catch (err) {
@@ -361,4 +438,38 @@ function formatDate(val) {
     return `${y}-${m}-${d}`;
   }
   return String(val).trim();
+}
+
+// Automatic Cloud Backup System (Mirroring D:\Repo\SR_T reference)
+function createCloudBackup(ss, reason) {
+  try {
+    const now = new Date();
+    const pad = function(n) { return (n < 10 ? '0' : '') + n; };
+    const timeStr = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate()) + '_' +
+                  pad(now.getHours()) + '-' + pad(now.getMinutes()) + '-' + pad(now.getSeconds());
+    const cleanReason = reason ? String(reason).replace(/[^a-zA-Z0-9_-]/g, '_') : 'Auto';
+    const backupName = 'Lorry_Backup_' + timeStr + '_' + cleanReason;
+
+    try {
+      const folders = DriveApp.getFoldersByName('Lorry_Backups');
+      const folder = folders.hasNext() ? folders.next() : DriveApp.createFolder('Lorry_Backups');
+      const file = DriveApp.getFileById(ss.getId());
+      file.makeCopy(backupName, folder);
+      return { success: true, backupName: backupName, timestamp: timeStr };
+    } catch (driveErr) {
+      // Fallback: snapshot sheet tab inside the spreadsheet
+      let tabName = 'SNAP_' + timeStr.substring(5, 16).replace(/[^a-zA-Z0-9]/g, '_');
+      if (tabName.length > 28) tabName = tabName.substring(0, 28);
+      const snapSheet = ss.insertSheet(tabName);
+      snapSheet.appendRow(['Backup Timestamp', now.toISOString(), 'Reason', reason]);
+      const data = (ss.getSheetByName(SHEET_TRIPS) || ss.getSheets()[0]).getDataRange().getValues();
+      if (data.length > 0) {
+        snapSheet.getRange(2, 1, data.length, data[0].length).setValues(data);
+      }
+      return { success: true, backupName: tabName, inSheet: true, timestamp: timeStr };
+    }
+  } catch (err) {
+    Logger.log('Cloud backup error: ' + err.toString());
+    return { success: false, error: err.toString() };
+  }
 }

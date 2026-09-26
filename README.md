@@ -19,7 +19,13 @@ A clean, modern, executive SaaS application for Lorry Freight Operations, Broker
      - **Backend Layer (`Code.gs`)**: Google Apps Script rejects any `deleteTrip` or `updateSettings` POST requests from non-Admin roles with `{ "success": false, "error": "Delete permission denied" }`.
    - Top header displays logged-in user and role badge (`👤 Admin (Admin)` or `👤 Rudra (User)`), with a secure `[ Logout ]` button.
 
-2. **Top Operational Control Bar:**
+2. **Cloud Database Sync & Automatic Backup Engine (Ref: `D:\Repo\SR_T`):**
+   - **Multi-User Cloud Sync**: Whenever employee **Rudra** or **Admin** adds or edits a trip, it updates local state AND immediately sends an API request (`addTrip` / `updateTrip`) to Google Sheets (`Code.gs`).
+   - **Instant Reflection**: When Admin logs in from another device or refreshes, the app automatically syncs the latest cloud database records from Google Sheets.
+   - **Automated Point-in-Time Backups (`BackupModule`)**: Every single Add, Edit, or Delete automatically saves a timestamped snapshot in `localStorage` (up to 25 snapshots) and triggers a cloud backup in Google Drive / snapshot tab in Google Sheets.
+   - **Admin Security**: Rudra's deletion attempts are prevented on the UI and blocked on the backend. Only Admin can delete records, and every deletion creates an audit backup.
+
+3. **Top Operational Control Bar:**
    - **View Trips Time Scope:** `[ TODAY ]`, `[ SELECTED DATE ]`, `[ DATE RANGE ]`, `[ ENTIRE MONTH ]`, and `[ ALL TRIPS ]` arranged across the top with responsive date pickers and month selector.
    - **Real-time Search:** Search across Vehicle No, Route, Origin/Destination, Broker, and S.No.
    - **Excel Export (.xlsx):** Powered by `ExcelJS` to export true spreadsheets with auto-fit column widths and UI badge colors.

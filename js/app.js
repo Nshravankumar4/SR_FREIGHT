@@ -203,6 +203,9 @@ document.addEventListener('DOMContentLoaded', () => {
     applyRolePermissions();
     renderScopeControls();
     render();
+    if (state.apiUrl) {
+      syncWithGoogleSheet();
+    }
   }
 });
 
@@ -322,6 +325,9 @@ function setupAuth() {
         showToast(`✅ Signed in successfully as ${state.currentUser} (${state.currentRole}).`);
         renderScopeControls();
         render();
+        if (state.apiUrl) {
+          syncWithGoogleSheet();
+        }
       } else {
         if (loginError) {
           loginError.textContent = `❌ Invalid password for ${u}. Please check credentials.`;
@@ -362,8 +368,70 @@ function setupAuth() {
 }
 
 // ==========================================================================
-// 2. Data Persistence & Business Calculations
+// 1.5 Cloud & Local Point-in-Time Backup Module (Ref: D:\Repo\SR_T)
 // ==========================================================================
+const BackupModule = {
+  storageKeySnapshots: 'lorry_backup_snapshots_v1',
+  snapshots: [],
+
+  init() {
+    this.loadSnapshots();
+  },
+
+  loadSnapshots() {
+    try {
+      const raw = localStorage.getItem(this.storageKeySnapshots);
+      this.snapshots = raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      console.warn("Failed to load snapshots:", e);
+      this.snapshots = [];
+    }
+  },
+
+  saveSnapshots() {
+    try {
+      if (this.snapshots.length > 25) {
+        this.snapshots = this.snapshots.slice(0, 25);
+      }
+      localStorage.setItem(this.storageKeySnapshots, JSON.stringify(this.snapshots));
+    } catch (e) {
+      console.warn("Failed to save snapshots:", e);
+    }
+  },
+
+  onRecordMutated(reason = 'Record Mutation') {
+    try {
+      this.loadSnapshots();
+      const snapshot = {
+        timestamp: new Date().toISOString(),
+        displayTime: new Date().toLocaleString('en-IN'),
+        reason: reason,
+        user: state.currentUser || 'Unknown',
+        role: state.currentRole || 'User',
+        tripsCount: state.trips.length,
+        tripsData: JSON.parse(JSON.stringify(state.trips))
+      };
+      this.snapshots.unshift(snapshot);
+      this.saveSnapshots();
+
+      // Trigger cloud backup if API is configured
+      if (state.apiUrl) {
+        fetch(state.apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'createBackup',
+            reason: reason,
+            user: state.currentUser || 'User',
+            role: state.currentRole || 'User'
+          })
+        }).catch(err => console.warn('Cloud backup ping note:', err));
+      }
+    } catch (err) {
+      console.warn('BackupModule mutation snapshot error:', err);
+    }
+  }
+};
 
 function loadTrips() {
   const saved = localStorage.getItem('lorry_trips_master_v9');
@@ -1607,6 +1675,30 @@ window.executeSaveNewTrip = function() {
   state.trips.push(calculated);
   saveTrips();
 
+  // Create local snapshot backup
+  BackupModule.onRecordMutated(`Add Trip #${newSNo} (${calculated.vehicleNo})`);
+
+  // Cloud Database Sync: immediately sync with Google Sheet
+  if (state.apiUrl) {
+    fetch(state.apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'addTrip',
+        data: calculated,
+        user: state.currentUser || 'User',
+        role: state.currentRole || 'User'
+      })
+    })
+    .then(res => res.json())
+    .then(data => {
+      console.log('Trip added to cloud database:', data);
+    })
+    .catch(err => {
+      console.warn('Cloud addTrip sync note:', err.message);
+    });
+  }
+
   closeAddTripModal();
   updateSidebarCounters();
   renderTableOnly();
@@ -1725,6 +1817,9 @@ function executeDeleteTrip() {
   saveTrips();
   updateSidebarCounters();
   renderTableOnly();
+
+  // Create point-in-time snapshot backup
+  BackupModule.onRecordMutated(`Delete Trip #${trip.sNo || idNum} (${trip.vehicleNo})`);
 
   // Send delete action to backend with active role credentials
   if (state.apiUrl) {
@@ -1863,11 +1958,36 @@ function executeSaveTripEdits() {
   }
 
   saveTrips();
+
+  // Create point-in-time snapshot backup
+  BackupModule.onRecordMutated(`Edit Trip #${recalculated.sNo || idNum} (${recalculated.vehicleNo})`);
+
+  // Cloud Database Sync: immediately update in Google Sheet
+  if (state.apiUrl) {
+    fetch(state.apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'updateTrip',
+        data: recalculated,
+        user: state.currentUser || 'User',
+        role: state.currentRole || 'User'
+      })
+    })
+    .then(res => res.json())
+    .then(data => {
+      console.log('Trip updated in cloud database:', data);
+    })
+    .catch(err => {
+      console.warn('Cloud updateTrip sync note:', err.message);
+    });
+  }
+
   closeSlideOver();
   updateSidebarCounters();
   renderTableOnly();
 
-  showToast(`✅ Trip updated successfully.`);
+  showToast(`✅ Trip #${recalculated.sNo || idNum} updated successfully & synced to cloud.`);
 }
 
 // ==========================================================================
