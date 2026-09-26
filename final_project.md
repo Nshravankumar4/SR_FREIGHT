@@ -1,82 +1,117 @@
-# SR_T Lorry Freight & Broker Management System — Final Master Reference
+# SR_T Lorry Freight & Broker Management System — Master Technical & User Reference
 
 ---
 
-## 1. System Overview & Architecture
+## 1. System Overview & Core Architecture
 
-The **SR_T Lorry Freight & Broker Management System** is a business-focused logistics management single-page application (SPA). It provides freight tracking, en-route expense accounting, driver trip commissions, payment reconciliation, balance auditing, and true `.xlsx` reporting.
+The **SR_T Lorry Freight & Broker Management System** is an enterprise-grade Single-Page Application (SPA) designed specifically for fleet logistics operations, broker reconciliation, driver trip commissions, and financial profitability auditing.
 
 ### Operational Data Flow Pipeline
 ```
-┌─────────────────────────┐
-│       Google Form       │ (Field dispatch / driver entry)
-└───────────┬─────────────┘
-            ▼
-┌─────────────────────────┐
-│ Google Form Responses 1 │ (Raw spreadsheet log)
-└───────────┬─────────────┘
-            ▼
-┌─────────────────────────┐
-│ Google Apps Script      │ (Code.gs Web App / doGet & doPost)
-└───────────┬─────────────┘
-            ▼
-┌─────────────────────────┐
-│   Trips Google Sheet    │ (Master database of 24 business columns)
-└───────────┬─────────────┘
-            ▼
-┌─────────────────────────┐
-│   Web Dashboard (SPA)   │ (index.html + Tailwind CSS + js/app.js + ExcelJS)
-└─────────────────────────┘
+┌─────────────────────────────────┐
+│           Google Form           │ (Field dispatch / driver entry)
+└────────────────┬────────────────┘
+                 ▼
+┌─────────────────────────────────┐
+│     Google Form Responses 1     │ (Raw spreadsheet log)
+└────────────────┬────────────────┘
+                 ▼
+┌─────────────────────────────────┐
+│       Google Apps Script        │ (Code.gs Web App / doGet & doPost)
+└────────────────┬────────────────┘
+                 ▼
+┌─────────────────────────────────┐
+│       Trips Google Sheet        │ (Master database of 24 business columns)
+└────────────────┬────────────────┘
+                 ▼
+┌─────────────────────────────────┐
+│       Web Dashboard (SPA)       │ (index.html + Tailwind CSS + js/app.js + ExcelJS)
+└─────────────────────────────────┘
 ```
 
-- **Frontend Tech Stack**: Vanilla HTML5, Tailwind CSS (via CDN), Vanilla ES6+ JavaScript, and `ExcelJS` for true spreadsheet generation.
+- **Frontend Tech Stack**: Vanilla HTML5, Tailwind CSS, Vanilla ES6+ JavaScript, and `ExcelJS` library (for styled native `.xlsx` exports).
 - **Backend Tech Stack**: Google Apps Script (`Code.gs`) deployed as a Web App reading and writing to Google Sheets.
-- **Design Philosophy**: Fast loading, zero build-step overhead, responsive layout, clear business metrics, and high audit visibility.
+- **Form Factor Compatibility**: 100% responsive for Windows Chrome, Microsoft Edge, mobile browsers (Android / iOS), and tablets.
 
 ---
 
-## 2. Master Business Columns (Exact 24 Columns)
+## 2. Top-to-Bottom Dashboard Structure
 
-The table below describes the 24 standard business columns maintained across Google Forms, Google Sheets, the Web UI, and Excel Exports:
+The layout is arranged in a full-width **Top-to-Bottom** flow:
 
-| # | Column Name | Data Type | Example Value | Description & Formula |
+```
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│ TOP EXECUTIVE HEADER: Brand Logo, Sync, + ADD TRIP, DOWNLOAD EXCEL (.XLSX), Logout      │
+├────────────────────────────────────────────────────────────────────────────────────────┤
+│ SECTION 1 (TOP FULL WIDTH): VIEW TRIPS (Operational Time Scope)                        │
+│ [📌 TODAY]  [🗓️ SELECTED DATE]  [↔️ DATE RANGE]  [📆 ENTIRE MONTH]  [📋 ALL TRIPS]       │
+│ Dynamic Inputs: Date Pickers, Date Range, or Month Selector with instant filter       │
+├────────────────────────────────────────────────────────────────────────────────────────┤
+│ SECTION 2 (TOP FULL WIDTH): STATUS & AUDIT FILTERS (8 Big Vibrant Filter Cards)        │
+│ 📋 ALL TRIPS       (Slate)       |  🆕 NEW DISPATCH    (Indigo)                         │
+│ 🟢 PROFIT TRIPS    (Emerald)     |  🔴 LOSS TRIPS      (Rose)                           │
+│ 🟠 PENDING BALANCE (Amber)       |  🟡 PARTIALLY PAID  (Orange)                         │
+│ ✔️ PAID & SETTLED  (Teal)        |  ⚠️ BALANCE MISMATCH (Crimson Alert)                 │
+├────────────────────────────────────────────────────────────────────────────────────────┤
+│ SECTION 3: TRIPS RECONCILIATION & MASTER DATA TABLE (FULL 100% WIDTH)                  │
+│ Search Bar | Active Scope Badge | Total Matching Trips Counter                         │
+│ ────────────────────────────────────────────────────────────────────────────────────── │
+│ [👁️ Details] [1. S.No] [2. Trip Date] [3. Vehicle No] ... [24. Route] [Actions]      │
+├────────────────────────────────────────────────────────────────────────────────────────┤
+│ SECTION 4: TRIP DETAILS & AUDIT BREAKDOWN PANEL (LOCATED DOWN BELOW THE SHEET)         │
+│ Rendered when user clicks '👁️ View' on any trip row in the table above:                 │
+│ • Header: Trip #, Vehicle Badge, Route, Status, Quick Edit, Close Details             │
+│ • 4 High-Impact Metric Cards: Freight, Advance Date/Amt, Balance/Mismatch, Net P/L    │
+│ • 9-Expense Itemized Ledger Grid (TRSP Comm, Diesel, Toll, Loading, Unloading, etc.)   │
+│ • Operational Notes: Halting / Detention details, TRSP Broker Agency Name              │
+└────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 3. Master Business Columns (Exact 24 Columns + Navigation)
+
+The master table contains **exactly 24 standard business columns**, preceded by a dedicated **`👁️ Details`** column on the left and followed by an **Actions** column on the right:
+
+| Column # | Header Name | Data Type | Formula / Source | Example Value |
 |---|---|---|---|---|
-| **1** | `S.No.` | Number | `1` | Sequential trip index (sorted ascending: 1, 2, 3...) |
-| **2** | `Trip Date` | Date (DD-MM-YYYY) | `28-08-2026` | Date of dispatch |
-| **3** | `Vehicle No` | String | `TS15UE1122` | Truck registration number |
-| **4** | `From` | String | `Hyderabad, Telangana` | Origin point |
-| **5** | `To` | String | `Purnia, Bihar` | Destination point |
-| **6** | `Freight Amount` | Currency (₹) | `₹1,00,000` | Agreed contract freight revenue |
-| **7** | `Advance Date` | Date (DD-MM-YYYY) | `28-08-2026` | Date advance payment was received |
-| **8** | `Advance Amount` | Currency (₹) | `₹90,000` | Upfront cash/transfer received |
-| **9** | `Balance Amount` | Currency (₹) | `₹10,000` | **Auto-calculated:** `Freight Amount - Advance Amount` |
-| **10** | `Halting Details` | Text | `Two days halting during transit` | Delays, detention, or demurrage notes |
-| **11** | `TRSP Name` | String | `MRC Logistics` | Transport agency / broker name |
-| **12** | `TRSP Commission` | Currency (₹) | `₹2,000` | Broker commission fee paid |
-| **13** | `Diesel` | Currency (₹) | `₹50,000` | Fuel expenditure en route |
-| **14** | `Toll Charges` | Currency (₹) | `₹10,000` | FASTag and manual toll fees |
-| **15** | `Loading Charges` | Currency (₹) | `₹2,500` | Labour and loading charges at origin |
-| **16** | `Unloading Charges` | Currency (₹) | `₹2,500` | Unloading labour charges at destination |
-| **17** | `Police Exp` | Currency (₹) | `₹1,000` | En-route checkpoint charges |
-| **18** | `RTA C/P` | Currency (₹) | `₹1,000` | Regional Transport Authority / Checkpost charges |
-| **19** | `Other Expenses` | Currency (₹) | `₹1,000` | Miscellaneous maintenance, tyre repairs, food |
-| **20** | `Driver Trip Commission` | Currency (₹) | `₹12,000` | Payment / commission paid to driver |
-| **21** | `Status Amount` | Currency (₹) | `₹10,000` | Remaining balance to collect / settled amount |
-| **22** | `Status` | Enum | `Pending`, `Done`, `Partial`, `New` | Current collection status |
-| **23** | `P/L` | Currency Badge | `P +₹18,000` or `L -₹56,685` | **Auto-calculated:** `Freight - Total Expenses` |
-| **24** | `Route` | String | `Hyderabad, Telangana ➔ Purnia, Bihar` | Concatenated origin and destination |
-
-> **Note on Actions Column**: An auxiliary **Actions** column (`✏️ Edit`, `🗑️ Delete`) is provided in the Web UI for managing records without altering the 24 business data columns.
+| **NAV** | `👁️ Details` | Action Button | Opens complete report down below | `👁️ View` |
+| **1** | `S.No.` | Number | Sequential Trip Index (1, 2, 3...) | `1` |
+| **2** | `Trip Date` | Date (DD-MM-YYYY) | Dispatch date | `28-08-2026` |
+| **3** | `Vehicle No` | String | Vehicle registration number | `TS15UE1122` |
+| **4** | `From` | String | Origin location | `Hyderabad, Telangana` |
+| **5** | `To` | String | Destination location | `Purnia, Bihar` |
+| **6** | `Freight Amount` | Currency (₹) | Total agreed contract revenue | `₹1,00,000` |
+| **7** | `Advance Date` | Date (DD-MM-YYYY) | Date advance was credited | `28-08-2026` |
+| **8** | `Advance Amount` | Currency (₹) | Advance payment received | `₹90,000` |
+| **9** | `Balance Amount` | Currency (₹) | **Auto:** `Freight Amount - Advance Amount` | `₹10,000` |
+| **10** | `Halting Details` | Text | Halting, demurrage, or transit delay notes | `2 days halting` |
+| **11** | `TRSP Name` | String | Transport broker or agency name | `MRC Logistics` |
+| **12** | `TRSP Commission` | Currency (₹) | Broker commission fee | `₹2,000` |
+| **13** | `Diesel` | Currency (₹) | Fuel expenses en route | `₹50,000` |
+| **14** | `Toll Charges` | Currency (₹) | FASTag & toll booth charges | `₹10,000` |
+| **15** | `Loading Charges` | Currency (₹) | Origin loading labour fees | `₹2,500` |
+| **16** | `Unloading Charges` | Currency (₹) | Destination unloading labour fees | `₹2,500` |
+| **17** | `Police Exp` | Currency (₹) | En-route checkpoint charges | `₹1,000` |
+| **18** | `RTA C/P` | Currency (₹) | Transport authority checkpost charges | `₹1,000` |
+| **19** | `Other Expenses` | Currency (₹) | Miscellaneous en-route expenses | `₹1,000` |
+| **20** | `Driver Trip Commission` | Currency (₹) | Commission or trip wages paid to driver | `₹12,000` |
+| **21** | `Status Amount` | Currency (₹) | Outstanding balance to collect / settled amt | `₹10,000` |
+| **22** | `Status` | Enum | `New`, `Pending`, `Partially Paid`, `Paid` | `🟠 Pending` |
+| **23** | `P/L` | Badge | **Auto:** `Freight - Total Expenses` | `P +₹18,000` |
+| **24** | `Route` | String | Origin ➔ Destination concatenated | `Hyderabad ➔ Purnia` |
+| **ACT** | `Actions` | Action Group | Auxiliary management (`✏️ Edit`, `🗑️ Delete`) | `✏️ Edit` / `🗑️ Delete` |
 
 ---
 
-## 3. Financial & Accounting Calculation Logic
+## 4. Financial Calculations & Audit Engine
 
-### 1. Balance Amount
+### 1. Balance Amount Calculation
 $$\text{Balance Amount} = \text{Freight Amount} - \text{Advance Amount}$$
 
-### 2. Total En-Route Expenses
-$$\text{Total Expenses} = \sum (\text{TRSP Commission} + \text{Diesel} + \text{Toll} + \text{Loading} + \text{Unloading} + \text{Police} + \text{RTA C/P} + \text{Other} + \text{Driver Commission})$$
+### 2. Total En-Route Expenses Sum
+$$\text{Total Expenses} = \sum_{i=1}^{9} \text{Expense}_i$$
+Includes: `TRSP Commission` + `Diesel` + `Toll Charges` + `Loading Charges` + `Unloading Charges` + `Police Exp` + `RTA C/P` + `Other Expenses` + `Driver Trip Commission`.
 
 ### 3. Net Profit / Loss (P/L)
 $$\text{Net P/L} = \text{Freight Amount} - \text{Total Expenses}$$
@@ -84,139 +119,89 @@ $$\text{Net P/L} = \text{Freight Amount} - \text{Total Expenses}$$
 - If $\text{Net P/L} < 0$: Displayed as `L -₹<Amount>` in bold rose red (`bg-rose-50 text-rose-800 border-rose-300`).
 
 ### 4. Automated Balance Mismatch Detection
-To prevent spreadsheet entry human error, the system continuously audits every record:
+Audits whether the recorded balance matches the mathematical difference:
 $$\text{Is Mismatched} = \big| \text{Balance Amount} - (\text{Freight Amount} - \text{Advance Amount}) \big| > 0.01$$
-- When mismatched, the UI highlights the balance cell with a `⚠️ Mismatch` warning badge.
-- The sidebar dynamically updates the **⚠️ BALANCE MISMATCH** counter, allowing fleet managers to filter and reconcile faulty entries with a single click.
+- When mismatched, the table balance cell displays a `⚠️ Mismatch` alert pill.
+- The sidebar counter for **⚠️ BALANCE MISMATCH** automatically increments, allowing one-click filtering for audit reconciliation.
 
 ---
 
-## 4. UI Dashboard Architecture (Two-Column Layout)
+## 5. Dedicated "View Details" Feature & Down-Sheet Panel
 
-The dashboard layout is split into two primary areas on desktop displays (`lg:grid-cols-12`):
-
-```
-┌──────────────────────────────────────┬────────────────────────────────────────────────────────┐
-│ LEFT SIDEBAR (col-span-4 / col-span-3) │ RIGHT MAIN PANEL (col-span-8 / col-span-9)             │
-├──────────────────────────────────────┼────────────────────────────────────────────────────────┤
-│ 1. TIME SCOPE SELECTOR (VIEW TRIPS)  │ 1. Real-time Search Input                              │
-│    - Today                           │ 2. Active Scope & Filter Badges                        │
-│    - Selected Date (Calendar Picker) │ 3. Filter Result Counts                                │
-│    - Date Range (From - To)          │ 4. Master 24-Column Scrollable Table                   │
-│    - Entire Month (YYYY-MM)          │    - Sticky table header                               │
-│    - All Trips                       │    - Dynamic status pills                              │
-│                                      │    - Formatted Indian Rupee currency (₹)               │
-│ 2. 8 BIG ACTION/AUDIT BUTTONS        │    - Two-step Edit and Delete buttons                  │
-│    - 📋 ALL TRIPS                    │                                                        │
-│    - 🆕 NEW                          │                                                        │
-│    - 🟢 PROFIT TRIPS                 │                                                        │
-│    - 🔴 LOSS TRIPS                   │                                                        │
-│    - 🟠 PENDING                      │                                                        │
-│    - 🟡 PARTIALLY PAID               │                                                        │
-│    - 🟢 PAID & SETTLED               │                                                        │
-│    - ⚠️ BALANCE MISMATCH             │                                                        │
-└──────────────────────────────────────┴────────────────────────────────────────────────────────┘
-```
-
-### Why this design?
-1. **No Cluttered Top Banners**: All redundant summary metric cards (`TOTAL FREIGHT`, `TOTAL ADVANCE`, `TOTAL BALANCE`, etc.) and the outstanding balance banner have been removed.
-2. **Instant Operational Focus**: Clicking any big filter button instantly isolates trips needing attention (e.g. all `Pending` balances or all `Balance Mismatches`).
-3. **Responsive Stacking**: On mobile or tablet devices, the sidebar smoothly stacks above the main data table.
+### How it Works:
+1. In the master table, each row has a prominent **`👁️ View`** button located on the far left (before `1. S.No`).
+2. When the user clicks **`👁️ View`**:
+   - The selected table row is highlighted with a clear blue selection ring (`ring-2 ring-blue-500 bg-blue-100/70`).
+   - The application automatically scrolls smoothly down to the **Trip Details & Audit Breakdown Panel** (`#trip-details-panel`) below the sheet.
+3. **What is displayed in the Down-Sheet Details Panel**:
+   - **Header Bar**: Trip ID index (`#1`), Vehicle Registration Number, Origin ➔ Destination, Current Status badge, a shortcut `✏️ Edit This Trip` button, and a `✕ Close` button.
+   - **Discrepancy Banner**: If a balance mismatch exists, a prominent red alert card specifies both the recorded balance and expected balance.
+   - **4 High-Impact Metric Cards**:
+     1. `Freight Amount` with Trip Date.
+     2. `Advance Amount` with Advance Date.
+     3. `Balance Amount` with Status Amount.
+     4. `Net Profit / Loss` with Profit Margin percentage.
+   - **9-Expense Itemized Ledger**: A clean 3-column breakdown displaying every expense category with exact figures, followed by the total operational cost.
+   - **Operational Logistics Notes**: Full text of Halting & Demurrage notes and Transport Broker Agency details.
 
 ---
 
-## 5. Key Workflows & Features
+## 6. Big Vibrant Status & Audit Filter Cards
 
-### 1. Authentication
-- Session-based access control protecting fleet financial data.
-- Built-in credentials:
-  - **Username**: `admin`
-  - **Password**: `srt@123`
-- Session persistence via browser `sessionStorage`.
+Arranged in an 8-column responsive grid across the top of the dashboard:
 
-### 2. Adding a Trip (`+ ADD TRIP`)
-1. Click the **+ ADD TRIP** button in the top header.
-2. Fill in the modal inputs (Vehicle No, Dates, From, To, Freight, Advance, Expenses).
-3. The modal provides real-time preview calculation of **Balance**, **Total Expenses**, and **Net Profit/Loss**.
-4. Status defaults to `New` (or choose `Pending`, `Done`, `Partial`).
-5. Upon saving:
-   - Trip is appended with an incremented S.No.
-   - Trips are sorted **chronologically by S.No ascending (1, 2, 3, 4, 5...)** so new records appear in sequence without jumping to the top unexpectedly.
-   - Instant toast notification confirms creation.
-
-### 3. Two-Step Safe Editing (`✏️ Edit`)
-1. Click **✏️ Edit** on any trip row to open the editing slide-over drawer.
-2. Modify any field; changes automatically recalculate the live P/L preview.
-3. Clicking **Save & Recalculate** displays a **confirmation modal** asking:
-   > *"Are you sure you want to save changes to Trip #X (Vehicle)?"*
-4. Confirming saves the record and presents a success message.
-
-### 4. Safe Deletion Workflow (`🗑️ Delete`)
-1. Click **🗑️ Delete** on any trip row.
-2. A security modal prompts:
-   > *"Are you sure you want to delete Trip #X (Vehicle)? This action cannot be undone."*
-3. Once confirmed, the trip is removed from the dataset, filters recalculate, and a success confirmation appears.
-
-### 5. True Excel Export (`.xlsx` with ExcelJS)
-- Replaces outdated `.csv` downloads which caused `###` overflow errors on long route descriptions and lost all styling.
-- Features:
-  - Generates a native binary `.xlsx` workbook.
-  - Formatted navy blue header row (`#1E293B`) with white bold text.
-  - Auto-calculated column widths preventing text truncation.
-  - Preserves exact UI color fills for status tags (`Done`, `Pending`, `Partial`, `New`) and Net Profit/Loss cells.
-  - Formats financial amounts as standard currency.
-
-### 6. Google Apps Script Backend Integration
-The project includes a ready-to-deploy Google Apps Script in `google-apps-script/Code.gs`:
-- `doGet(e)`: Serves the current trips dataset in JSON format.
-- `doPost(e)`: Accepts actions (`addTrip`, `updateTrip`, `deleteTrip`, `syncBatch`) to write directly to the **Trips** sheet.
+| Button | Key Theme | Description | Live Badge Behavior |
+|---|---|---|---|
+| **📋 ALL TRIPS** | Slate / Dark | Shows all trips in the active time scope | Displays total trip count in active scope |
+| **🆕 NEW DISPATCH** | Indigo | Newly entered trips awaiting processing | Tallies trips with status = `New` |
+| **🟢 PROFIT TRIPS** | Emerald | Trips yielding positive returns ($\text{Net P/L} \ge 0$) | Tallies profitable trips |
+| **🔴 LOSS TRIPS** | Rose | Trips where expenses exceeded revenue ($\text{Net P/L} < 0$) | Tallies loss-making trips |
+| **🟠 PENDING BALANCE** | Amber | Trips with outstanding freight balance | Tallies trips with status = `Pending` |
+| **🟡 PARTIALLY PAID** | Orange | Trips where partial balance was received | Tallies trips with status = `Partially Paid` |
+| **✔️ PAID & SETTLED** | Teal | Trips fully reconciled and closed | Tallies trips with status = `Paid` |
+| **⚠️ BALANCE MISMATCH** | Crimson Alert | Discrepancies where $\text{Freight} - \text{Advance} \ne \text{Balance}$ | Tallies audited mismatch records |
 
 ---
 
-## 6. How to Run & Deploy
+## 7. Interactive Modals & Safety Controls
 
-### Running Locally
-To test the web application on your local machine using Python's built-in HTTP server:
+1. **Authentication Guard**:
+   - Session-based login protecting business financial data (`admin` / `admin`).
+   - Session state preserved in browser `localStorage`.
+2. **`+ ADD TRIP` Modal**:
+   - Live recalculation preview for Balance, Total Expenses, and Net P/L as inputs are typed.
+   - Defaults to `New` status.
+   - Newly added trips are appended in ascending sequential chronological order (`S.No` 1, 2, 3, 4, 5...).
+3. **Two-Step Safe Editing (`✏️ Edit`)**:
+   - Click Edit ➔ Slide-over opens ➔ Edit values with live calculation ➔ Click **Save & Recalculate** ➔ Confirmation modal prompts: *"Are you sure you want to save changes to Trip #X?"* ➔ Confirm ➔ Toast success notification.
+4. **Two-Step Safe Deletion (`🗑️ Delete`)**:
+   - Click Delete ➔ Prompt modal asks for confirmation ➔ Confirm ➔ Soft-deleted from active view ➔ Toast success notification.
+5. **True Styled Excel Export (`ExcelJS`)**:
+   - Exports native `.xlsx` binary spreadsheet.
+   - Column auto-fit width calculation prevents `###` text truncation on long route fields.
+   - Preserves navy header row (`#1E293B`) and exact UI status / profit colors.
+
+---
+
+## 8. Quick Start & Deployment Guide
+
+### Running Locally on Windows
 ```powershell
-# Navigate to the project directory
+# Navigate to project directory
 cd d:\Repo\Lorry
 
 # Start local server on port 8000
 py -m http.server 8000
 ```
-Open your browser at:
-```
-http://localhost:8000
-```
+Open `http://localhost:8000` in Google Chrome or Microsoft Edge.
 
 ### Deploying the Google Apps Script Backend
-1. Open your master Google Sheet (containing `Trips` sheet and `Form Responses 1`).
-2. Go to **Extensions** ➔ **Apps Script**.
-3. Copy the contents of `google-apps-script/Code.gs` into the script editor.
-4. Click **Deploy** ➔ **New deployment**.
-5. Select type: **Web app**.
-6. Set:
+1. Open your master Google Sheet (containing `Trips` and `Form Responses 1` tabs).
+2. Open **Extensions** ➔ **Apps Script**.
+3. Paste the contents of `google-apps-script/Code.gs`.
+4. Click **Deploy** ➔ **New deployment** ➔ Type: **Web app**.
+5. Configure:
    - **Execute as**: `Me`
    - **Who has access**: `Anyone`
-7. Click **Deploy** and copy the generated Web App URL.
-8. Paste the Web App URL into `CONFIG.GAS_URL` in `js/app.js`:
-   ```javascript
-   const CONFIG = {
-     GAS_URL: 'https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec',
-     ...
-   };
-   ```
-
----
-
-## 7. Quality Assurance Checklist
-
-- [x] Summary metric boxes (`TOTAL FREIGHT`, `TOTAL ADVANCE`, etc.) completely removed.
-- [x] `TOTAL OUTSTANDING BALANCE` banner completely removed.
-- [x] Left sidebar layout cleanly organized with time scopes and 8 big filter buttons.
-- [x] `New` status fully supported with modern indigo badge styling.
-- [x] Balance mismatch algorithm flags `Freight - Advance != Balance` and tallies mismatches.
-- [x] Newly added trips append in chronological order (S.No ascending: 1, 2, 3, 4, 5...).
-- [x] Excel export outputs true `.xlsx` with auto-fit widths and preserved badge colors.
-- [x] Two-step confirmation popups for both Edit and Delete actions.
-- [x] 100% bracket and code syntax validated.
+6. Click **Deploy** and copy the Web App URL.
+7. Click the **API Settings (⚙️)** button in the web app header, paste the URL, and click Sync.

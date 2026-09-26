@@ -11,53 +11,34 @@ A clean, modern, executive SaaS application for Lorry Freight Operations, Broker
    - Session storage persistence with `[ Logout ]` button in the top navigation header.
    - Default credentials: `admin` / `admin`.
 
-2. **Top Control & Filter Dashboard Bar:**
-   - **Month Selector:** `Month [ Aug-26 ▼ ]`
-   - **Date Range Filters:** `From: [ DD-MM-YYYY ]` & `To: [ DD-MM-YYYY ]`
-   - **[ SHOW ENTIRE MONTH ]:** Quickly resets date limits to view the full month's operations.
-   - **[ SEARCH ]:** Real-time search across Vehicle No, Route, Origin/Destination, and Broker.
-   - **[ DOWNLOAD EXCEL ]:** Clean CSV/XLS export with UTF-8 BOM containing the exact 24 business columns.
+2. **Top Operational Control Bar:**
+   - **View Trips Time Scope:** `[ TODAY ]`, `[ SELECTED DATE ]`, `[ DATE RANGE ]`, `[ ENTIRE MONTH ]`, and `[ ALL TRIPS ]` arranged across the top with responsive date pickers and month selector.
+   - **Real-time Search:** Search across Vehicle No, Route, Origin/Destination, Broker, and S.No.
+   - **Excel Export (.xlsx):** Powered by `ExcelJS` to export true spreadsheets with auto-fit column widths and UI badge colors.
 
-3. **Dashboard Warning & Filter Cards:**
-   - Prominent, clickable box-type cards with live counters:
-     - 📋 **ALL TRIPS**
-     - ⚠️ **PENDING PAYMENTS** (awaiting collection)
-     - 🔴 **LOSS-MAKING TRIPS** (Net < ₹0)
-     - 🟠 **PARTIALLY PAID** (remaining balance)
-     - 🟢 **PROFIT TRIPS** (Net ≥ ₹0)
-     - ✅ **SETTLED / PAID** (cleared)
-   - Clicking any box filters the table to show only matching trips.
+3. **8 Big Vibrant Status & Audit Filter Cards:**
+   - Prominent, clickable cards with live counters and distinct colors:
+     - 📋 **ALL TRIPS** (Slate)
+     - 🆕 **NEW DISPATCH** (Indigo)
+     - 🟢 **PROFIT TRIPS** (Emerald, Net P/L ≥ ₹0)
+     - 🔴 **LOSS TRIPS** (Rose, Net P/L < ₹0)
+     - 🟠 **PENDING BALANCE** (Amber, awaiting freight balance)
+     - 🟡 **PARTIALLY PAID** (Orange)
+     - ✔️ **PAID & SETTLED** (Teal)
+     - ⚠️ **BALANCE MISMATCH** (Crimson audit for `Freight - Advance != Balance`)
+   - Clicking any button filters matching trips in active scope.
 
-4. **Exact 24 Business Columns in Master Table:**
-   1. `S.No.`
-   2. `Trip Date`
-   3. `Vehicle No`
-   4. `From`
-   5. `To`
-   6. `Freight Amount`
-   7. `Advance Date`
-   8. `Advance Amount`
-   9. `Balance Amount`
-   10. `Halting Details`
-   11. `TRSP Name`
-   12. `TRSP Commission`
-   13. `Diesel`
-   14. `Toll Charges`
-   15. `Loading Charges`
-   16. `Unloading Charges`
-   17. `Police Exp`
-   18. `RTA C/P`
-   19. `Other Expenses`
-   20. `Driver Trip Commission`
-   21. `Status Amount`
-   22. `Status`
-   23. `P/L` (Formatted as `P +₹30,000` or `L -₹15,000`)
-   24. `Route` (`${From} ➔ ${To}`)
-   *Note: Edit / Delete actions are provided via a dedicated row action button and are not counted as a business data column.*
+4. **Master Table with Dedicated "View Details" Column:**
+   - **`👁️ Details` Column:** Located before `1. S.No`. Clicking **`👁️ View`** on any row highlights the trip and displays the comprehensive report in the panel down below the table.
+   - **Exact 24 Business Columns:**
+     1. `S.No.` 2. `Trip Date` 3. `Vehicle No` 4. `From` 5. `To` 6. `Freight Amount` 7. `Advance Date` 8. `Advance Amount` 9. `Balance Amount` 10. `Halting Details` 11. `TRSP Name` 12. `TRSP Commission` 13. `Diesel` 14. `Toll Charges` 15. `Loading Charges` 16. `Unloading Charges` 17. `Police Exp` 18. `RTA C/P` 19. `Other Expenses` 20. `Driver Trip Commission` 21. `Status Amount` 22. `Status` 23. `P/L` 24. `Route`.
+   - **Actions Column:** `✏️ Edit` and `🗑️ Delete` separated from business data columns.
 
-5. **Confirmation Popups & Success Toasts:**
-   - **Edit Flow:** Clicking Edit prompts `"Are you sure you want to edit Trip #X (Vehicle)?"` ➔ opens Slide-over drawer ➔ clicking "Save & Recalculate" prompts `"Are you sure you want to save these changes and recalculate this trip?"` ➔ shows toast: `"✅ Trip #X (Vehicle) updated successfully."`
-   - **Delete Flow:** Clicking Delete prompts `"Are you sure you want to delete Trip #X (Vehicle)? This action cannot be undone."` ➔ soft-deletes trip ➔ shows toast: `"✅ Trip #X (Vehicle) deleted successfully."`
+5. **Trip Details & Financial Breakdown Panel (Below the Table):**
+   - Renders 4 high-impact metric cards, 9-expense itemized ledger, halting details, and profit analysis for the selected trip.
+
+6. **Confirmation Popups & Success Toasts:**
+   - Two-step confirmation for both Edit and Delete operations with instant toast notifications.
 
 6. **Automated Calculations & Independence:**
    - `Balance Amount = Freight Amount - Advance Amount`

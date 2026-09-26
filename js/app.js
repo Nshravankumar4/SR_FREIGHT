@@ -147,6 +147,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupGlobalControls();
   setupModals();
   setupSlideOverEvents();
+  closeTripDetails();
 
   if (state.currentUser) {
     renderScopeControls();
@@ -381,12 +382,12 @@ window.setViewType = function(type) {
   };
 
   document.querySelectorAll('.view-type-btn').forEach(btn => {
-    btn.className = 'view-type-btn w-full px-4 py-2.5 text-xs font-bold rounded-xl transition cursor-pointer select-none text-left flex items-center justify-between bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200';
+    btn.className = 'view-type-btn px-4 py-2.5 text-xs font-bold rounded-xl transition cursor-pointer select-none text-left flex items-center justify-between bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200 active:scale-98';
   });
 
   const activeBtn = document.getElementById(typeMap[type]);
   if (activeBtn) {
-    activeBtn.className = 'view-type-btn w-full px-4 py-2.5 text-xs font-black rounded-xl transition cursor-pointer select-none text-left flex items-center justify-between bg-blue-600 text-white shadow-xs';
+    activeBtn.className = 'view-type-btn px-4 py-2.5 text-xs font-black rounded-xl transition cursor-pointer select-none text-left flex items-center justify-between bg-blue-600 text-white shadow-xs border border-blue-600 active:scale-98';
   }
 
   renderScopeControls();
@@ -403,36 +404,34 @@ function renderScopeControls() {
     if (activeViewTag) activeViewTag.textContent = `TODAY (${formatDateDisplay(today)})`;
     container.innerHTML = `
       <div class="flex items-center gap-2 py-1">
-        <span class="text-xs font-bold text-gray-700">Scheduled Today:</span>
+        <span class="text-xs font-bold text-gray-700">Scheduled Dispatch Today:</span>
         <span class="px-2.5 py-1 font-mono text-xs font-black bg-blue-50 text-blue-700 rounded-lg border border-blue-200">${formatDateDisplay(today)}</span>
       </div>
     `;
   } else if (state.viewType === 'SELECTED_DATE') {
     if (activeViewTag) activeViewTag.textContent = formatDateDisplay(state.selectedDate);
     container.innerHTML = `
-      <div class="space-y-2">
-        <label for="scope-single-date" class="block text-[11px] font-bold text-gray-600 uppercase">Choose Date:</label>
+      <div class="flex flex-wrap items-center gap-3 pt-1">
+        <label for="scope-single-date" class="text-xs font-bold text-gray-700">Choose Dispatch Date:</label>
         <div class="flex items-center gap-2">
-          <input type="date" id="scope-single-date" value="${state.selectedDate}" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs font-bold text-gray-800 bg-white focus:ring-2 focus:ring-blue-500 outline-none">
-          <button onclick="applySelectedDate()" class="px-4 py-2 text-xs font-black text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-xs transition cursor-pointer">VIEW</button>
+          <input type="date" id="scope-single-date" value="${state.selectedDate}" class="px-3 py-1.5 border border-gray-300 rounded-xl text-xs font-bold text-gray-800 bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+          <button onclick="applySelectedDate()" class="px-4 py-1.5 text-xs font-black text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-xs transition cursor-pointer">VIEW</button>
         </div>
       </div>
     `;
   } else if (state.viewType === 'DATE_RANGE') {
     if (activeViewTag) activeViewTag.textContent = `${formatDateDisplay(state.dateFrom)} ➔ ${formatDateDisplay(state.dateTo)}`;
     container.innerHTML = `
-      <div class="space-y-2">
-        <div class="grid grid-cols-2 gap-2">
-          <div>
-            <label for="scope-date-from" class="block text-[10px] font-bold text-gray-500 uppercase mb-0.5">From:</label>
-            <input type="date" id="scope-date-from" value="${state.dateFrom}" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-xl text-xs font-bold text-gray-800 bg-white">
-          </div>
-          <div>
-            <label for="scope-date-to" class="block text-[10px] font-bold text-gray-500 uppercase mb-0.5">To:</label>
-            <input type="date" id="scope-date-to" value="${state.dateTo}" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-xl text-xs font-bold text-gray-800 bg-white">
-          </div>
+      <div class="flex flex-wrap items-center gap-3 pt-1">
+        <div class="flex items-center gap-2">
+          <label for="scope-date-from" class="text-xs font-bold text-gray-700">From:</label>
+          <input type="date" id="scope-date-from" value="${state.dateFrom}" class="px-2.5 py-1.5 border border-gray-300 rounded-xl text-xs font-bold text-gray-800 bg-white">
         </div>
-        <button onclick="applyDateRange()" class="w-full py-2 text-xs font-black text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-xs transition cursor-pointer">VIEW RANGE</button>
+        <div class="flex items-center gap-2">
+          <label for="scope-date-to" class="text-xs font-bold text-gray-700">To:</label>
+          <input type="date" id="scope-date-to" value="${state.dateTo}" class="px-2.5 py-1.5 border border-gray-300 rounded-xl text-xs font-bold text-gray-800 bg-white">
+        </div>
+        <button onclick="applyDateRange()" class="px-4 py-1.5 text-xs font-black text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-xs transition cursor-pointer">VIEW RANGE</button>
       </div>
     `;
   } else if (state.viewType === 'ENTIRE_MONTH') {
@@ -440,13 +439,13 @@ function renderScopeControls() {
     const mName = MONTH_NAMES[parseInt(m, 10) - 1] || 'August';
     if (activeViewTag) activeViewTag.textContent = `${mName} ${y}`;
     container.innerHTML = `
-      <div class="space-y-2">
-        <label for="scope-month-select" class="block text-[11px] font-bold text-gray-600 uppercase">Choose Month:</label>
+      <div class="flex flex-wrap items-center gap-3 pt-1">
+        <label for="scope-month-select" class="text-xs font-bold text-gray-700">Choose Operational Month:</label>
         <div class="flex items-center gap-2">
-          <select id="scope-month-select" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs font-bold text-gray-800 bg-white cursor-pointer">
+          <select id="scope-month-select" class="px-3 py-1.5 border border-gray-300 rounded-xl text-xs font-bold text-gray-800 bg-white cursor-pointer">
             ${getMonthOptionsHTML()}
           </select>
-          <button onclick="applyEntireMonth()" class="px-4 py-2 text-xs font-black text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-xs transition cursor-pointer">VIEW</button>
+          <button onclick="applyEntireMonth()" class="px-4 py-1.5 text-xs font-black text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-xs transition cursor-pointer">VIEW MONTH</button>
         </div>
       </div>
     `;
@@ -455,7 +454,7 @@ function renderScopeControls() {
     if (activeViewTag) activeViewTag.textContent = 'ALL TRIPS';
     container.innerHTML = `
       <div class="py-1">
-        <span class="text-xs font-bold text-gray-600">Viewing all ${state.trips.filter(t => !t.deleted).length} fleet dispatches</span>
+        <span class="text-xs font-semibold text-gray-600">Showing all records logged across the fleet (${state.trips.filter(t => !t.deleted).length} total trips)</span>
       </div>
     `;
   }
@@ -517,36 +516,89 @@ window.applyEntireMonth = function() {
   }
 };
 
-// Set Status Filter from Big Sidebar Buttons
+const filterStyles = {
+  ALL: {
+    btnId: 'filter-btn-all',
+    badgeId: 'badge-all',
+    inactive: 'big-status-btn p-3.5 sm:p-4 rounded-2xl border-2 border-slate-200 bg-white hover:bg-slate-50 text-slate-800 transition cursor-pointer select-none flex flex-col justify-between shadow-xs active:scale-98',
+    active: 'big-status-btn active p-3.5 sm:p-4 rounded-2xl border-2 border-slate-900 bg-slate-900 text-white transition cursor-pointer select-none flex flex-col justify-between shadow-md active:scale-98',
+    inactiveBadge: 'text-base font-black px-2.5 py-0.5 rounded-lg bg-slate-100 text-slate-800 border border-slate-200',
+    activeBadge: 'text-base font-black px-2.5 py-0.5 rounded-lg bg-white/20 text-white shadow-2xs'
+  },
+  NEW: {
+    btnId: 'filter-btn-new',
+    badgeId: 'badge-new',
+    inactive: 'big-status-btn p-3.5 sm:p-4 rounded-2xl border-2 border-indigo-200 bg-indigo-50/70 hover:bg-indigo-100 hover:border-indigo-400 text-indigo-950 transition cursor-pointer select-none flex flex-col justify-between shadow-xs active:scale-98',
+    active: 'big-status-btn active p-3.5 sm:p-4 rounded-2xl border-2 border-indigo-600 bg-indigo-600 text-white transition cursor-pointer select-none flex flex-col justify-between shadow-md active:scale-98',
+    inactiveBadge: 'text-base font-black px-2.5 py-0.5 rounded-lg bg-indigo-100 text-indigo-800 border border-indigo-200',
+    activeBadge: 'text-base font-black px-2.5 py-0.5 rounded-lg bg-white text-indigo-900 shadow-2xs'
+  },
+  PROFIT: {
+    btnId: 'filter-btn-profit',
+    badgeId: 'badge-profit',
+    inactive: 'big-status-btn p-3.5 sm:p-4 rounded-2xl border-2 border-emerald-200 bg-emerald-50/70 hover:bg-emerald-100 hover:border-emerald-500 text-emerald-950 transition cursor-pointer select-none flex flex-col justify-between shadow-xs active:scale-98',
+    active: 'big-status-btn active p-3.5 sm:p-4 rounded-2xl border-2 border-emerald-600 bg-emerald-600 text-white transition cursor-pointer select-none flex flex-col justify-between shadow-md active:scale-98',
+    inactiveBadge: 'text-base font-black px-2.5 py-0.5 rounded-lg bg-emerald-100 text-emerald-800 border border-emerald-200',
+    activeBadge: 'text-base font-black px-2.5 py-0.5 rounded-lg bg-white text-emerald-900 shadow-2xs'
+  },
+  LOSS: {
+    btnId: 'filter-btn-loss',
+    badgeId: 'badge-loss',
+    inactive: 'big-status-btn p-3.5 sm:p-4 rounded-2xl border-2 border-rose-200 bg-rose-50/70 hover:bg-rose-100 hover:border-rose-500 text-rose-950 transition cursor-pointer select-none flex flex-col justify-between shadow-xs active:scale-98',
+    active: 'big-status-btn active p-3.5 sm:p-4 rounded-2xl border-2 border-rose-600 bg-rose-600 text-white transition cursor-pointer select-none flex flex-col justify-between shadow-md active:scale-98',
+    inactiveBadge: 'text-base font-black px-2.5 py-0.5 rounded-lg bg-rose-100 text-rose-800 border border-rose-200',
+    activeBadge: 'text-base font-black px-2.5 py-0.5 rounded-lg bg-white text-rose-900 shadow-2xs'
+  },
+  PENDING: {
+    btnId: 'filter-btn-pending',
+    badgeId: 'badge-pending',
+    inactive: 'big-status-btn p-3.5 sm:p-4 rounded-2xl border-2 border-amber-200 bg-amber-50/70 hover:bg-amber-100 hover:border-amber-500 text-amber-950 transition cursor-pointer select-none flex flex-col justify-between shadow-xs active:scale-98',
+    active: 'big-status-btn active p-3.5 sm:p-4 rounded-2xl border-2 border-amber-500 bg-amber-500 text-white transition cursor-pointer select-none flex flex-col justify-between shadow-md active:scale-98',
+    inactiveBadge: 'text-base font-black px-2.5 py-0.5 rounded-lg bg-amber-100 text-amber-900 border border-amber-200',
+    activeBadge: 'text-base font-black px-2.5 py-0.5 rounded-lg bg-white text-amber-900 shadow-2xs'
+  },
+  PARTIAL: {
+    btnId: 'filter-btn-partial',
+    badgeId: 'badge-partial',
+    inactive: 'big-status-btn p-3.5 sm:p-4 rounded-2xl border-2 border-orange-200 bg-orange-50/70 hover:bg-orange-100 hover:border-orange-500 text-orange-950 transition cursor-pointer select-none flex flex-col justify-between shadow-xs active:scale-98',
+    active: 'big-status-btn active p-3.5 sm:p-4 rounded-2xl border-2 border-orange-500 bg-orange-500 text-white transition cursor-pointer select-none flex flex-col justify-between shadow-md active:scale-98',
+    inactiveBadge: 'text-base font-black px-2.5 py-0.5 rounded-lg bg-orange-100 text-orange-900 border border-orange-200',
+    activeBadge: 'text-base font-black px-2.5 py-0.5 rounded-lg bg-white text-orange-900 shadow-2xs'
+  },
+  PAID: {
+    btnId: 'filter-btn-paid',
+    badgeId: 'badge-paid',
+    inactive: 'big-status-btn p-3.5 sm:p-4 rounded-2xl border-2 border-teal-200 bg-teal-50/70 hover:bg-teal-100 hover:border-teal-500 text-teal-950 transition cursor-pointer select-none flex flex-col justify-between shadow-xs active:scale-98',
+    active: 'big-status-btn active p-3.5 sm:p-4 rounded-2xl border-2 border-teal-600 bg-teal-600 text-white transition cursor-pointer select-none flex flex-col justify-between shadow-md active:scale-98',
+    inactiveBadge: 'text-base font-black px-2.5 py-0.5 rounded-lg bg-teal-100 text-teal-900 border border-teal-200',
+    activeBadge: 'text-base font-black px-2.5 py-0.5 rounded-lg bg-white text-teal-900 shadow-2xs'
+  },
+  BALANCE_MISMATCH: {
+    btnId: 'filter-btn-mismatch',
+    badgeId: 'badge-mismatch',
+    inactive: 'big-status-btn p-3.5 sm:p-4 rounded-2xl border-2 border-red-300 bg-red-50 hover:bg-red-100 hover:border-red-500 text-red-950 transition cursor-pointer select-none flex flex-col justify-between shadow-xs active:scale-98',
+    active: 'big-status-btn active p-3.5 sm:p-4 rounded-2xl border-2 border-red-600 bg-red-600 text-white transition cursor-pointer select-none flex flex-col justify-between shadow-md active:scale-98',
+    inactiveBadge: 'text-base font-black px-2.5 py-0.5 rounded-lg bg-white text-red-700 border border-red-300',
+    activeBadge: 'text-base font-black px-2.5 py-0.5 rounded-lg bg-white text-red-700 shadow-2xs'
+  }
+};
+
+// Set Status Filter from Big Header Buttons
 window.setStatusFilter = function(filter) {
   state.statusFilter = filter;
 
-  const btnMap = {
-    ALL: 'filter-btn-all',
-    NEW: 'filter-btn-new',
-    PROFIT: 'filter-btn-profit',
-    LOSS: 'filter-btn-loss',
-    PENDING: 'filter-btn-pending',
-    PARTIAL: 'filter-btn-partial',
-    PAID: 'filter-btn-paid',
-    BALANCE_MISMATCH: 'filter-btn-mismatch'
-  };
-
-  document.querySelectorAll('.big-status-btn').forEach(btn => {
-    btn.className = 'big-status-btn p-3 rounded-xl border border-gray-200 hover:border-gray-300 bg-white text-left transition cursor-pointer select-none flex items-center justify-between';
+  Object.entries(filterStyles).forEach(([key, cfg]) => {
+    const btn = document.getElementById(cfg.btnId);
+    const badge = document.getElementById(cfg.badgeId);
+    if (!btn) return;
+    if (key === filter) {
+      btn.className = cfg.active;
+      if (badge) badge.className = cfg.activeBadge;
+    } else {
+      btn.className = cfg.inactive;
+      if (badge) badge.className = cfg.inactiveBadge;
+    }
   });
-
-  const active = document.getElementById(btnMap[filter]);
-  if (active) {
-    if (filter === 'PROFIT') active.className = 'big-status-btn p-3 rounded-xl border-2 border-emerald-600 bg-emerald-50/50 text-left transition cursor-pointer select-none flex items-center justify-between shadow-xs';
-    else if (filter === 'LOSS') active.className = 'big-status-btn p-3 rounded-xl border-2 border-rose-600 bg-rose-50/50 text-left transition cursor-pointer select-none flex items-center justify-between shadow-xs';
-    else if (filter === 'PENDING') active.className = 'big-status-btn p-3 rounded-xl border-2 border-amber-500 bg-amber-50/50 text-left transition cursor-pointer select-none flex items-center justify-between shadow-xs';
-    else if (filter === 'PARTIAL') active.className = 'big-status-btn p-3 rounded-xl border-2 border-orange-500 bg-orange-50/50 text-left transition cursor-pointer select-none flex items-center justify-between shadow-xs';
-    else if (filter === 'PAID') active.className = 'big-status-btn p-3 rounded-xl border-2 border-teal-600 bg-teal-50/50 text-left transition cursor-pointer select-none flex items-center justify-between shadow-xs';
-    else if (filter === 'NEW') active.className = 'big-status-btn p-3 rounded-xl border-2 border-indigo-600 bg-indigo-50/50 text-left transition cursor-pointer select-none flex items-center justify-between shadow-xs';
-    else if (filter === 'BALANCE_MISMATCH') active.className = 'big-status-btn p-3 rounded-xl border-2 border-rose-600 bg-rose-100 text-left transition cursor-pointer select-none flex items-center justify-between shadow-xs';
-    else active.className = 'big-status-btn p-3 rounded-xl border-2 border-blue-600 bg-blue-50/50 text-left transition cursor-pointer select-none flex items-center justify-between shadow-xs';
-  }
 
   renderTableOnly();
 };
@@ -673,7 +725,7 @@ function renderTableOnly() {
   if (!trips.length) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="25" class="text-center py-12 px-4 text-gray-400 font-medium">
+        <td colspan="26" class="text-center py-12 px-4 text-gray-400 font-medium">
           No trip records found for the current selection. Choose a different date, month, or status filter.
         </td>
       </tr>
@@ -710,8 +762,18 @@ function renderTableOnly() {
       `;
     }
 
+    const isSelected = state.selectedTripId === t.id;
+
     return `
-      <tr class="transition hover:bg-gray-50/90 ${t.netPL < 0 ? 'bg-rose-50/20' : ''} ${t.hasBalanceMismatch ? 'bg-amber-50/20' : ''}">
+      <tr id="trip-row-${t.id}" class="transition hover:bg-blue-50/40 ${isSelected ? 'bg-blue-100/70 ring-2 ring-blue-500' : ''} ${t.netPL < 0 && !isSelected ? 'bg-rose-50/20' : ''} ${t.hasBalanceMismatch && !isSelected ? 'bg-amber-50/20' : ''}">
+        
+        <!-- Dedicated VIEW DETAILS button BEFORE S.No -->
+        <td class="py-3 px-3 text-center whitespace-nowrap bg-blue-50/30 sticky left-0 z-10 border-r border-blue-100 shadow-2xs">
+          <button onclick="viewTripDetails(${t.id})" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black text-blue-700 bg-white border border-blue-300 hover:bg-blue-600 hover:text-white hover:border-blue-600 active:scale-95 transition cursor-pointer shadow-xs" title="View Full Trip Details & Financial Reconciliation Below">
+            <span>👁️ View</span>
+          </button>
+        </td>
+
         <!-- 1. S.No -->
         <td class="py-3 px-3 text-center font-mono text-gray-500 font-bold">${t.sNo || idx + 1}</td>
         
@@ -806,6 +868,247 @@ function renderTableOnly() {
       </tr>
     `;
   }).join('');
+}
+
+// ==========================================================================
+// Trip Details Viewer Engine (Displayed Below the Master Table)
+// ==========================================================================
+
+function getEmptyDetailsHTML() {
+  return `
+    <div class="py-10 px-6 text-center border-2 border-dashed border-gray-200 rounded-2xl bg-gray-50/60">
+      <div class="w-14 h-14 mx-auto rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-2xl shadow-xs mb-3">
+        🚛
+      </div>
+      <h3 class="text-sm font-black text-gray-900 uppercase tracking-wider">Trip Details & Audit Ledger</h3>
+      <p class="text-xs text-gray-500 max-w-md mx-auto mt-1 font-medium">
+        Click <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-black text-blue-700 bg-blue-50 border border-blue-200">👁️ View</span> on any trip row in the table above to inspect the complete operational ledger, all 9 en-route expense breakdowns, and profit analysis right here.
+      </p>
+    </div>
+  `;
+}
+
+window.viewTripDetails = function(tripId) {
+  const trip = state.trips.find(t => t.id === Number(tripId) || t.sNo === Number(tripId) || t.sNo === String(tripId));
+  if (!trip) return;
+
+  state.selectedTripId = trip.id;
+
+  // Highlight selected row in table
+  document.querySelectorAll('#trips-tbody tr').forEach(row => {
+    row.classList.remove('bg-blue-100/70', 'ring-2', 'ring-blue-500');
+  });
+  const activeRow = document.getElementById(`trip-row-${trip.id}`);
+  if (activeRow) {
+    activeRow.classList.add('bg-blue-100/70', 'ring-2', 'ring-blue-500');
+  }
+
+  renderTripDetails(trip);
+
+  // Smooth scroll to the details panel below the sheet
+  const panel = document.getElementById('trip-details-panel');
+  if (panel) {
+    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+};
+
+window.closeTripDetails = function() {
+  state.selectedTripId = null;
+  document.querySelectorAll('#trips-tbody tr').forEach(row => {
+    row.classList.remove('bg-blue-100/70', 'ring-2', 'ring-blue-500');
+  });
+  const container = document.getElementById('trip-details-content');
+  if (container) {
+    container.innerHTML = getEmptyDetailsHTML();
+  }
+};
+
+function renderTripDetails(t) {
+  const container = document.getElementById('trip-details-content');
+  if (!container) return;
+
+  const isProfit = t.netPL >= 0;
+  const plLabel = isProfit ? `P +${formatCurrency(t.netPL)}` : `L -${formatCurrency(Math.abs(t.netPL))}`;
+  const marginPct = t.freight > 0 ? ((t.netPL / t.freight) * 100).toFixed(1) : 0;
+
+  // Status Badge
+  let statusBadge = '';
+  if (t.status === 'New') {
+    statusBadge = `<span class="px-3 py-1 text-xs font-black rounded-lg bg-indigo-50 text-indigo-800 border border-indigo-200">🆕 NEW DISPATCH</span>`;
+  } else if (t.status === 'Paid') {
+    statusBadge = `<span class="px-3 py-1 text-xs font-black rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-300">🟢 PAID & SETTLED</span>`;
+  } else if (t.status === 'Partially Paid') {
+    statusBadge = `<span class="px-3 py-1 text-xs font-black rounded-lg bg-orange-50 text-orange-800 border border-orange-300">🟡 PARTIALLY PAID</span>`;
+  } else {
+    statusBadge = `<span class="px-3 py-1 text-xs font-black rounded-lg bg-amber-50 text-amber-800 border border-amber-300">🟠 PENDING BALANCE</span>`;
+  }
+
+  // Mismatch Alert Box
+  let mismatchBanner = '';
+  if (t.hasBalanceMismatch) {
+    const expected = t.freight - t.advance;
+    mismatchBanner = `
+      <div class="p-3.5 rounded-xl bg-red-50 border-2 border-red-300 flex items-start gap-3 text-red-900">
+        <span class="text-xl">⚠️</span>
+        <div>
+          <div class="text-xs font-black uppercase tracking-wider">Balance Amount Discrepancy Detected</div>
+          <div class="text-xs font-medium mt-0.5">
+            Recorded Balance is <strong>${formatCurrency(t.balance)}</strong>, but Freight (${formatCurrency(t.freight)}) &minus; Advance (${formatCurrency(t.advance)}) equals <strong>${formatCurrency(expected)}</strong>. Please review and update!
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  container.innerHTML = `
+    <div class="space-y-5 animate-fade-in">
+      
+      <!-- Top Action Bar -->
+      <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 pb-4">
+        <div class="flex items-center gap-3">
+          <span class="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-mono font-black text-sm shadow-xs">
+            #${t.sNo || t.id}
+          </span>
+          <div>
+            <div class="flex items-center gap-2">
+              <h3 class="text-base font-black text-gray-900 tracking-tight font-mono">${t.vehicleNo}</h3>
+              ${statusBadge}
+            </div>
+            <p class="text-xs font-semibold text-gray-600 mt-0.5 flex items-center gap-1.5">
+              <span>📍</span> <span>${t.from}</span> <span class="text-blue-600">➔</span> <span>${t.to}</span>
+            </p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button onclick="promptEditTrip(${t.id})" class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-gray-700 bg-white border border-gray-300 hover:bg-blue-50 hover:text-blue-700 rounded-xl shadow-xs transition active:scale-95 cursor-pointer">
+            <span>✏️ Edit This Trip</span>
+          </button>
+          <button onclick="closeTripDetails()" class="inline-flex items-center gap-1 px-3 py-2 text-xs font-bold text-gray-500 bg-gray-100 hover:bg-gray-200 rounded-xl transition cursor-pointer" title="Close Details">
+            <span>✕ Close</span>
+          </button>
+        </div>
+      </div>
+
+      ${mismatchBanner}
+
+      <!-- 4 High-Impact Metric Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+        
+        <!-- Metric 1: Contract Revenue -->
+        <div class="p-4 rounded-2xl bg-gray-50/80 border border-gray-200">
+          <div class="text-[11px] font-bold text-gray-500 uppercase tracking-wider">6. Freight Amount</div>
+          <div class="text-xl font-black text-gray-900 mt-1 font-mono">${formatCurrency(t.freight)}</div>
+          <div class="text-[11px] text-gray-500 font-medium mt-1">Trip Date: <strong class="text-gray-700">${formatDateDisplay(t.tripDate)}</strong></div>
+        </div>
+
+        <!-- Metric 2: Advance Collected -->
+        <div class="p-4 rounded-2xl bg-blue-50/40 border border-blue-200">
+          <div class="text-[11px] font-bold text-blue-900 uppercase tracking-wider">8. Advance Received</div>
+          <div class="text-xl font-black text-blue-800 mt-1 font-mono">${formatCurrency(t.advance)}</div>
+          <div class="text-[11px] text-blue-700 font-medium mt-1">Advance Date: <strong class="text-blue-900">${formatDateDisplay(t.advanceDate)}</strong></div>
+        </div>
+
+        <!-- Metric 3: Outstanding Balance -->
+        <div class="p-4 rounded-2xl ${t.hasBalanceMismatch ? 'bg-red-50/60 border-red-300' : 'bg-amber-50/40 border-amber-200'} border">
+          <div class="text-[11px] font-bold ${t.hasBalanceMismatch ? 'text-red-900' : 'text-amber-900'} uppercase tracking-wider flex items-center justify-between">
+            <span>9. Balance Amount</span>
+            ${t.hasBalanceMismatch ? '<span class="text-[10px] font-black text-red-700 bg-red-100 px-1.5 py-0.5 rounded">Mismatch</span>' : ''}
+          </div>
+          <div class="text-xl font-black ${t.hasBalanceMismatch ? 'text-red-700' : 'text-amber-800'} mt-1 font-mono">${formatCurrency(t.balance)}</div>
+          <div class="text-[11px] text-gray-600 font-medium mt-1">Status Amt: <strong class="text-gray-900">${formatCurrency(t.statusAmount)}</strong></div>
+        </div>
+
+        <!-- Metric 4: Net Profitability -->
+        <div class="p-4 rounded-2xl ${isProfit ? 'bg-emerald-50/50 border-emerald-300' : 'bg-rose-50/50 border-rose-300'} border">
+          <div class="text-[11px] font-bold ${isProfit ? 'text-emerald-900' : 'text-rose-900'} uppercase tracking-wider flex items-center justify-between">
+            <span>23. Net Profit / Loss</span>
+            <span class="text-[10px] font-bold px-1.5 py-0.5 rounded ${isProfit ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">${marginPct}% margin</span>
+          </div>
+          <div class="text-xl font-black ${isProfit ? 'text-emerald-800' : 'text-rose-800'} mt-1 font-mono">${plLabel}</div>
+          <div class="text-[11px] text-gray-500 font-medium mt-1">Expenses: <strong class="text-gray-900">${formatCurrency(t.totalExpenses)}</strong></div>
+        </div>
+
+      </div>
+
+      <!-- Itemized 9-Expense Ledger Grid -->
+      <div class="border border-gray-200 rounded-2xl overflow-hidden">
+        <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+          <h4 class="text-xs font-black text-gray-900 uppercase tracking-wider flex items-center gap-1.5">
+            <span>🧾</span> ITEMIZED EN-ROUTE EXPENSES (9 CATEGORIES)
+          </h4>
+          <span class="text-xs font-black text-gray-800 font-mono">
+            Total: ${formatCurrency(t.totalExpenses)}
+          </span>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-gray-100 bg-white">
+          
+          <!-- Column 1 -->
+          <div class="p-3.5 space-y-2.5">
+            <div class="flex items-center justify-between text-xs">
+              <span class="text-gray-600 font-medium">12. TRSP Commission:</span>
+              <strong class="font-mono text-gray-900">${formatCurrency(t.trspCommission)}</strong>
+            </div>
+            <div class="flex items-center justify-between text-xs">
+              <span class="text-gray-600 font-medium">13. Diesel (Fuel):</span>
+              <strong class="font-mono text-gray-900">${formatCurrency(t.diesel)}</strong>
+            </div>
+            <div class="flex items-center justify-between text-xs">
+              <span class="text-gray-600 font-medium">14. Toll Charges:</span>
+              <strong class="font-mono text-gray-900">${formatCurrency(t.toll)}</strong>
+            </div>
+          </div>
+
+          <!-- Column 2 -->
+          <div class="p-3.5 space-y-2.5">
+            <div class="flex items-center justify-between text-xs">
+              <span class="text-gray-600 font-medium">15. Loading Charges:</span>
+              <strong class="font-mono text-gray-900">${formatCurrency(t.loading)}</strong>
+            </div>
+            <div class="flex items-center justify-between text-xs">
+              <span class="text-gray-600 font-medium">16. Unloading Charges:</span>
+              <strong class="font-mono text-gray-900">${formatCurrency(t.unloading)}</strong>
+            </div>
+            <div class="flex items-center justify-between text-xs">
+              <span class="text-gray-600 font-medium">17. Police Exp:</span>
+              <strong class="font-mono text-gray-900">${formatCurrency(t.police)}</strong>
+            </div>
+          </div>
+
+          <!-- Column 3 -->
+          <div class="p-3.5 space-y-2.5">
+            <div class="flex items-center justify-between text-xs">
+              <span class="text-gray-600 font-medium">18. RTA C/P:</span>
+              <strong class="font-mono text-gray-900">${formatCurrency(t.rta)}</strong>
+            </div>
+            <div class="flex items-center justify-between text-xs">
+              <span class="text-gray-600 font-medium">19. Other Expenses:</span>
+              <strong class="font-mono text-gray-900">${formatCurrency(t.other)}</strong>
+            </div>
+            <div class="flex items-center justify-between text-xs">
+              <span class="text-blue-900 font-bold">20. Driver Commission:</span>
+              <strong class="font-mono text-blue-900 font-black">${formatCurrency(t.driverCommission)}</strong>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Operational Logistics Details Footer -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 text-xs">
+        <div class="p-3.5 rounded-xl bg-gray-50 border border-gray-200">
+          <span class="font-bold text-gray-500 uppercase text-[10px] block mb-1">10. Halting & Detention Details</span>
+          <p class="text-gray-800 font-medium">${t.halting || 'None recorded'}</p>
+        </div>
+        <div class="p-3.5 rounded-xl bg-gray-50 border border-gray-200">
+          <span class="font-bold text-gray-500 uppercase text-[10px] block mb-1">11. Transport Broker / Agency (TRSP)</span>
+          <p class="text-gray-800 font-medium">${t.trspName || 'Direct Dispatch (None)'}</p>
+        </div>
+      </div>
+
+    </div>
+  `;
 }
 
 // ==========================================================================
