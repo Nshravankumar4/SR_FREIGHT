@@ -1283,7 +1283,7 @@ window.viewTripDetails = function(tripId) {
   }
 };
 
-window.closeTripDetails = function() {
+function closeTripDetails() {
   state.selectedTripId = null;
   document.querySelectorAll('#trips-tbody tr').forEach(row => {
     row.classList.remove('bg-blue-100/70', 'ring-2', 'ring-blue-500');
@@ -1292,7 +1292,8 @@ window.closeTripDetails = function() {
   if (container) {
     container.innerHTML = getEmptyDetailsHTML();
   }
-};
+}
+window.closeTripDetails = closeTripDetails;
 
 function renderTripDetails(t) {
   const container = document.getElementById('trip-details-content');
@@ -1772,7 +1773,7 @@ window.promptSaveNewTrip = function() {
   openModal('modal-confirm-add');
 };
 
-window.executeSaveNewTrip = function() {
+async function executeSaveNewTrip() {
   closeModal('modal-confirm-add');
 
   const getNum = (id) => Number(document.getElementById(id)?.value) || 0;
@@ -1841,7 +1842,8 @@ window.executeSaveNewTrip = function() {
       isSaving = false;
     }
   }
-};
+}
+window.executeSaveNewTrip = executeSaveNewTrip;
 
 // ==========================================================================
 // 6. Confirmation Popups & Modal Workflows (Edit & Delete)
@@ -1939,7 +1941,7 @@ window.promptDeleteTrip = function(tripId) {
   openModal('modal-confirm-delete');
 };
 
-function executeDeleteTrip() {
+async function executeDeleteTrip() {
   if (!canDelete()) {
     showToast('❌ You do not have permission to delete trips.');
     closeModal('modal-confirm-delete');
@@ -2049,7 +2051,7 @@ window.closeSlideOver = function() {
   state.pendingEditTripId = null;
 };
 
-function executeSaveTripEdits() {
+async function executeSaveTripEdits() {
   if (!state.pendingEditTripId) return;
   const idNum = Number(state.pendingEditTripId);
   const trip = state.trips.find(t => Number(t.id) === idNum);
@@ -2682,7 +2684,6 @@ async function autoSyncCloud(isSilent = true) {
       const json = JSON.parse(text);
       if (json && (json.status === 'success' || json.success) && Array.isArray(json.data) && json.data.length > 0) {
         const cloudTrips = json.data;
-        const prevHash = JSON.stringify(state.trips.map(t => `${t.sNo}_${t.freight}_${t.advance}_${t.status}_${t.balance}_${t.vehicleNo}`));
         const newTrips = cloudTrips.map((row, idx) => calculateTrip({
           id: idx + 1,
           sNo: row.sNo || idx + 1,
