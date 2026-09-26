@@ -1,6 +1,13 @@
 # Master Google Sheet Structure (Exact 24 Business Columns)
 
-This document defines the exact layout and headers for the master Google Sheet database:
+* **Connected Google Spreadsheet:** [Open Live Google Sheet](https://docs.google.com/spreadsheets/d/1X-whiMGT3BxgdMjayuXHw-d8fZeaX1dKjLeEEiIPQf0/edit)
+* **Spreadsheet ID:** `1X-whiMGT3BxgdMjayuXHw-d8fZeaX1dKjLeEEiIPQf0`
+* **Trips Tab:** `Trips`
+* **Cloud Backup Folder (Google Drive):** `Lorry_Backups`
+
+---
+
+## 📋 Column Layout (Exact 24 Business Columns)
 
 | Col | Header | Description |
 |---|---|---|
@@ -31,29 +38,19 @@ This document defines the exact layout and headers for the master Google Sheet d
 
 ---
 
-## Calculations & Formulas
+## 🧮 Calculations & Business Logic
 
 1. **Balance Amount (Col I):**
-   ```excel
-   =ARRAYFORMULA(IF(ISBLANK(B2:B), "", F2:F - H2:H))
-   ```
+   `Freight Amount - Advance Amount`
 
-2. **Total Expenses (Internal Calculation):**
-   ```excel
-   =ARRAYFORMULA(IF(ISBLANK(B2:B), "", L2:L + M2:M + N2:N + O2:O + P2:P + Q2:Q + R2:R + S2:S + T2:T))
-   ```
+2. **Total Expenses (Cols L through T):**
+   `TRSP Commission + Diesel + Toll + Loading + Unloading + Police + RTA + Other + Driver Commission`
 
 3. **P/L (Col W):**
-   ```excel
-   =ARRAYFORMULA(IF(ISBLANK(B2:B), "", IF(F2:F - (L2:L+M2:M+N2:N+O2:O+P2:P+Q2:Q+R2:R+S2:S+T2:T) >= 0, "P +₹" & TEXT(F2:F - (L2:L+M2:M+N2:N+O2:O+P2:P+Q2:Q+R2:R+S2:S+T2:T), "#,##,##0"), "L -₹" & TEXT(ABS(F2:F - (L2:L+M2:M+N2:N+O2:O+P2:P+Q2:Q+R2:R+S2:S+T2:T)), "#,##,##0"))))
-   ```
+   `Freight Amount - Total Expenses` (Formatted as `P +₹...` or `L -₹...`)
 
 4. **Route (Col X):**
-   ```excel
-   =ARRAYFORMULA(IF(ISBLANK(B2:B), "", D2:D & " ➔ " & E2:E))
-   ```
+   `${From} ➔ ${To}`
 
-5. **Status Amount (Col U):**
-   ```excel
-   =ARRAYFORMULA(IF(ISBLANK(B2:B), "", IF(V2:V="Paid", 0, IF(V2:V="Pending", I2:I, I2:I))))
-   ```
+5. **Automatic Cloud Backups:**
+   Whenever any record is created, edited, or deleted, a timestamped duplicate copy is automatically cloned into the `Lorry_Backups` folder in Google Drive.
