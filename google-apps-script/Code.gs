@@ -4,24 +4,42 @@
  * SETUP INSTRUCTIONS:
  * 1. Open Google Sheets (https://sheets.new) OR use Standalone Apps Script (script.google.com).
  * 2. Paste this entire code into Code.gs and press Ctrl + S.
- * 3. Click "Deploy" -> "New deployment".
- * 4. Select type: "Web app".
- * 5. Configuration:
- *    - Description: "SR_T Lorry Freight API"
- *    - Execute as: "Me"
- *    - Who has access: "Anyone" (Required so Rudra & Web App can access)
- * 6. Click "Deploy", authorize Google access, and copy the Web App URL!
+ * 3. Click "Deploy" -> "Manage deployments" -> Edit (pencil) -> Version: "New version".
+ * 4. Ensure: Execute as "Me", Who has access "Anyone".
+ * 5. Click "Deploy".
  */
 
 const SHEET_TRIPS = 'Trips';
 const BACKUP_FOLDER_NAME = 'Lorry_Backups';
 
+// EXACT 25 BUSINESS COLUMNS + UNIQUE TRIP ID (MATCHES FRONTEND TABLE HEADERS 100%)
 const TRIP_HEADERS = [
-  'S.No.', 'Trip Date', 'Vehicle No', 'From', 'To', 'Freight Amount',
-  'Advance Date', 'Advance Amount', 'Balance Amount', 'Halting Details',
-  'TRSP Name', 'TRSP Commission', 'Diesel', 'Toll Charges', 'Loading Charges',
-  'Unloading Charges', 'Police Exp', 'RTA C/P', 'Other Expenses', 'Driver Trip Commission',
-  'Status Amount', 'Status', 'P/L', 'Route'
+  '1. S.No',
+  '2. Trip Date',
+  '3. Vehicle No',
+  '4. From',
+  '5. To',
+  '6. Freight Amount',
+  '7. Advance Date',
+  '8. Advance Amount',
+  '9. Halting Details',
+  '10. TRSP Name',
+  '11. TRSP Comm',
+  '12. Diesel',
+  '13. Toll Charges',
+  '14. Loading Charges',
+  '15. Unloading Charges',
+  '16. Police Exp',
+  '17. RTA C/P',
+  '18. Other Expenses',
+  '19. Driver Comm',
+  '20. Sum OF Total Exp',
+  '21. Total Exp Given',
+  '22. Status',
+  '23. P/L',
+  '24. Date Balance Recd',
+  '25. Balance Amount',
+  'Trip ID'
 ];
 
 // ==========================================
@@ -68,9 +86,17 @@ function doGet(e) {
 }
 
 // ==========================================
-// 2. POST REQUEST HANDLER
+// 2. POST REQUEST HANDLER WITH SCRIPT LOCK
 // ==========================================
 function doPost(e) {
+  var lock = LockService.getScriptLock();
+  try {
+    // Wait up to 30 seconds to acquire exclusive lock (prevents multi-user write collisions)
+    lock.waitLock(30000);
+  } catch (lockErr) {
+    return jsonResponse({ success: false, error: 'Server busy: could not acquire lock. Please retry.' });
+  }
+
   try {
     var ss = getMasterSpreadsheet(e);
     var sheet = getOrCreateSheet(ss, SHEET_TRIPS, TRIP_HEADERS);
@@ -78,7 +104,11 @@ function doPost(e) {
 
     var payload = {};
     if (e && e.postData && e.postData.contents) {
-      payload = JSON.parse(e.postData.contents);
+      try {
+        payload = JSON.parse(e.postData.contents);
+      } catch (pErr) {
+        payload = {};
+      }
     } else if (e && e.parameter) {
       payload = e.parameter;
     }
@@ -135,13 +165,20 @@ function doPost(e) {
         return jsonResponse({ success: false, error: 'Delete permission denied: Only Admin (Shravan) can delete trips.' });
       }
 
-      var targetSNo = String(payload.sNo || payload.id || '').trim();
+      var targetTripId = String(payload.tripId || payload.id || '').trim();
+      var targetSNo = String(payload.sNo || '').trim();
       var targetVehicle = String(payload.vehicleNo || '').trim().toUpperCase();
       var data = sheet.getDataRange().getValues();
       var deleted = false;
 
       for (var i = 1; i < data.length; i++) {
-        if (String(data[i][0]).trim() === targetSNo || (targetVehicle && String(data[i][2]).trim().toUpperCase() === targetVehicle)) {
+        var rowTripId = String(data[i][25] || '').trim();
+        var rowSNo = String(data[i][0]).trim();
+        var rowVeh = String(data[i][2] || '').trim().toUpperCase();
+
+        if ((targetTripId && rowTripId === targetTripId) ||
+            (!targetTripId && targetSNo && rowSNo === targetSNo) ||
+            (!targetTripId && !targetSNo && targetVehicle && rowVeh === targetVehicle)) {
           sheet.deleteRow(i + 1);
           deleted = true;
           break;
@@ -149,13 +186,13 @@ function doPost(e) {
       }
 
       if (deleted) {
-        createCloudBackup(ss, 'Delete_Trip_' + targetSNo + '_by_' + currentUser);
+        createCloudBackup(ss, 'Delete_Trip_' + (targetTripId || targetSNo) + '_by_' + currentUser);
       }
 
       return jsonResponse({
         success: deleted,
         status: deleted ? 'success' : 'error',
-        message: deleted ? 'Trip #' + targetSNo + ' deleted successfully' : 'Trip not found on master sheet'
+        message: deleted ? 'Trip deleted successfully' : 'Trip not found on master sheet'
       });
     }
 
@@ -175,7 +212,7 @@ function doPost(e) {
 
     // --- D. ADD NEW TRIP ---
     if (action === 'addTrip') {
-      var item = payload.data || payload;
+      var item = payload.data || payload.trip || payload;
       var nextSNo = sheet.getLastRow();
       var newTrip = calculateTripRow(item, nextSNo);
       appendTripToSheet(sheet, newTrip);
@@ -185,21 +222,34 @@ function doPost(e) {
         success: true,
         status: 'success',
         message: 'Trip added successfully',
+        action: 'addTrip',
+        tripId: newTrip.tripId,
         data: newTrip
       });
     }
 
     // --- E. UPDATE / EDIT TRIP ---
     if (action === 'updateTrip' || action === 'editTrip') {
-      var item = payload.data || payload;
-      var targetSNo = String(item.sNo || item.id || '').trim();
+      var item = payload.data || payload.trip || payload;
+      var targetTripId = String(item.tripId || item.id || '').trim();
+      var targetSNo = String(item.sNo || '').trim();
       var targetVehicle = String(item.vehicleNo || '').trim().toUpperCase();
       var data = sheet.getDataRange().getValues();
       var targetRow = -1;
 
       for (var i = 1; i < data.length; i++) {
-        if (String(data[i][0]).trim() === targetSNo ||
-           (targetVehicle && String(data[i][2]).trim().toUpperCase() === targetVehicle && String(data[i][1]).trim() === String(item.tripDate || '').trim())) {
+        var rowTripId = String(data[i][25] || '').trim();
+        var rowSNo = String(data[i][0]).trim();
+        var rowVeh = String(data[i][2] || '').trim().toUpperCase();
+        var rowDate = String(data[i][1] || '').trim();
+
+        if (targetTripId && rowTripId === targetTripId) {
+          targetRow = i + 1;
+          break;
+        } else if (!targetTripId && targetSNo && rowSNo === targetSNo) {
+          targetRow = i + 1;
+          break;
+        } else if (!targetTripId && !targetSNo && targetVehicle && rowVeh === targetVehicle && rowDate === String(item.tripDate || '').trim()) {
           targetRow = i + 1;
           break;
         }
@@ -208,18 +258,21 @@ function doPost(e) {
       var calcRow = calculateTripRow(item, targetSNo || (targetRow > 0 ? targetRow - 1 : sheet.getLastRow()));
 
       if (targetRow > 0) {
-        sheet.getRange(targetRow, 1, 1, 24).setValues([[
+        sheet.getRange(targetRow, 1, 1, 26).setValues([[
           calcRow.sNo, calcRow.tripDate, calcRow.vehicleNo, calcRow.from, calcRow.to, calcRow.freight,
-          calcRow.advanceDate, calcRow.advance, calcRow.balance, calcRow.halting, calcRow.trspName,
-          calcRow.trspCommission, calcRow.diesel, calcRow.toll, calcRow.loading, calcRow.unloading,
-          calcRow.police, calcRow.rta, calcRow.other, calcRow.driverCommission, calcRow.statusAmount,
-          calcRow.status, calcRow.pl, calcRow.route
+          calcRow.advanceDate, calcRow.advance, calcRow.halting, calcRow.trspName, calcRow.trspCommission,
+          calcRow.diesel, calcRow.toll, calcRow.loading, calcRow.unloading, calcRow.police, calcRow.rta,
+          calcRow.other, calcRow.driverCommission, calcRow.sumOfTotalExp, calcRow.totalExpGiven,
+          calcRow.status, calcRow.plFormatted, calcRow.balanceReceivedDate, calcRow.balance, calcRow.tripId
         ]]);
         createCloudBackup(ss, 'Edit_Trip_' + calcRow.sNo + '_by_' + currentUser);
         return jsonResponse({
           success: true,
           status: 'success',
-          message: 'Trip #' + calcRow.sNo + ' updated successfully in cloud'
+          action: 'updateTrip',
+          tripId: calcRow.tripId,
+          message: 'Trip #' + calcRow.sNo + ' updated successfully in cloud',
+          data: calcRow
         });
       } else {
         appendTripToSheet(sheet, calcRow);
@@ -227,7 +280,10 @@ function doPost(e) {
         return jsonResponse({
           success: true,
           status: 'success',
-          message: 'Trip appended to cloud sheet'
+          action: 'addTrip',
+          tripId: calcRow.tripId,
+          message: 'Trip appended to cloud sheet',
+          data: calcRow
         });
       }
     }
@@ -263,6 +319,9 @@ function doPost(e) {
     return jsonResponse({ success: false, message: 'Unknown POST action: ' + action });
   } catch (err) {
     return jsonResponse({ success: false, error: err.toString() });
+  } finally {
+    // Always release the lock
+    lock.releaseLock();
   }
 }
 
@@ -272,7 +331,6 @@ function doPost(e) {
 function calculateTripRow(p, nextSNo) {
   var freight = Number(p.freight) || 0;
   var advance = Number(p.advance) || 0;
-  var balance = freight - advance;
 
   var trspCommission = Number(p.trspCommission) || 0;
   var diesel = Number(p.diesel) || 0;
@@ -284,9 +342,21 @@ function calculateTripRow(p, nextSNo) {
   var other = Number(p.other) || 0;
   var driverCommission = Number(p.driverCommission) || 0;
 
-  var totalExpenses = trspCommission + diesel + toll + loading + unloading + police + rta + other + driverCommission;
-  var netPL = freight - totalExpenses;
+  // 20. Sum OF Total Exp = 9 expenses
+  var sumOfTotalExp = trspCommission + diesel + toll + loading + unloading + police + rta + other + driverCommission;
+
+  // 21. Total Exp Given = Advance + Sum OF Total Exp
+  var totalExpGiven = advance + sumOfTotalExp;
+
+  // 23. P/L = Freight - Total Exp Given
+  var netPL = freight - totalExpGiven;
   var plFormatted = netPL >= 0 ? ('P +₹' + Math.abs(netPL).toLocaleString('en-IN')) : ('L -₹' + Math.abs(netPL).toLocaleString('en-IN'));
+
+  // 25. Balance = Freight - Total Exp Given
+  var expectedBalance = freight - totalExpGiven;
+  var balance = (p.balance !== undefined && p.balance !== null && p.balance !== '' && !isNaN(Number(p.balance)))
+    ? Number(p.balance)
+    : expectedBalance;
 
   var status = p.status || 'Pending';
   if (status === 'Done') status = 'Paid';
@@ -300,7 +370,8 @@ function calculateTripRow(p, nextSNo) {
 
   var fromLoc = String(p.from || '').trim();
   var toLoc = String(p.to || '').trim();
-  var route = fromLoc && toLoc ? (fromLoc + ' ➔ ' + toLoc) : (p.route || '');
+  var balanceReceivedDate = p.balanceReceivedDate ? formatDate(p.balanceReceivedDate) : '';
+  var tripId = p.tripId || p.id || ('TR-' + Date.now() + '-' + Math.floor(Math.random() * 10000));
 
   return {
     sNo: nextSNo || 1,
@@ -311,7 +382,6 @@ function calculateTripRow(p, nextSNo) {
     freight: freight,
     advanceDate: p.advanceDate ? formatDate(p.advanceDate) : '',
     advance: advance,
-    balance: balance,
     halting: String(p.halting || 'None').trim(),
     trspName: String(p.trspName || 'Direct').trim(),
     trspCommission: trspCommission,
@@ -323,21 +393,46 @@ function calculateTripRow(p, nextSNo) {
     rta: rta,
     other: other,
     driverCommission: driverCommission,
-    statusAmount: statusAmount,
+    sumOfTotalExp: sumOfTotalExp,
+    totalExpGiven: totalExpGiven,
     status: status,
+    statusAmount: statusAmount,
     netPL: netPL,
-    pl: plFormatted,
-    route: route
+    plFormatted: plFormatted,
+    balanceReceivedDate: balanceReceivedDate,
+    balance: balance,
+    tripId: tripId
   };
 }
 
 function appendTripToSheet(sheet, t) {
   sheet.appendRow([
-    t.sNo, t.tripDate, t.vehicleNo, t.from, t.to, t.freight,
-    t.advanceDate, t.advance, t.balance, t.halting, t.trspName,
-    t.trspCommission, t.diesel, t.toll, t.loading, t.unloading,
-    t.police, t.rta, t.other, t.driverCommission, t.statusAmount,
-    t.status, t.pl, t.route
+    t.sNo,                  // 1
+    t.tripDate,              // 2
+    t.vehicleNo,             // 3
+    t.from,                  // 4
+    t.to,                    // 5
+    t.freight,               // 6
+    t.advanceDate,           // 7
+    t.advance,               // 8
+    t.halting,               // 9
+    t.trspName,              // 10
+    t.trspCommission,        // 11
+    t.diesel,                // 12
+    t.toll,                  // 13
+    t.loading,               // 14
+    t.unloading,             // 15
+    t.police,                // 16
+    t.rta,                   // 17
+    t.other,                 // 18
+    t.driverCommission,      // 19
+    t.sumOfTotalExp,         // 20
+    t.totalExpGiven,         // 21
+    t.status,                // 22
+    t.plFormatted,           // 23
+    t.balanceReceivedDate,   // 24
+    t.balance,               // 25
+    t.tripId                 // 26 (UUID)
   ]);
 }
 
@@ -358,30 +453,34 @@ function fetchAllTrips(sheet) {
     var freight = Number(r[5]) || 0;
     var advanceDate = formatDate(r[6]);
     var advance = Number(r[7]) || 0;
-    var balance = freight - advance;
-    var halting = String(r[9] || '').trim();
-    var trspName = String(r[10] || '').trim();
-    var trspCommission = Number(r[11]) || 0;
-    var diesel = Number(r[12]) || 0;
-    var toll = Number(r[13]) || 0;
-    var loading = Number(r[14]) || 0;
-    var unloading = Number(r[15]) || 0;
-    var police = Number(r[16]) || 0;
-    var rta = Number(r[17]) || 0;
-    var other = Number(r[18]) || 0;
-    var driverCommission = Number(r[19]) || 0;
-
+    var halting = String(r[8] || '').trim();
+    var trspName = String(r[9] || '').trim();
+    var trspCommission = Number(r[10]) || 0;
+    var diesel = Number(r[11]) || 0;
+    var toll = Number(r[12]) || 0;
+    var loading = Number(r[13]) || 0;
+    var unloading = Number(r[14]) || 0;
+    var police = Number(r[15]) || 0;
+    var rta = Number(r[16]) || 0;
+    var other = Number(r[17]) || 0;
+    var driverCommission = Number(r[18]) || 0;
+    var sumOfTotalExp = Number(r[19]) || (trspCommission + diesel + toll + loading + unloading + police + rta + other + driverCommission);
+    var totalExpGiven = Number(r[20]) || (advance + sumOfTotalExp);
     var status = String(r[21] || 'Pending').trim();
     if (status === 'Done') status = 'Paid';
 
+    var pl = r[22] ? String(r[22]).trim() : '';
+    var balanceReceivedDate = formatDate(r[23]);
+    var balance = Number(r[24]) !== undefined && r[24] !== '' ? Number(r[24]) : (freight - totalExpGiven);
+    var tripId = String(r[25] || ('TR-' + sNo));
+
+    var netPL = freight - totalExpGiven;
+    if (!pl) {
+      pl = netPL >= 0 ? ('P +₹' + Math.abs(netPL).toLocaleString('en-IN')) : ('L -₹' + Math.abs(netPL).toLocaleString('en-IN'));
+    }
+
     var statusAmount = balance;
     if (status === 'Paid') statusAmount = 0;
-    else if (status === 'Partially Paid') statusAmount = Number(r[20]) || balance;
-
-    var totalExpenses = trspCommission + diesel + toll + loading + unloading + police + rta + other + driverCommission;
-    var netPL = freight - totalExpenses;
-    var plFormatted = netPL >= 0 ? ('P +₹' + Math.abs(netPL).toLocaleString('en-IN')) : ('L -₹' + Math.abs(netPL).toLocaleString('en-IN'));
-    var route = r[23] ? String(r[23]).trim() : (fromLoc + ' ➔ ' + toLoc);
 
     trips.push({
       sNo: sNo,
@@ -392,7 +491,6 @@ function fetchAllTrips(sheet) {
       freight: freight,
       advanceDate: advanceDate,
       advance: advance,
-      balance: balance,
       halting: halting,
       trspName: trspName,
       trspCommission: trspCommission,
@@ -404,11 +502,15 @@ function fetchAllTrips(sheet) {
       rta: rta,
       other: other,
       driverCommission: driverCommission,
+      sumOfTotalExp: sumOfTotalExp,
+      totalExpGiven: totalExpGiven,
       statusAmount: statusAmount,
       status: status,
       netPL: netPL,
-      pl: plFormatted,
-      route: route
+      pl: pl,
+      balanceReceivedDate: balanceReceivedDate,
+      balance: balance,
+      tripId: tripId
     });
   }
   return trips;
@@ -489,7 +591,6 @@ function getMasterSpreadsheet(e) {
   var props = PropertiesService.getScriptProperties();
   var sheetId = props.getProperty('SPREADSHEET_ID');
 
-  // Check URL query parameter ?sheetId=...
   if (!sheetId && e && e.parameter && e.parameter.sheetId) {
     sheetId = e.parameter.sheetId;
     props.setProperty('SPREADSHEET_ID', sheetId);
@@ -503,7 +604,6 @@ function getMasterSpreadsheet(e) {
     }
   }
 
-  // Self-Healing: Automatically create a new Google Sheet in Google Drive if none exists!
   try {
     ss = SpreadsheetApp.create('SR_T Lorry Freight Management Data');
     props.setProperty('SPREADSHEET_ID', ss.getId());

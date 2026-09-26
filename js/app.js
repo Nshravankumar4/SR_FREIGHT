@@ -1671,8 +1671,15 @@ window.executeSaveNewTrip = function() {
     deleted: false
   };
 
-  const calculated = calculateTrip(rawTrip);
+  const newTripId = (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'TR-' + Date.now() + '-' + Math.random().toString(36).substr(2, 6));
+  const calculated = calculateTrip({
+    ...rawTrip,
+    tripId: newTripId
+  });
   
+  pendingMutationCount++;
+  isSaving = true;
+
   // Clean addition: push to end so S.No remains chronologically ordered (1, 2, 3, 4, 5...)
   state.trips.push(calculated);
   saveTrips();
@@ -1680,15 +1687,24 @@ window.executeSaveNewTrip = function() {
   // Create local snapshot backup
   BackupModule.onRecordMutated(`Add Trip #${newSNo} (${calculated.vehicleNo})`);
 
-  // Cloud Database Sync: immediately sync with Google Sheet
-  sendCloudMutation('addTrip', calculated);
-  broadcastDataChange();
-
   closeAddTripModal();
   updateSidebarCounters();
   renderTableOnly();
+  showToast(`✅ Trip #${newSNo} (${calculated.vehicleNo}) added.`);
 
-  showToast(`✅ Trip #${newSNo} (${calculated.vehicleNo}) added successfully.`);
+  try {
+    await sendCloudMutation('addTrip', calculated);
+    lastSuccessfulMutation = Date.now();
+    broadcastDataChange();
+  } catch (err) {
+    console.warn('Cloud addTrip note:', err);
+  } finally {
+    pendingMutationCount--;
+    if (pendingMutationCount <= 0) {
+      pendingMutationCount = 0;
+      isSaving = false;
+    }
+  }
 };
 
 // ==========================================================================
@@ -1798,7 +1814,11 @@ function executeDeleteTrip() {
   const trip = state.trips.find(t => Number(t.id) === idNum);
   if (!trip) return;
 
+  pendingMutationCount++;
+  isSaving = true;
+
   trip.deleted = true;
+  state.trips = state.trips.filter(t => !t.deleted);
   saveTrips();
   updateSidebarCounters();
   renderTableOnly();
@@ -1806,18 +1826,29 @@ function executeDeleteTrip() {
   // Create point-in-time snapshot backup
   BackupModule.onRecordMutated(`Delete Trip #${trip.sNo || idNum} (${trip.vehicleNo})`);
 
-  // Send delete action to backend with active role credentials
-  sendCloudMutation('deleteTrip', {
-    id: trip.id,
-    sNo: trip.sNo,
-    vehicleNo: trip.vehicleNo,
-    role: state.currentRole,
-    user: state.currentUser
-  });
-  broadcastDataChange();
-
   showToast(`✅ Trip #${trip.sNo || idNum} (${trip.vehicleNo}) deleted successfully.`);
   state.pendingDeleteTripId = null;
+
+  try {
+    await sendCloudMutation('deleteTrip', {
+      id: trip.id,
+      tripId: trip.tripId,
+      sNo: trip.sNo,
+      vehicleNo: trip.vehicleNo,
+      role: state.currentRole,
+      user: state.currentUser
+    });
+    lastSuccessfulMutation = Date.now();
+    broadcastDataChange();
+  } catch (err) {
+    console.warn('Cloud deleteTrip note:', err);
+  } finally {
+    pendingMutationCount--;
+    if (pendingMutationCount <= 0) {
+      pendingMutationCount = 0;
+      isSaving = false;
+    }
+  }
 }
 
 // ==========================================================================
@@ -1928,20 +1959,33 @@ function executeSaveTripEdits() {
     state.trips[idx] = recalculated;
   }
 
+  pendingMutationCount++;
+  isSaving = true;
+
   saveTrips();
 
   // Create point-in-time snapshot backup
   BackupModule.onRecordMutated(`Edit Trip #${recalculated.sNo || idNum} (${recalculated.vehicleNo})`);
-
-  // Cloud Database Sync: immediately update in Google Sheet
-  sendCloudMutation('updateTrip', recalculated);
-  broadcastDataChange();
 
   closeSlideOver();
   updateSidebarCounters();
   renderTableOnly();
 
   showToast(`✅ Trip #${recalculated.sNo || idNum} updated successfully & synced to cloud.`);
+
+  try {
+    await sendCloudMutation('updateTrip', recalculated);
+    lastSuccessfulMutation = Date.now();
+    broadcastDataChange();
+  } catch (err) {
+    console.warn('Cloud updateTrip note:', err);
+  } finally {
+    pendingMutationCount--;
+    if (pendingMutationCount <= 0) {
+      pendingMutationCount = 0;
+      isSaving = false;
+    }
+  }
 }
 
 // ==========================================================================
@@ -2252,6 +2296,9 @@ async function syncWithGoogleSheet() {
           driverCommission: row.driverCommission || 0,
           status: row.status || 'New',
           statusAmount: row.statusAmount !== undefined ? row.statusAmount : 0,
+          balanceReceivedDate: row.balanceReceivedDate || '',
+          balance: row.balance,
+          tripId: row.tripId || ('TR-' + (row.sNo || idx + 1)),
           deleted: false
         }));
 
@@ -2523,12 +2570,21 @@ async function autoSyncCloud(isSilent = true) {
           driverCommission: row.driverCommission || 0,
           status: row.status || 'New',
           statusAmount: row.statusAmount !== undefined ? row.statusAmount : 0,
+          balanceReceivedDate: row.balanceReceivedDate || '',
+          tripId: row.tripId || ('TR-' + (row.sNo || idx + 1)),
           deleted: false
         }));
 
-        const newHash = JSON.stringify(newTrips.map(t => `${t.sNo}_${t.freight}_${t.advance}_${t.status}_${t.balance}_${t.vehicleNo}`));
+        // Non-destructive merge: preserve any local trips that are still awaiting cloud persistence
+        const cloudTripIds = new Set(newTrips.map(t => String(t.tripId || t.sNo)));
+        const pendingLocalTrips = state.trips.filter(t => !cloudTripIds.has(String(t.tripId || t.sNo)) && !t.deleted);
+        const mergedTrips = [...newTrips, ...pendingLocalTrips];
+
+        const prevHash = JSON.stringify(state.trips.map(t => `${t.sNo}_${t.freight}_${t.advance}_${t.status}_${t.balance}_${t.vehicleNo}_${t.tripId || ''}`));
+        const newHash = JSON.stringify(mergedTrips.map(t => `${t.sNo}_${t.freight}_${t.advance}_${t.status}_${t.balance}_${t.vehicleNo}_${t.tripId || ''}`));
+
         if (prevHash !== newHash) {
-          state.trips = newTrips;
+          state.trips = mergedTrips;
           saveTrips();
           renderScopeControls();
           render();
