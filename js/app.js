@@ -142,8 +142,53 @@ const state = {
   apiUrl: localStorage.getItem('lorry_api_url') || '',
   pendingEditTripId: null,
   pendingDeleteTripId: null,
-  currentUser: localStorage.getItem('lorry_auth_user') || null
+  currentUser: localStorage.getItem('lorry_auth_user') || null,
+  currentRole: localStorage.getItem('lorry_auth_role') || null
 };
+
+// Registered System Users
+const AUTH_USERS = [
+  {
+    userId: 'Admin',
+    password: 'Shravan',
+    role: 'Admin'
+  },
+  {
+    userId: 'Rudra',
+    password: 'RudraSarika@2505',
+    role: 'User'
+  }
+];
+
+// Single Reliable Role-Checking Helpers
+function isAdmin() {
+  return state.currentRole === 'Admin' || (state.currentUser && state.currentUser.toLowerCase() === 'admin');
+}
+
+function canDelete() {
+  return isAdmin();
+}
+
+function canAccessSettings() {
+  return isAdmin();
+}
+
+function applyRolePermissions() {
+  const btnSettings = document.getElementById('btn-settings');
+  const navUserLabel = document.getElementById('nav-user-label');
+  const navRoleLabel = document.getElementById('nav-role-label');
+
+  if (navUserLabel) navUserLabel.textContent = state.currentUser || '-';
+  if (navRoleLabel) navRoleLabel.textContent = state.currentRole || '-';
+
+  if (btnSettings) {
+    if (canAccessSettings()) {
+      btnSettings.classList.remove('hidden');
+    } else {
+      btnSettings.classList.add('hidden');
+    }
+  }
+}
 
 // Initialize Application
 document.addEventListener('DOMContentLoaded', () => {
@@ -154,7 +199,8 @@ document.addEventListener('DOMContentLoaded', () => {
   setupSlideOverEvents();
   closeTripDetails();
 
-  if (state.currentUser) {
+  if (state.currentUser && state.currentRole) {
+    applyRolePermissions();
     renderScopeControls();
     render();
   }
@@ -169,30 +215,52 @@ function setupAuth() {
   const loginForm = document.getElementById('login-form');
   const loginError = document.getElementById('login-error');
   const btnLogout = document.getElementById('btn-logout');
-  const navUserLabel = document.getElementById('nav-user-label');
+  const btnTogglePassword = document.getElementById('btn-toggle-password');
+  const passwordInput = document.getElementById('login-password');
+  const eyeText = document.getElementById('eye-text');
 
-  if (!state.currentUser) {
+  if (btnTogglePassword && passwordInput) {
+    btnTogglePassword.addEventListener('click', () => {
+      const isPassword = passwordInput.type === 'password';
+      passwordInput.type = isPassword ? 'text' : 'password';
+      if (eyeText) {
+        eyeText.textContent = isPassword ? 'Hide Password' : 'Show Password';
+      }
+    });
+  }
+
+  if (!state.currentUser || !state.currentRole) {
     if (loginOverlay) loginOverlay.classList.remove('hidden');
   } else {
     if (loginOverlay) loginOverlay.classList.add('hidden');
-    if (navUserLabel) navUserLabel.textContent = state.currentUser;
+    applyRolePermissions();
   }
 
   if (loginForm) {
     loginForm.addEventListener('submit', (e) => {
       e.preventDefault();
       const usernameInput = document.getElementById('login-username');
-      const passwordInput = document.getElementById('login-password');
       const u = usernameInput ? usernameInput.value.trim() : '';
-      const p = passwordInput ? passwordInput.value.trim() : '';
+      const p = passwordInput ? passwordInput.value : '';
 
-      if (u === 'admin' && p === 'admin') {
-        state.currentUser = u;
-        localStorage.setItem('lorry_auth_user', u);
+      const matched = AUTH_USERS.find(usr => 
+        usr.userId.toLowerCase() === u.toLowerCase() && usr.password === p
+      );
+
+      if (matched) {
+        state.currentUser = matched.userId;
+        state.currentRole = matched.role;
+        localStorage.setItem('lorry_auth_user', state.currentUser);
+        localStorage.setItem('lorry_auth_role', state.currentRole);
+
         if (loginError) loginError.classList.add('hidden');
         if (loginOverlay) loginOverlay.classList.add('hidden');
-        if (navUserLabel) navUserLabel.textContent = u;
-        showToast('✅ Signed in successfully as admin.');
+        if (passwordInput) passwordInput.value = '';
+        if (passwordInput) passwordInput.type = 'password';
+        if (eyeText) eyeText.textContent = 'Show Password';
+
+        applyRolePermissions();
+        showToast(`✅ Signed in successfully as ${state.currentUser} (${state.currentRole}).`);
         renderScopeControls();
         render();
       } else {
@@ -204,8 +272,20 @@ function setupAuth() {
   if (btnLogout) {
     btnLogout.addEventListener('click', () => {
       state.currentUser = null;
+      state.currentRole = null;
       localStorage.removeItem('lorry_auth_user');
+      localStorage.removeItem('lorry_auth_role');
+
+      const usernameInput = document.getElementById('login-username');
+      if (usernameInput) usernameInput.value = '';
+      if (passwordInput) {
+        passwordInput.value = '';
+        passwordInput.type = 'password';
+      }
+      if (eyeText) eyeText.textContent = 'Show Password';
+      if (loginError) loginError.classList.add('hidden');
       if (loginOverlay) loginOverlay.classList.remove('hidden');
+      closeTripDetails();
       showToast('ℹ️ Logged out successfully.');
     });
   }
@@ -873,9 +953,11 @@ function renderTableOnly() {
             <button onclick="promptEditTrip(${t.id})" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-gray-700 bg-white border border-gray-300 hover:bg-blue-50 hover:text-blue-700 active:scale-95 transition cursor-pointer shadow-xs" title="Edit Trip">
               <span>✏️ Edit</span>
             </button>
+            ${canDelete() ? `
             <button onclick="promptDeleteTrip(${t.id})" class="p-2 rounded-lg text-gray-400 hover:text-rose-600 hover:bg-rose-50 active:scale-95 transition cursor-pointer" title="Delete Trip">
               <svg class="w-4 h-4 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
             </button>
+            ` : ''}
           </div>
         </td>
       </tr>
@@ -1542,6 +1624,10 @@ window.promptSaveTripEdits = function() {
 };
 
 window.promptDeleteTrip = function(tripId) {
+  if (!canDelete()) {
+    showToast('❌ You do not have permission to delete trips.');
+    return;
+  }
   const idNum = Number(tripId);
   const trip = state.trips.find(t => Number(t.id) === idNum);
   if (!trip) return;
@@ -1555,6 +1641,11 @@ window.promptDeleteTrip = function(tripId) {
 };
 
 function executeDeleteTrip() {
+  if (!canDelete()) {
+    showToast('❌ You do not have permission to delete trips.');
+    closeModal('modal-confirm-delete');
+    return;
+  }
   if (!state.pendingDeleteTripId) return;
   const idNum = Number(state.pendingDeleteTripId);
   const trip = state.trips.find(t => Number(t.id) === idNum);
@@ -1564,6 +1655,30 @@ function executeDeleteTrip() {
   saveTrips();
   updateSidebarCounters();
   renderTableOnly();
+
+  // Send delete action to backend with active role credentials
+  if (state.apiUrl) {
+    fetch(state.apiUrl, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'deleteTrip',
+        id: trip.id,
+        sNo: trip.sNo,
+        vehicleNo: trip.vehicleNo,
+        role: state.currentRole,
+        user: state.currentUser
+      })
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data && data.success === false) {
+        showToast(`❌ Backend: ${data.error}`);
+      }
+    })
+    .catch(err => {
+      console.warn('Backend delete sync note:', err.message);
+    });
+  }
 
   showToast(`✅ Trip #${trip.sNo || idNum} (${trip.vehicleNo}) deleted successfully.`);
   state.pendingDeleteTripId = null;
@@ -1999,6 +2114,10 @@ async function syncWithGoogleSheet() {
 }
 
 function openSettingsModal() {
+  if (!canAccessSettings()) {
+    showToast('❌ You do not have permission to access Settings.');
+    return;
+  }
   const url = prompt('Enter your Google Apps Script Web App URL:', state.apiUrl);
   if (url !== null) {
     state.apiUrl = url.trim();

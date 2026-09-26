@@ -85,29 +85,34 @@
         <div class="w-16 h-16 mx-auto rounded-2xl bg-blue-600 flex items-center justify-center text-white text-3xl shadow-lg shadow-blue-500/30">
           🚛
         </div>
-        <h2 class="text-2xl font-black text-gray-900 tracking-tight">SR_T FREIGHT</h2>
-        <p class="text-xs text-gray-500 font-bold uppercase tracking-wider">Fleet & Broker Management System</p>
+        <h2 class="text-xl sm:text-2xl font-black text-gray-900 tracking-tight uppercase">LORRY FREIGHT MANAGEMENT</h2>
+        <p class="text-xs text-gray-500 font-bold uppercase tracking-wider">Fleet & Broker Operations Portal</p>
       </div>
 
       <form id="login-form" class="space-y-4">
         <div>
-          <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">Username</label>
-          <input type="text" id="login-username" class="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-sm font-medium focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition" placeholder="admin" value="admin" required autocomplete="username">
+          <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">User ID</label>
+          <input type="text" id="login-username" class="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-sm font-medium focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition" placeholder="Enter User ID" required autocomplete="username">
         </div>
         <div>
-          <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">Password</label>
-          <input type="password" id="login-password" class="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-sm font-medium focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition" placeholder="••••••••" value="admin" required autocomplete="current-password">
+          <div class="flex items-center justify-between mb-1.5">
+            <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider">Password</label>
+            <button type="button" id="btn-toggle-password" class="text-[11px] font-bold text-blue-600 hover:text-blue-800 transition flex items-center gap-1 cursor-pointer select-none">
+              <span id="eye-icon">👁️</span> <span id="eye-text">Show Password</span>
+            </button>
+          </div>
+          <input type="password" id="login-password" class="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-sm font-medium focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition" placeholder="Enter Password" required autocomplete="current-password">
         </div>
-        <div id="login-error" class="hidden text-xs font-bold text-rose-600 bg-rose-50 p-2.5 rounded-xl border border-rose-200 text-center">
-          Invalid username or password. (Default: admin / admin)
+        <div id="login-error" class="hidden text-xs font-bold text-rose-600 bg-rose-50 p-3 rounded-xl border border-rose-200 text-center">
+          Invalid User ID or Password. Please check your credentials.
         </div>
-        <button type="submit" class="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white font-bold text-sm rounded-xl transition shadow-md shadow-blue-500/25 cursor-pointer">
-          Sign In to Dashboard
+        <button type="submit" class="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white font-black text-sm uppercase tracking-wider rounded-xl transition shadow-md shadow-blue-500/25 cursor-pointer">
+          LOGIN
         </button>
       </form>
 
       <div class="text-center pt-2 border-t border-gray-100">
-        <p class="text-[11px] text-gray-400 font-medium">Internal Operational Portal &bull; Single-Sign On</p>
+        <p class="text-[11px] text-gray-400 font-medium">Internal Operational Portal &bull; Role-Based Access Control</p>
       </div>
     </div>
   </div>
@@ -148,15 +153,28 @@
             <span class="sm:hidden">EXCEL</span>
           </button>
 
+          <!-- Sync with Google Sheets -->
           <button id="btn-sync" class="hidden md:inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 active:scale-95 transition shadow-xs cursor-pointer" title="Sync with Google Sheets">
             <svg class="w-3.5 h-3.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
             <span>Sync</span>
           </button>
 
-          <button id="btn-settings" class="p-2 text-gray-400 hover:text-gray-700 rounded-xl hover:bg-gray-100 transition cursor-pointer" title="API Settings">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          <!-- Settings (Visible ONLY for Admin, Hidden for Rudra) -->
+          <button id="btn-settings" class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 active:scale-95 transition cursor-pointer" title="Application Settings">
+            <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            <span class="hidden sm:inline">Settings</span>
           </button>
 
+          <!-- User Profile & Role Badge -->
+          <div id="user-profile-badge" class="flex items-center gap-2 px-3 py-1.5 bg-slate-100 border border-slate-200 rounded-xl select-none">
+            <span class="text-sm">👤</span>
+            <div class="flex flex-col text-left leading-tight">
+              <span id="nav-user-label" class="text-xs font-black text-slate-800">Admin</span>
+              <span id="nav-role-label" class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Admin</span>
+            </div>
+          </div>
+
+          <!-- Logout Button -->
           <button id="btn-logout" class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 rounded-xl hover:bg-rose-100 active:scale-95 transition cursor-pointer">
             <span>Logout</span>
           </button>

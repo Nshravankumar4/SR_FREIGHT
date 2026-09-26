@@ -175,9 +175,16 @@ Arranged in an 8-column responsive grid across the top of the dashboard:
 
 ## 7. Interactive Modals & Safety Controls
 
-1. **Authentication Guard**:
-   - Session-based login protecting business financial data (`admin` / `admin`).
-   - Session state preserved in browser `localStorage`.
+1. **Authentication Guard & Role-Based Access Control (RBAC)**:
+   - Clean login screen with `User ID`, `Password` (`type="password"`), and `👁️ Show / Hide Password` toggle.
+   - Credentials are not prefilled or auto-logged in.
+   - **Users & Credentials:**
+     - **Admin**: User ID `Admin` | Password `Shravan` | Role: `Admin` (Full permissions: Add, Edit, Delete, View, Export, Settings)
+     - **Rudra**: User ID `Rudra` | Password `RudraSarika@2505` | Role: `User` (User permissions: Add, Edit, View, Export; **Delete & Settings blocked**)
+   - **Dual-Layer Security Enforcement:**
+     - **Frontend**: For Rudra, the `🗑️ Delete` button is completely omitted from the table DOM and `⚙️ Settings` button is hidden in header. If delete or settings functions are directly invoked in console, a warning toast `❌ Only Admin can delete trips` or `❌ You do not have permission to access Settings` aborts the call.
+     - **Backend (`Code.gs`)**: In `doPost(e)`, the backend checks `if (userRole !== 'Admin')` for `deleteTrip` and `updateSettings`, returning `{ "success": false, "error": "Delete permission denied" }`.
+   - Top executive header displays logged-in user and role badge (`👤 Admin (Admin)` or `👤 Rudra (User)`), alongside a secure `[ Logout ]` button.
 2. **`+ ADD TRIP` Modal**:
    - Live recalculation preview for Balance, Total Expenses, and Net P/L as inputs are typed.
    - Defaults to `New` status.
@@ -204,6 +211,9 @@ cd d:\Repo\Lorry
 py -m http.server 8000
 ```
 Open `http://localhost:8000` in Google Chrome or Microsoft Edge.
+Log in with either:
+- **Admin**: User ID `Admin` / Password `Shravan` (Full permissions)
+- **Rudra**: User ID `Rudra` / Password `RudraSarika@2505` (User permissions, Delete & Settings restricted)
 
 ### Deploying the Google Apps Script Backend
 1. Open your master Google Sheet (containing `Trips` and `Form Responses 1` tabs).

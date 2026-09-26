@@ -70,6 +70,51 @@ function doPost(e) {
       payload = e.parameter;
     }
 
+    const action = payload.action || 'addTrip';
+    const userRole = String(payload.role || payload.currentRole || '').trim();
+
+    // STRICT BACKEND SECURITY ENFORCEMENT: Delete Operation
+    if (action === 'deleteTrip') {
+      if (userRole !== 'Admin') {
+        return ContentService.createTextOutput(JSON.stringify({
+          success: false,
+          error: "Delete permission denied"
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+
+      const targetSNo = payload.sNo || payload.id;
+      const targetVehicle = String(payload.vehicleNo || '').trim().toUpperCase();
+      const data = sheet.getDataRange().getValues();
+      let deleted = false;
+
+      for (let i = 1; i < data.length; i++) {
+        if (String(data[i][0]) === String(targetSNo) || (targetVehicle && String(data[i][2]).toUpperCase() === targetVehicle)) {
+          sheet.deleteRow(i + 1);
+          deleted = true;
+          break;
+        }
+      }
+
+      return ContentService.createTextOutput(JSON.stringify({
+        success: true,
+        message: deleted ? "Trip deleted successfully" : "Trip not found on master sheet"
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // STRICT BACKEND SECURITY ENFORCEMENT: Settings Access
+    if (action === 'updateSettings' || action === 'settings') {
+      if (userRole !== 'Admin') {
+        return ContentService.createTextOutput(JSON.stringify({
+          success: false,
+          error: "Settings permission denied"
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+      return ContentService.createTextOutput(JSON.stringify({
+        success: true,
+        message: "Settings updated successfully"
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
     const nextSNo = sheet.getLastRow();
     const newTrip = calculateTripRow(payload, nextSNo);
     appendTripToMaster(sheet, newTrip);

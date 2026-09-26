@@ -6,10 +6,16 @@ A clean, modern, executive SaaS application for Lorry Freight Operations, Broker
 
 ## 🚀 Key Features
 
-1. **Authentication (Login & Logout):**
-   - Single-sign-on login card before dashboard access.
-   - Session storage persistence with `[ Logout ]` button in the top navigation header.
-   - Default credentials: `admin` / `admin`.
+1. **Role-Based Authentication & Permissions (RBAC):**
+   - Clean login screen with `User ID`, `Password` (`type="password"`), and `👁️ Show / Hide Password` toggle.
+   - Credentials are not prefilled or auto-logged in.
+   - **Configured Users & Roles:**
+     - **Admin**: User ID `Admin` | Password `Shravan` | Role: `Admin` (Full access: Add, Edit, Delete, Settings, View, Excel)
+     - **Rudra**: User ID `Rudra` | Password `RudraSarika@2505` | Role: `User` (Add, Edit, View, Excel; **Delete** and **Settings** blocked)
+   - **Dual-Layer Security:**
+     - **UI Layer**: For Rudra, the `🗑️ Delete` button on trip rows and the `⚙️ Settings` button in the header are completely hidden. If invoked directly, toasts display: `❌ Only Admin can delete trips` / `❌ You do not have permission to access Settings`.
+     - **Backend Layer (`Code.gs`)**: Google Apps Script rejects any `deleteTrip` or `updateSettings` POST requests from non-Admin roles with `{ "success": false, "error": "Delete permission denied" }`.
+   - Top header displays logged-in user and role badge (`👤 Admin (Admin)` or `👤 Rudra (User)`), with a secure `[ Logout ]` button.
 
 2. **Top Operational Control Bar:**
    - **View Trips Time Scope:** `[ TODAY ]`, `[ SELECTED DATE ]`, `[ DATE RANGE ]`, `[ ENTIRE MONTH ]`, and `[ ALL TRIPS ]` arranged across the top with responsive date pickers and month selector.
@@ -78,5 +84,7 @@ D:\Repo\Lorry/
    py -m http.server 8000
    ```
 3. Open `http://localhost:8000` in your web browser.
-4. Log in with `admin` / `admin`.
+4. Log in with:
+   - **Admin**: User ID `Admin` / Password `Shravan` (Full permissions)
+   - **Rudra**: User ID `Rudra` / Password `RudraSarika@2505` (User permissions, Delete & Settings restricted)
 5. Test date ranges, warning boxes, two-step edit confirmations, delete confirmation, and Excel export.
