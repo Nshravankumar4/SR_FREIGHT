@@ -38,13 +38,13 @@ function doGet(e) {
   let responseData = {};
 
   try {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    let sheet = ss.getSheetByName(SHEET_TRIPS) || ss.getSheets()[0];
+    const ss = getMasterSpreadsheet(e);
+    let sheet = ss.getSheetByName(SHEET_TRIPS) || setupTripsSheet(ss);
 
     if (action === 'getTrips') {
-      responseData = { status: 'success', data: fetchAllTrips(sheet) };
+      responseData = { status: 'success', data: fetchAllTrips(sheet), sheetUrl: ss.getUrl() };
     } else if (action === 'ping') {
-      responseData = { status: 'success', message: 'Lorry API active', time: new Date().toISOString() };
+      responseData = { status: 'success', message: 'Lorry API active', time: new Date().toISOString(), sheetUrl: ss.getUrl() };
     } else {
       responseData = { status: 'error', message: 'Unknown action: ' + action };
     }
@@ -60,7 +60,7 @@ function doGet(e) {
 function doPost(e) {
   let responseData = {};
   try {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const ss = getMasterSpreadsheet(e);
     let sheet = ss.getSheetByName(SHEET_TRIPS) || setupTripsSheet(ss);
     
     let payload = {};
@@ -471,5 +471,38 @@ function createCloudBackup(ss, reason) {
   } catch (err) {
     Logger.log('Cloud backup error: ' + err.toString());
     return { success: false, error: err.toString() };
+  }
+}
+
+// Master Spreadsheet Locator (Works with both Container-Bound and Standalone Scripts)
+function getMasterSpreadsheet(e) {
+  let ss = SpreadsheetApp.getActiveSpreadsheet();
+  if (ss) return ss;
+
+  const props = PropertiesService.getScriptProperties();
+  let sheetId = props.getProperty('SPREADSHEET_ID');
+
+  // Check query parameter
+  if (!sheetId && e && e.parameter && e.parameter.sheetId) {
+    sheetId = e.parameter.sheetId;
+    props.setProperty('SPREADSHEET_ID', sheetId);
+  }
+
+  if (sheetId) {
+    try {
+      return SpreadsheetApp.openById(sheetId);
+    } catch (err) {
+      Logger.log("Could not open spreadsheet by ID: " + err);
+    }
+  }
+
+  // If no spreadsheet ID exists yet, automatically create one in Google Drive!
+  try {
+    ss = SpreadsheetApp.create('SR_T Lorry Freight Management Data');
+    props.setProperty('SPREADSHEET_ID', ss.getId());
+    setupTripsSheet(ss);
+    return ss;
+  } catch (createErr) {
+    throw new Error("No active Google Sheet found. Please bind this script to a Google Sheet (Extensions -> Apps Script) or set SPREADSHEET_ID in Project Settings -> Script Properties.");
   }
 }
