@@ -51,7 +51,7 @@
     .custom-scrollbar::-webkit-scrollbar-thumb:hover {
       background: #94a3b8;
     }
-    /* Toast slide down */
+    /* Toast animation */
     @keyframes toastSlide {
       from { transform: translateY(-100%); opacity: 0; }
       to { transform: translateY(0); opacity: 1; }
@@ -59,7 +59,7 @@
     .animate-toast {
       animation: toastSlide 0.25s ease-out forwards;
     }
-    /* Modal fade */
+    /* Modal animation */
     @keyframes modalFade {
       from { opacity: 0; transform: scale(0.97); }
       to { opacity: 1; transform: scale(1); }
@@ -72,7 +72,7 @@
 <body class="h-full font-sans antialiased text-gray-900 bg-gray-50 flex flex-col">
 
   <!-- ========================================================================= -->
-  <!-- Top Toast Notification System                                             -->
+  <!-- Toast Notification Container                                              -->
   <!-- ========================================================================= -->
   <div id="toast-container" class="fixed top-5 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 pointer-events-none w-full max-w-md px-4"></div>
 
@@ -116,7 +116,7 @@
   <!-- Top Navigation Header                                                     -->
   <!-- ========================================================================= -->
   <header class="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-xs">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
       <div class="flex items-center justify-between h-16 gap-3">
         
         <!-- Left: Brand Logo & Title -->
@@ -167,209 +167,249 @@
   </header>
 
   <!-- ========================================================================= -->
-  <!-- Main Operational Dashboard                                                -->
+  <!-- Main Operational Layout (Left Filters + Right Master Table)               -->
   <!-- ========================================================================= -->
-  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-5">
-
-    <!-- 1. CLEAN FILTER PANEL: VIEW TRIPS -->
-    <section class="bg-white rounded-2xl border border-gray-200 shadow-xs p-5 space-y-4">
-      <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 pb-3">
-        <div>
-          <h2 class="text-sm font-black text-gray-900 tracking-wider uppercase">VIEW TRIPS</h2>
-          <p class="text-xs text-gray-500 font-medium">Select operational time scope to display trip records</p>
-        </div>
-        
-        <!-- Active View Indicator Badge -->
-        <div class="flex items-center gap-2">
-          <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">CURRENT VIEW:</span>
-          <span id="active-view-tag" class="px-3 py-1 text-xs font-black rounded-xl bg-blue-50 text-blue-700 border border-blue-200">
-            ALL TRIPS
-          </span>
-        </div>
-      </div>
-
-      <!-- Scope View Selection Buttons -->
-      <div class="flex flex-wrap items-center gap-2">
-        <button onclick="setViewType('TODAY')" id="btn-view-today" class="view-type-btn px-4 py-2 text-xs font-bold rounded-xl transition cursor-pointer select-none bg-gray-100 text-gray-700 hover:bg-gray-200">
-          TODAY
-        </button>
-
-        <button onclick="setViewType('SELECTED_DATE')" id="btn-view-selected-date" class="view-type-btn px-4 py-2 text-xs font-bold rounded-xl transition cursor-pointer select-none bg-gray-100 text-gray-700 hover:bg-gray-200">
-          SELECTED DATE
-        </button>
-
-        <button onclick="setViewType('DATE_RANGE')" id="btn-view-date-range" class="view-type-btn px-4 py-2 text-xs font-bold rounded-xl transition cursor-pointer select-none bg-gray-100 text-gray-700 hover:bg-gray-200">
-          DATE RANGE
-        </button>
-
-        <button onclick="setViewType('ENTIRE_MONTH')" id="btn-view-entire-month" class="view-type-btn px-4 py-2 text-xs font-bold rounded-xl transition cursor-pointer select-none bg-gray-100 text-gray-700 hover:bg-gray-200">
-          ENTIRE MONTH
-        </button>
-
-        <button onclick="setViewType('ALL_TRIPS')" id="btn-view-all-trips" class="view-type-btn px-4 py-2 text-xs font-bold rounded-xl transition cursor-pointer select-none bg-blue-600 text-white font-black shadow-xs">
-          ALL TRIPS
-        </button>
-      </div>
-
-      <!-- Contextual Scope Input Controls (Only visible when relevant) -->
-      <div id="scope-controls-container" class="pt-2 flex flex-wrap items-center justify-between gap-3 border-t border-gray-100">
-        
-        <!-- Controls Left (Dynamic inputs based on view) -->
-        <div id="dynamic-scope-inputs" class="flex flex-wrap items-center gap-3">
-          <!-- Injected dynamically by app.js -->
-        </div>
-
-        <!-- Controls Right: Realtime Search -->
-        <div class="relative">
-          <svg class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-          <input type="text" id="input-search" class="w-64 pl-9 pr-3 py-2 text-xs font-medium rounded-xl bg-gray-50 border border-gray-300 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition placeholder-gray-400" placeholder="Search vehicle, route, broker...">
-        </div>
-
-      </div>
-    </section>
-
-    <!-- 2. CLEAN SUMMARY CARDS (DYNAMICALLY ROLL UP ACCORDING TO VIEW) -->
-    <section class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+  <main class="flex-1 max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-5">
+    
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
       
-      <!-- Total Freight -->
-      <div class="bg-white rounded-2xl border border-gray-200 p-4 shadow-xs">
-        <div class="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">TOTAL FREIGHT</div>
-        <div id="sum-freight" class="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">₹0</div>
-        <div class="text-[10px] text-gray-400 font-semibold mt-1">Total Revenue</div>
-      </div>
-
-      <!-- Total Advance -->
-      <div class="bg-white rounded-2xl border border-gray-200 p-4 shadow-xs">
-        <div class="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">TOTAL ADVANCE</div>
-        <div id="sum-advance" class="text-xl sm:text-2xl font-black text-gray-700 tracking-tight">₹0</div>
-        <div class="text-[10px] text-gray-400 font-semibold mt-1">Received Advance</div>
-      </div>
-
-      <!-- Total Balance -->
-      <div class="bg-white rounded-2xl border border-amber-200 bg-amber-50/20 p-4 shadow-xs">
-        <div class="text-[11px] font-bold text-amber-700 uppercase tracking-wider mb-1">TOTAL BALANCE</div>
-        <div id="sum-balance" class="text-xl sm:text-2xl font-black text-amber-600 tracking-tight">₹0</div>
-        <div class="text-[10px] text-amber-600/70 font-semibold mt-1">Pending Amount</div>
-      </div>
-
-      <!-- Total Expenses -->
-      <div class="bg-white rounded-2xl border border-gray-200 p-4 shadow-xs">
-        <div class="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">TOTAL EXPENSES</div>
-        <div id="sum-expenses" class="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">₹0</div>
-        <div class="text-[10px] text-gray-400 font-semibold mt-1">En-route Costs</div>
-      </div>
-
-      <!-- Total Profit -->
-      <div class="bg-white rounded-2xl border border-emerald-200 bg-emerald-50/20 p-4 shadow-xs">
-        <div class="text-[11px] font-bold text-emerald-700 uppercase tracking-wider mb-1">TOTAL PROFIT</div>
-        <div id="sum-profit" class="text-xl sm:text-2xl font-black text-emerald-600 tracking-tight">₹0</div>
-        <div class="text-[10px] text-emerald-600/70 font-semibold mt-1">Net Gain (P)</div>
-      </div>
-
-      <!-- Total Loss -->
-      <div class="bg-white rounded-2xl border border-rose-200 bg-rose-50/20 p-4 shadow-xs">
-        <div class="text-[11px] font-bold text-rose-700 uppercase tracking-wider mb-1">TOTAL LOSS</div>
-        <div id="sum-loss" class="text-xl sm:text-2xl font-black text-rose-600 tracking-tight">₹0</div>
-        <div class="text-[10px] text-rose-600/70 font-semibold mt-1">Net Deficit (L)</div>
-      </div>
-
-    </section>
-
-    <!-- 3. STATUS FILTER BUTTONS (WORKS TOGETHER WITH DATE/MONTH VIEW) -->
-    <section class="bg-white rounded-2xl border border-gray-200 shadow-xs p-3">
-      <div class="flex flex-wrap items-center justify-between gap-3">
+      <!-- ===================================================================== -->
+      <!-- LEFT SIDEBAR: VIEW TRIPS SCOPE & STATUS FILTERS                       -->
+      <!-- ===================================================================== -->
+      <aside class="lg:col-span-4 xl:col-span-3 space-y-5">
         
-        <div class="flex items-center gap-2">
-          <span class="text-xs font-bold text-gray-400 uppercase tracking-wider pl-1">FILTER:</span>
-          
-          <div class="flex flex-wrap items-center gap-1.5">
-            <button onclick="setStatusFilter('ALL')" id="filter-status-all" class="status-filter-btn px-3 py-1.5 text-xs font-black rounded-xl transition cursor-pointer select-none bg-blue-600 text-white shadow-xs">
-              ALL (<span id="badge-all">0</span>)
+        <!-- CARD 1: VIEW TRIPS (TIME SCOPE) -->
+        <div class="bg-white rounded-2xl border border-gray-200 shadow-xs p-5 space-y-4">
+          <div class="flex items-center justify-between border-b border-gray-100 pb-3">
+            <div>
+              <h2 class="text-xs font-black text-gray-900 uppercase tracking-wider flex items-center gap-1.5">
+                <span>📅</span> VIEW TRIPS
+              </h2>
+              <p class="text-[11px] text-gray-500 font-medium">Select operational time scope</p>
+            </div>
+            <span id="active-view-tag" class="px-2.5 py-0.5 text-[11px] font-black rounded-lg bg-blue-50 text-blue-700 border border-blue-200 uppercase">
+              ALL TRIPS
+            </span>
+          </div>
+
+          <!-- Big Scope Buttons -->
+          <div class="grid grid-cols-1 gap-2">
+            <button onclick="setViewType('TODAY')" id="btn-view-today" class="view-type-btn w-full px-4 py-2.5 text-xs font-bold rounded-xl transition cursor-pointer select-none text-left flex items-center justify-between bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200">
+              <span class="flex items-center gap-2"><span>📌</span> TODAY</span>
+              <span class="text-[10px] text-gray-400 font-medium">Daily</span>
             </button>
 
-            <button onclick="setStatusFilter('PROFIT')" id="filter-status-profit" class="status-filter-btn px-3 py-1.5 text-xs font-bold rounded-xl transition cursor-pointer select-none bg-gray-100 text-emerald-700 hover:bg-emerald-50">
-              PROFIT (<span id="badge-profit">0</span>)
+            <button onclick="setViewType('SELECTED_DATE')" id="btn-view-selected-date" class="view-type-btn w-full px-4 py-2.5 text-xs font-bold rounded-xl transition cursor-pointer select-none text-left flex items-center justify-between bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200">
+              <span class="flex items-center gap-2"><span>🗓️</span> SELECTED DATE</span>
+              <span class="text-[10px] text-gray-400 font-medium">Exact Day</span>
             </button>
 
-            <button onclick="setStatusFilter('LOSS')" id="filter-status-loss" class="status-filter-btn px-3 py-1.5 text-xs font-bold rounded-xl transition cursor-pointer select-none bg-gray-100 text-rose-700 hover:bg-rose-50">
-              LOSS (<span id="badge-loss">0</span>)
+            <button onclick="setViewType('DATE_RANGE')" id="btn-view-date-range" class="view-type-btn w-full px-4 py-2.5 text-xs font-bold rounded-xl transition cursor-pointer select-none text-left flex items-center justify-between bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200">
+              <span class="flex items-center gap-2"><span>↔️</span> DATE RANGE</span>
+              <span class="text-[10px] text-gray-400 font-medium">Custom Range</span>
             </button>
 
-            <button onclick="setStatusFilter('PENDING')" id="filter-status-pending" class="status-filter-btn px-3 py-1.5 text-xs font-bold rounded-xl transition cursor-pointer select-none bg-gray-100 text-amber-700 hover:bg-amber-50">
-              PENDING (<span id="badge-pending">0</span>)
+            <button onclick="setViewType('ENTIRE_MONTH')" id="btn-view-entire-month" class="view-type-btn w-full px-4 py-2.5 text-xs font-bold rounded-xl transition cursor-pointer select-none text-left flex items-center justify-between bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200">
+              <span class="flex items-center gap-2"><span>📆</span> ENTIRE MONTH</span>
+              <span class="text-[10px] text-gray-400 font-medium">Full Month</span>
             </button>
 
-            <button onclick="setStatusFilter('PARTIAL')" id="filter-status-partial" class="status-filter-btn px-3 py-1.5 text-xs font-bold rounded-xl transition cursor-pointer select-none bg-gray-100 text-orange-700 hover:bg-orange-50">
-              PARTIALLY PAID (<span id="badge-partial">0</span>)
+            <button onclick="setViewType('ALL_TRIPS')" id="btn-view-all-trips" class="view-type-btn w-full px-4 py-2.5 text-xs font-black rounded-xl transition cursor-pointer select-none text-left flex items-center justify-between bg-blue-600 text-white shadow-xs">
+              <span class="flex items-center gap-2"><span>📋</span> ALL TRIPS</span>
+              <span class="text-[10px] text-white/80 font-bold">All Records</span>
             </button>
+          </div>
 
-            <button onclick="setStatusFilter('PAID')" id="filter-status-paid" class="status-filter-btn px-3 py-1.5 text-xs font-bold rounded-xl transition cursor-pointer select-none bg-gray-100 text-teal-700 hover:bg-teal-50">
-              PAID (<span id="badge-paid">0</span>)
-            </button>
+          <!-- Dynamic Input Controls for Active Scope -->
+          <div id="dynamic-scope-inputs" class="pt-3 border-t border-gray-100">
+            <!-- Injected dynamically by app.js -->
           </div>
         </div>
 
-        <div class="text-xs font-semibold text-gray-400 pr-1">
-          Showing <strong id="visible-count-label" class="text-gray-900">0</strong> matching trips
+        <!-- CARD 2: BIG BOX STATUS & AUDIT FILTERS -->
+        <div class="bg-white rounded-2xl border border-gray-200 shadow-xs p-5 space-y-3">
+          <div class="border-b border-gray-100 pb-2.5">
+            <h2 class="text-xs font-black text-gray-900 uppercase tracking-wider flex items-center gap-1.5">
+              <span>🔍</span> STATUS & AUDIT FILTERS
+            </h2>
+            <p class="text-[11px] text-gray-500 font-medium">Filter matching trips in active scope</p>
+          </div>
+
+          <!-- Big Meaningful Buttons -->
+          <div class="grid grid-cols-1 gap-2.5">
+            
+            <!-- All Trips in Scope -->
+            <button onclick="setStatusFilter('ALL')" id="filter-btn-all" class="big-status-btn active p-3 rounded-xl border-2 border-blue-600 bg-blue-50/50 text-left transition cursor-pointer select-none flex items-center justify-between shadow-xs">
+              <div class="flex items-center gap-2.5">
+                <span class="text-lg">📋</span>
+                <div>
+                  <div class="text-xs font-black text-gray-900">ALL TRIPS</div>
+                  <div class="text-[10px] text-gray-500">Every trip in current scope</div>
+                </div>
+              </div>
+              <span id="badge-all" class="text-sm font-black text-blue-700 bg-white px-2 py-0.5 rounded-lg border border-blue-200 shadow-xs">0</span>
+            </button>
+
+            <!-- New Status -->
+            <button onclick="setStatusFilter('NEW')" id="filter-btn-new" class="big-status-btn p-3 rounded-xl border border-gray-200 hover:border-indigo-400 bg-white hover:bg-indigo-50/30 text-left transition cursor-pointer select-none flex items-center justify-between">
+              <div class="flex items-center gap-2.5">
+                <span class="text-lg">🆕</span>
+                <div>
+                  <div class="text-xs font-bold text-gray-800">NEW DISPATCH</div>
+                  <div class="text-[10px] text-gray-500">Fresh trips awaiting process</div>
+                </div>
+              </div>
+              <span id="badge-new" class="text-sm font-black text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-lg border border-indigo-200">0</span>
+            </button>
+
+            <!-- Profit Trips -->
+            <button onclick="setStatusFilter('PROFIT')" id="filter-btn-profit" class="big-status-btn p-3 rounded-xl border border-gray-200 hover:border-emerald-400 bg-white hover:bg-emerald-50/30 text-left transition cursor-pointer select-none flex items-center justify-between">
+              <div class="flex items-center gap-2.5">
+                <span class="text-lg">🟢</span>
+                <div>
+                  <div class="text-xs font-bold text-gray-800">PROFIT TRIPS</div>
+                  <div class="text-[10px] text-emerald-600 font-semibold">Net P/L &ge; ₹0</div>
+                </div>
+              </div>
+              <span id="badge-profit" class="text-sm font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">0</span>
+            </button>
+
+            <!-- Loss Trips -->
+            <button onclick="setStatusFilter('LOSS')" id="filter-btn-loss" class="big-status-btn p-3 rounded-xl border border-gray-200 hover:border-rose-400 bg-white hover:bg-rose-50/30 text-left transition cursor-pointer select-none flex items-center justify-between">
+              <div class="flex items-center gap-2.5">
+                <span class="text-lg">🔴</span>
+                <div>
+                  <div class="text-xs font-bold text-gray-800">LOSS TRIPS</div>
+                  <div class="text-[10px] text-rose-600 font-semibold">Net P/L &lt; ₹0</div>
+                </div>
+              </div>
+              <span id="badge-loss" class="text-sm font-black text-rose-700 bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-200">0</span>
+            </button>
+
+            <!-- Pending Payments -->
+            <button onclick="setStatusFilter('PENDING')" id="filter-btn-pending" class="big-status-btn p-3 rounded-xl border border-gray-200 hover:border-amber-400 bg-white hover:bg-amber-50/30 text-left transition cursor-pointer select-none flex items-center justify-between">
+              <div class="flex items-center gap-2.5">
+                <span class="text-lg">🟠</span>
+                <div>
+                  <div class="text-xs font-bold text-gray-800">PENDING BALANCE</div>
+                  <div class="text-[10px] text-amber-700 font-semibold">Awaiting freight balance</div>
+                </div>
+              </div>
+              <span id="badge-pending" class="text-sm font-black text-amber-700 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200">0</span>
+            </button>
+
+            <!-- Partially Paid -->
+            <button onclick="setStatusFilter('PARTIAL')" id="filter-btn-partial" class="big-status-btn p-3 rounded-xl border border-gray-200 hover:border-orange-400 bg-white hover:bg-orange-50/30 text-left transition cursor-pointer select-none flex items-center justify-between">
+              <div class="flex items-center gap-2.5">
+                <span class="text-lg">🟡</span>
+                <div>
+                  <div class="text-xs font-bold text-gray-800">PARTIALLY PAID</div>
+                  <div class="text-[10px] text-orange-700 font-semibold">Partial advance/balance</div>
+                </div>
+              </div>
+              <span id="badge-partial" class="text-sm font-black text-orange-700 bg-orange-50 px-2 py-0.5 rounded-lg border border-orange-200">0</span>
+            </button>
+
+            <!-- Paid Settled -->
+            <button onclick="setStatusFilter('PAID')" id="filter-btn-paid" class="big-status-btn p-3 rounded-xl border border-gray-200 hover:border-teal-400 bg-white hover:bg-teal-50/30 text-left transition cursor-pointer select-none flex items-center justify-between">
+              <div class="flex items-center gap-2.5">
+                <span class="text-lg">✔️</span>
+                <div>
+                  <div class="text-xs font-bold text-gray-800">PAID & SETTLED</div>
+                  <div class="text-[10px] text-teal-700 font-semibold">Full balance received</div>
+                </div>
+              </div>
+              <span id="badge-paid" class="text-sm font-black text-teal-700 bg-teal-50 px-2 py-0.5 rounded-lg border border-teal-200">0</span>
+            </button>
+
+            <!-- Balance Missing / Mismatch Audit Button -->
+            <button onclick="setStatusFilter('BALANCE_MISMATCH')" id="filter-btn-mismatch" class="big-status-btn p-3 rounded-xl border border-rose-300 hover:border-rose-500 bg-rose-50/30 text-left transition cursor-pointer select-none flex items-center justify-between">
+              <div class="flex items-center gap-2.5">
+                <span class="text-lg">⚠️</span>
+                <div>
+                  <div class="text-xs font-black text-rose-800">BALANCE MISMATCH</div>
+                  <div class="text-[10px] text-rose-600 font-semibold">Freight - Advance &ne; Balance</div>
+                </div>
+              </div>
+              <span id="badge-mismatch" class="text-sm font-black text-rose-700 bg-white px-2 py-0.5 rounded-lg border border-rose-300">0</span>
+            </button>
+
+          </div>
         </div>
 
-      </div>
-    </section>
+      </aside>
 
-    <!-- 4. MASTER TRIP DATA TABLE (EXACT 24 BUSINESS COLUMNS) -->
-    <section class="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden">
-      
-      <!-- Table Heading Bar -->
-      <div class="px-5 py-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-4 bg-white">
-        <div>
-          <h2 class="text-base font-extrabold text-gray-900 tracking-tight">TRIPS</h2>
-          <p id="table-view-scope-text" class="text-xs font-bold text-gray-500 mt-0.5">
-            ALL TRIPS &bull; All
-          </p>
+      <!-- ===================================================================== -->
+      <!-- RIGHT COLUMN: SEARCH, TRIP TABLE & ACTIONS                            -->
+      <!-- ===================================================================== -->
+      <section class="lg:col-span-8 xl:col-span-9 space-y-4">
+        
+        <!-- Search and Scope Indicator Header -->
+        <div class="bg-white rounded-2xl border border-gray-200 shadow-xs p-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="text-base font-black text-gray-900 tracking-tight">TRIPS RECONCILIATION</h2>
+              <span id="table-view-scope-text" class="text-xs font-bold text-blue-700 bg-blue-50 px-3 py-1 rounded-xl border border-blue-200">
+                All Trips &bull; All
+              </span>
+            </div>
+            <p class="text-xs text-gray-500 font-medium mt-0.5">
+              Showing <strong id="visible-count-label" class="text-gray-900">0</strong> matching fleet operations
+            </p>
+          </div>
+
+          <!-- Realtime Search Input -->
+          <div class="relative w-full sm:w-72">
+            <svg class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            <input type="text" id="input-search" class="w-full pl-9 pr-3 py-2 text-xs font-medium rounded-xl bg-gray-50 border border-gray-300 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition placeholder-gray-400" placeholder="Search vehicle, route, broker...">
+          </div>
         </div>
-      </div>
 
-      <!-- Horizontally Scrollable Table Container -->
-      <div class="overflow-x-auto custom-scrollbar">
-        <table class="min-w-full divide-y divide-gray-200 text-left text-xs">
-          <thead class="bg-gray-100/90 sticky top-0 backdrop-blur-xs text-gray-600 font-bold uppercase tracking-wider select-none text-[11px]">
-            <tr>
-              <!-- Exactly 24 Business Columns in order -->
-              <th scope="col" class="py-3.5 px-3 text-center whitespace-nowrap">1. S.No</th>
-              <th scope="col" class="py-3.5 px-3.5 whitespace-nowrap">2. Trip Date</th>
-              <th scope="col" class="py-3.5 px-3.5 whitespace-nowrap">3. Vehicle No</th>
-              <th scope="col" class="py-3.5 px-3.5 whitespace-nowrap">4. From</th>
-              <th scope="col" class="py-3.5 px-3.5 whitespace-nowrap">5. To</th>
-              <th scope="col" class="py-3.5 px-3.5 text-right whitespace-nowrap font-extrabold text-gray-900">6. Freight Amount</th>
-              <th scope="col" class="py-3.5 px-3.5 whitespace-nowrap">7. Advance Date</th>
-              <th scope="col" class="py-3.5 px-3.5 text-right whitespace-nowrap font-bold">8. Advance Amount</th>
-              <th scope="col" class="py-3.5 px-3.5 text-right whitespace-nowrap font-extrabold text-amber-700">9. Balance Amount</th>
-              <th scope="col" class="py-3.5 px-3.5 whitespace-nowrap">10. Halting Details</th>
-              <th scope="col" class="py-3.5 px-3.5 whitespace-nowrap">11. TRSP Name</th>
-              <th scope="col" class="py-3.5 px-3.5 text-right whitespace-nowrap">12. TRSP Comm</th>
-              <th scope="col" class="py-3.5 px-3.5 text-right whitespace-nowrap">13. Diesel</th>
-              <th scope="col" class="py-3.5 px-3.5 text-right whitespace-nowrap">14. Toll Charges</th>
-              <th scope="col" class="py-3.5 px-3.5 text-right whitespace-nowrap">15. Loading Charges</th>
-              <th scope="col" class="py-3.5 px-3.5 text-right whitespace-nowrap">16. Unloading Charges</th>
-              <th scope="col" class="py-3.5 px-3.5 text-right whitespace-nowrap">17. Police Exp</th>
-              <th scope="col" class="py-3.5 px-3.5 text-right whitespace-nowrap">18. RTA C/P</th>
-              <th scope="col" class="py-3.5 px-3.5 text-right whitespace-nowrap">19. Other Expenses</th>
-              <th scope="col" class="py-3.5 px-3.5 text-right whitespace-nowrap">20. Driver Comm</th>
-              <th scope="col" class="py-3.5 px-3.5 text-right whitespace-nowrap font-extrabold text-blue-700">21. Status Amount</th>
-              <th scope="col" class="py-3.5 px-3.5 whitespace-nowrap font-extrabold">22. Status</th>
-              <th scope="col" class="py-3.5 px-3.5 whitespace-nowrap font-extrabold text-center">23. P/L</th>
-              <th scope="col" class="py-3.5 px-4 whitespace-nowrap font-bold text-gray-800">24. Route</th>
-              <!-- Row Action (Not counted as a business column) -->
-              <th scope="col" class="py-3.5 px-3 text-center whitespace-nowrap text-gray-500 font-bold bg-gray-200/50">Actions</th>
-            </tr>
-          </thead>
-          <tbody id="trips-tbody" class="divide-y divide-gray-100 bg-white">
-            <!-- Injected dynamically by app.js -->
-          </tbody>
-        </table>
-      </div>
+        <!-- Master Data Table Card -->
+        <div class="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden">
+          <div class="overflow-x-auto custom-scrollbar">
+            <table class="min-w-full divide-y divide-gray-200 text-left text-xs">
+              <thead class="bg-gray-100/90 sticky top-0 backdrop-blur-xs text-gray-600 font-bold uppercase tracking-wider select-none text-[11px]">
+                <tr>
+                  <!-- Exactly 24 Business Columns in order -->
+                  <th scope="col" class="py-3.5 px-3 text-center whitespace-nowrap">1. S.No</th>
+                  <th scope="col" class="py-3.5 px-3.5 whitespace-nowrap">2. Trip Date</th>
+                  <th scope="col" class="py-3.5 px-3.5 whitespace-nowrap">3. Vehicle No</th>
+                  <th scope="col" class="py-3.5 px-3.5 whitespace-nowrap">4. From</th>
+                  <th scope="col" class="py-3.5 px-3.5 whitespace-nowrap">5. To</th>
+                  <th scope="col" class="py-3.5 px-3.5 text-right whitespace-nowrap font-extrabold text-gray-900">6. Freight Amount</th>
+                  <th scope="col" class="py-3.5 px-3.5 whitespace-nowrap">7. Advance Date</th>
+                  <th scope="col" class="py-3.5 px-3.5 text-right whitespace-nowrap font-bold">8. Advance Amount</th>
+                  <th scope="col" class="py-3.5 px-3.5 text-right whitespace-nowrap font-extrabold text-amber-700">9. Balance Amount</th>
+                  <th scope="col" class="py-3.5 px-3.5 whitespace-nowrap">10. Halting Details</th>
+                  <th scope="col" class="py-3.5 px-3.5 whitespace-nowrap">11. TRSP Name</th>
+                  <th scope="col" class="py-3.5 px-3.5 text-right whitespace-nowrap">12. TRSP Comm</th>
+                  <th scope="col" class="py-3.5 px-3.5 text-right whitespace-nowrap">13. Diesel</th>
+                  <th scope="col" class="py-3.5 px-3.5 text-right whitespace-nowrap">14. Toll Charges</th>
+                  <th scope="col" class="py-3.5 px-3.5 text-right whitespace-nowrap">15. Loading Charges</th>
+                  <th scope="col" class="py-3.5 px-3.5 text-right whitespace-nowrap">16. Unloading Charges</th>
+                  <th scope="col" class="py-3.5 px-3.5 text-right whitespace-nowrap">17. Police Exp</th>
+                  <th scope="col" class="py-3.5 px-3.5 text-right whitespace-nowrap">18. RTA C/P</th>
+                  <th scope="col" class="py-3.5 px-3.5 text-right whitespace-nowrap">19. Other Expenses</th>
+                  <th scope="col" class="py-3.5 px-3.5 text-right whitespace-nowrap">20. Driver Comm</th>
+                  <th scope="col" class="py-3.5 px-3.5 text-right whitespace-nowrap font-extrabold text-blue-700">21. Status Amount</th>
+                  <th scope="col" class="py-3.5 px-3.5 whitespace-nowrap font-extrabold">22. Status</th>
+                  <th scope="col" class="py-3.5 px-3.5 whitespace-nowrap font-extrabold text-center">23. P/L</th>
+                  <th scope="col" class="py-3.5 px-4 whitespace-nowrap font-bold text-gray-800">24. Route</th>
+                  <!-- Row Action (Not counted as a business column) -->
+                  <th scope="col" class="py-3.5 px-3 text-center whitespace-nowrap text-gray-500 font-bold bg-gray-200/50">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="trips-tbody" class="divide-y divide-gray-100 bg-white">
+                <!-- Injected dynamically by app.js -->
+              </tbody>
+            </table>
+          </div>
+        </div>
 
-    </section>
+      </section>
+
+    </div>
 
   </main>
 
@@ -497,6 +537,7 @@
             <div>
               <label class="block font-bold text-gray-700 mb-1">Status</label>
               <select id="add-status" onchange="handleAddStatusChange()" class="w-full px-3 py-2 border border-gray-300 rounded-xl font-bold bg-white focus:ring-2 focus:ring-blue-500">
+                <option value="New">New (Fresh Dispatch)</option>
                 <option value="Pending" selected>Pending</option>
                 <option value="Partially Paid">Partially Paid</option>
                 <option value="Paid">Paid</option>
@@ -571,7 +612,7 @@
     </div>
 
     <!-- Drawer Form Body -->
-    <div class="flex-1 overflow-y-auto px-6 py-4 space-y-4 text-xs">
+    <div class="flex-1 overflow-y-auto px-6 py-4 space-y-4 text-xs custom-scrollbar">
       <div class="grid grid-cols-2 gap-3">
         <div>
           <label class="block font-bold text-gray-700 mb-1">Trip Date</label>
@@ -613,6 +654,7 @@
         <div>
           <label class="block font-bold text-gray-700 mb-1">Payment Status</label>
           <select id="edit-status" class="w-full px-3 py-2 border border-gray-300 rounded-xl font-bold bg-white">
+            <option value="New">New</option>
             <option value="Pending">Pending</option>
             <option value="Partially Paid">Partially Paid</option>
             <option value="Paid">Paid</option>

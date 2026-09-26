@@ -132,7 +132,7 @@ const state = {
   dateFrom: '2026-08-28',
   dateTo: '2026-08-29',
   selectedMonth: '2026-08',
-  statusFilter: 'ALL',   // 'ALL' | 'PROFIT' | 'LOSS' | 'PENDING' | 'PARTIAL' | 'PAID'
+  statusFilter: 'ALL',   // 'ALL' | 'NEW' | 'PROFIT' | 'LOSS' | 'PENDING' | 'PARTIAL' | 'PAID' | 'BALANCE_MISMATCH'
   searchQuery: '',
   apiUrl: localStorage.getItem('lorry_api_url') || '',
   pendingEditTripId: null,
@@ -149,7 +149,6 @@ document.addEventListener('DOMContentLoaded', () => {
   setupSlideOverEvents();
 
   if (state.currentUser) {
-    // Render initial scope controls and dashboard
     renderScopeControls();
     render();
   }
@@ -211,7 +210,7 @@ function setupAuth() {
 // ==========================================================================
 
 function loadTrips() {
-  const saved = localStorage.getItem('lorry_trips_master_v7');
+  const saved = localStorage.getItem('lorry_trips_master_v8');
   if (saved) {
     try {
       state.trips = JSON.parse(saved);
@@ -223,17 +222,28 @@ function loadTrips() {
     saveTrips();
   }
 
-  state.trips = state.trips.map(t => calculateTrip(t));
+  // Sort trips cleanly by S.No ascending
+  state.trips = state.trips.map(t => calculateTrip(t)).sort((a, b) => (Number(a.sNo) || 0) - (Number(b.sNo) || 0));
 }
 
 function saveTrips() {
-  localStorage.setItem('lorry_trips_master_v7', JSON.stringify(state.trips));
+  // Always sort chronologically / by S.No ascending
+  state.trips.sort((a, b) => (Number(a.sNo) || 0) - (Number(b.sNo) || 0));
+  localStorage.setItem('lorry_trips_master_v8', JSON.stringify(state.trips));
 }
 
 function calculateTrip(t) {
   const freight = Number(t.freight) || 0;
   const advance = Number(t.advance) || 0;
-  const balance = freight - advance;
+  
+  // Balance calculation
+  const expectedBalance = freight - advance;
+  const balance = t.balance !== undefined && t.balance !== null && !isNaN(Number(t.balance))
+    ? Number(t.balance)
+    : expectedBalance;
+
+  // Check if balance matches Freight - Advance
+  const hasBalanceMismatch = balance !== expectedBalance;
 
   const trspCommission = Number(t.trspCommission) || 0;
   const diesel = Number(t.diesel) || 0;
@@ -248,11 +258,14 @@ function calculateTrip(t) {
   const totalExpenses = trspCommission + diesel + toll + loading + unloading + police + rta + other + driverCommission;
   const netPL = freight - totalExpenses;
 
+  // Status: 'New' | 'Pending' | 'Partially Paid' | 'Paid'
   let status = t.status || 'Pending';
   if (status === 'Done') status = 'Paid';
 
   let statusAmount = 0;
-  if (status === 'Pending') {
+  if (status === 'New') {
+    statusAmount = balance;
+  } else if (status === 'Pending') {
     statusAmount = balance;
   } else if (status === 'Paid') {
     statusAmount = 0;
@@ -269,6 +282,8 @@ function calculateTrip(t) {
     freight,
     advance,
     balance,
+    expectedBalance,
+    hasBalanceMismatch,
     trspCommission,
     diesel,
     toll,
@@ -325,7 +340,7 @@ function getTodayISO() {
 }
 
 // ==========================================================================
-// 3. Clean View Scope Filtering Engine
+// 3. View Scope & Left Sidebar Filter Engine
 // ==========================================================================
 
 function setupGlobalControls() {
@@ -353,11 +368,10 @@ function setupGlobalControls() {
   }
 }
 
-// Set Scope View Type (TODAY | SELECTED_DATE | DATE_RANGE | ENTIRE_MONTH | ALL_TRIPS)
+// Set View Scope (TODAY | SELECTED_DATE | DATE_RANGE | ENTIRE_MONTH | ALL_TRIPS)
 window.setViewType = function(type) {
   state.viewType = type;
 
-  // Update active pill button styling
   const typeMap = {
     TODAY: 'btn-view-today',
     SELECTED_DATE: 'btn-view-selected-date',
@@ -367,12 +381,12 @@ window.setViewType = function(type) {
   };
 
   document.querySelectorAll('.view-type-btn').forEach(btn => {
-    btn.className = 'view-type-btn px-4 py-2 text-xs font-bold rounded-xl transition cursor-pointer select-none bg-gray-100 text-gray-700 hover:bg-gray-200';
+    btn.className = 'view-type-btn w-full px-4 py-2.5 text-xs font-bold rounded-xl transition cursor-pointer select-none text-left flex items-center justify-between bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200';
   });
 
   const activeBtn = document.getElementById(typeMap[type]);
   if (activeBtn) {
-    activeBtn.className = 'view-type-btn px-4 py-2 text-xs font-black rounded-xl transition cursor-pointer select-none bg-blue-600 text-white shadow-xs';
+    activeBtn.className = 'view-type-btn w-full px-4 py-2.5 text-xs font-black rounded-xl transition cursor-pointer select-none text-left flex items-center justify-between bg-blue-600 text-white shadow-xs';
   }
 
   renderScopeControls();
@@ -388,30 +402,37 @@ function renderScopeControls() {
     const today = getTodayISO();
     if (activeViewTag) activeViewTag.textContent = `TODAY (${formatDateDisplay(today)})`;
     container.innerHTML = `
-      <div class="flex items-center gap-2 py-0.5">
-        <span class="text-xs font-bold text-gray-600">Showing trips scheduled for Today:</span>
-        <span class="px-3 py-1 font-mono text-xs font-black bg-blue-50 text-blue-700 rounded-lg border border-blue-200">${formatDateDisplay(today)}</span>
+      <div class="flex items-center gap-2 py-1">
+        <span class="text-xs font-bold text-gray-700">Scheduled Today:</span>
+        <span class="px-2.5 py-1 font-mono text-xs font-black bg-blue-50 text-blue-700 rounded-lg border border-blue-200">${formatDateDisplay(today)}</span>
       </div>
     `;
   } else if (state.viewType === 'SELECTED_DATE') {
     if (activeViewTag) activeViewTag.textContent = formatDateDisplay(state.selectedDate);
     container.innerHTML = `
-      <div class="flex items-center gap-2 py-0.5">
-        <label for="scope-single-date" class="text-xs font-bold text-gray-600 uppercase">Select Date:</label>
-        <input type="date" id="scope-single-date" value="${state.selectedDate}" class="px-3 py-1.5 border border-gray-300 rounded-xl text-xs font-bold text-gray-800 bg-white focus:ring-2 focus:ring-blue-500 outline-none">
-        <button onclick="applySelectedDate()" class="px-3.5 py-1.5 text-xs font-black text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-xs transition cursor-pointer">VIEW</button>
+      <div class="space-y-2">
+        <label for="scope-single-date" class="block text-[11px] font-bold text-gray-600 uppercase">Choose Date:</label>
+        <div class="flex items-center gap-2">
+          <input type="date" id="scope-single-date" value="${state.selectedDate}" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs font-bold text-gray-800 bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+          <button onclick="applySelectedDate()" class="px-4 py-2 text-xs font-black text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-xs transition cursor-pointer">VIEW</button>
+        </div>
       </div>
     `;
   } else if (state.viewType === 'DATE_RANGE') {
     if (activeViewTag) activeViewTag.textContent = `${formatDateDisplay(state.dateFrom)} ➔ ${formatDateDisplay(state.dateTo)}`;
     container.innerHTML = `
-      <div class="flex flex-wrap items-center gap-2 py-0.5">
-        <label for="scope-date-from" class="text-xs font-bold text-gray-600 uppercase">From:</label>
-        <input type="date" id="scope-date-from" value="${state.dateFrom}" class="px-3 py-1.5 border border-gray-300 rounded-xl text-xs font-bold text-gray-800 bg-white focus:ring-2 focus:ring-blue-500 outline-none">
-        <span class="text-gray-400 font-bold">➔</span>
-        <label for="scope-date-to" class="text-xs font-bold text-gray-600 uppercase">To:</label>
-        <input type="date" id="scope-date-to" value="${state.dateTo}" class="px-3 py-1.5 border border-gray-300 rounded-xl text-xs font-bold text-gray-800 bg-white focus:ring-2 focus:ring-blue-500 outline-none">
-        <button onclick="applyDateRange()" class="px-3.5 py-1.5 text-xs font-black text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-xs transition cursor-pointer">VIEW</button>
+      <div class="space-y-2">
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label for="scope-date-from" class="block text-[10px] font-bold text-gray-500 uppercase mb-0.5">From:</label>
+            <input type="date" id="scope-date-from" value="${state.dateFrom}" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-xl text-xs font-bold text-gray-800 bg-white">
+          </div>
+          <div>
+            <label for="scope-date-to" class="block text-[10px] font-bold text-gray-500 uppercase mb-0.5">To:</label>
+            <input type="date" id="scope-date-to" value="${state.dateTo}" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-xl text-xs font-bold text-gray-800 bg-white">
+          </div>
+        </div>
+        <button onclick="applyDateRange()" class="w-full py-2 text-xs font-black text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-xs transition cursor-pointer">VIEW RANGE</button>
       </div>
     `;
   } else if (state.viewType === 'ENTIRE_MONTH') {
@@ -419,20 +440,22 @@ function renderScopeControls() {
     const mName = MONTH_NAMES[parseInt(m, 10) - 1] || 'August';
     if (activeViewTag) activeViewTag.textContent = `${mName} ${y}`;
     container.innerHTML = `
-      <div class="flex items-center gap-2 py-0.5">
-        <label for="scope-month-select" class="text-xs font-bold text-gray-600 uppercase">Select Month:</label>
-        <select id="scope-month-select" class="px-3 py-1.5 border border-gray-300 rounded-xl text-xs font-bold text-gray-800 bg-white focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer">
-          ${getMonthOptionsHTML()}
-        </select>
-        <button onclick="applyEntireMonth()" class="px-3.5 py-1.5 text-xs font-black text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-xs transition cursor-pointer">VIEW</button>
+      <div class="space-y-2">
+        <label for="scope-month-select" class="block text-[11px] font-bold text-gray-600 uppercase">Choose Month:</label>
+        <div class="flex items-center gap-2">
+          <select id="scope-month-select" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs font-bold text-gray-800 bg-white cursor-pointer">
+            ${getMonthOptionsHTML()}
+          </select>
+          <button onclick="applyEntireMonth()" class="px-4 py-2 text-xs font-black text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-xs transition cursor-pointer">VIEW</button>
+        </div>
       </div>
     `;
   } else {
     // ALL_TRIPS
     if (activeViewTag) activeViewTag.textContent = 'ALL TRIPS';
     container.innerHTML = `
-      <div class="flex items-center gap-2 py-0.5">
-        <span class="text-xs font-bold text-gray-600">Showing all records logged across the fleet</span>
+      <div class="py-1">
+        <span class="text-xs font-bold text-gray-600">Viewing all ${state.trips.filter(t => !t.deleted).length} fleet dispatches</span>
       </div>
     `;
   }
@@ -494,31 +517,35 @@ window.applyEntireMonth = function() {
   }
 };
 
-// Set Status Filter (ALL | PROFIT | LOSS | PENDING | PARTIAL | PAID)
+// Set Status Filter from Big Sidebar Buttons
 window.setStatusFilter = function(filter) {
   state.statusFilter = filter;
 
   const btnMap = {
-    ALL: 'filter-status-all',
-    PROFIT: 'filter-status-profit',
-    LOSS: 'filter-status-loss',
-    PENDING: 'filter-status-pending',
-    PARTIAL: 'filter-status-partial',
-    PAID: 'filter-status-paid'
+    ALL: 'filter-btn-all',
+    NEW: 'filter-btn-new',
+    PROFIT: 'filter-btn-profit',
+    LOSS: 'filter-btn-loss',
+    PENDING: 'filter-btn-pending',
+    PARTIAL: 'filter-btn-partial',
+    PAID: 'filter-btn-paid',
+    BALANCE_MISMATCH: 'filter-btn-mismatch'
   };
 
-  document.querySelectorAll('.status-filter-btn').forEach(btn => {
-    btn.className = 'status-filter-btn px-3 py-1.5 text-xs font-bold rounded-xl transition cursor-pointer select-none bg-gray-100 text-gray-700 hover:bg-gray-200';
+  document.querySelectorAll('.big-status-btn').forEach(btn => {
+    btn.className = 'big-status-btn p-3 rounded-xl border border-gray-200 hover:border-gray-300 bg-white text-left transition cursor-pointer select-none flex items-center justify-between';
   });
 
   const active = document.getElementById(btnMap[filter]);
   if (active) {
-    if (filter === 'PROFIT') active.className = 'status-filter-btn px-3 py-1.5 text-xs font-black rounded-xl transition cursor-pointer select-none bg-emerald-600 text-white shadow-xs';
-    else if (filter === 'LOSS') active.className = 'status-filter-btn px-3 py-1.5 text-xs font-black rounded-xl transition cursor-pointer select-none bg-rose-600 text-white shadow-xs';
-    else if (filter === 'PENDING') active.className = 'status-filter-btn px-3 py-1.5 text-xs font-black rounded-xl transition cursor-pointer select-none bg-amber-600 text-white shadow-xs';
-    else if (filter === 'PARTIAL') active.className = 'status-filter-btn px-3 py-1.5 text-xs font-black rounded-xl transition cursor-pointer select-none bg-orange-600 text-white shadow-xs';
-    else if (filter === 'PAID') active.className = 'status-filter-btn px-3 py-1.5 text-xs font-black rounded-xl transition cursor-pointer select-none bg-teal-600 text-white shadow-xs';
-    else active.className = 'status-filter-btn px-3 py-1.5 text-xs font-black rounded-xl transition cursor-pointer select-none bg-blue-600 text-white shadow-xs';
+    if (filter === 'PROFIT') active.className = 'big-status-btn p-3 rounded-xl border-2 border-emerald-600 bg-emerald-50/50 text-left transition cursor-pointer select-none flex items-center justify-between shadow-xs';
+    else if (filter === 'LOSS') active.className = 'big-status-btn p-3 rounded-xl border-2 border-rose-600 bg-rose-50/50 text-left transition cursor-pointer select-none flex items-center justify-between shadow-xs';
+    else if (filter === 'PENDING') active.className = 'big-status-btn p-3 rounded-xl border-2 border-amber-500 bg-amber-50/50 text-left transition cursor-pointer select-none flex items-center justify-between shadow-xs';
+    else if (filter === 'PARTIAL') active.className = 'big-status-btn p-3 rounded-xl border-2 border-orange-500 bg-orange-50/50 text-left transition cursor-pointer select-none flex items-center justify-between shadow-xs';
+    else if (filter === 'PAID') active.className = 'big-status-btn p-3 rounded-xl border-2 border-teal-600 bg-teal-50/50 text-left transition cursor-pointer select-none flex items-center justify-between shadow-xs';
+    else if (filter === 'NEW') active.className = 'big-status-btn p-3 rounded-xl border-2 border-indigo-600 bg-indigo-50/50 text-left transition cursor-pointer select-none flex items-center justify-between shadow-xs';
+    else if (filter === 'BALANCE_MISMATCH') active.className = 'big-status-btn p-3 rounded-xl border-2 border-rose-600 bg-rose-100 text-left transition cursor-pointer select-none flex items-center justify-between shadow-xs';
+    else active.className = 'big-status-btn p-3 rounded-xl border-2 border-blue-600 bg-blue-50/50 text-left transition cursor-pointer select-none flex items-center justify-between shadow-xs';
   }
 
   renderTableOnly();
@@ -528,7 +555,6 @@ window.setStatusFilter = function(filter) {
 // 4. Data Scope Resolvers & Rendering
 // ==========================================================================
 
-// Get all trips matching the selected View Scope
 function getScopedTrips() {
   return state.trips.filter(t => {
     if (t.deleted) return false;
@@ -550,17 +576,18 @@ function getScopedTrips() {
   });
 }
 
-// Get trips matching View Scope + Status Filter + Search Query
 function getDisplayTrips() {
   const scopedTrips = getScopedTrips();
 
   return scopedTrips.filter(t => {
-    // Status Filter
+    // Status & Audit Filter
+    if (state.statusFilter === 'NEW' && t.status !== 'New') return false;
     if (state.statusFilter === 'PROFIT' && t.netPL < 0) return false;
     if (state.statusFilter === 'LOSS' && t.netPL >= 0) return false;
     if (state.statusFilter === 'PENDING' && t.status !== 'Pending') return false;
     if (state.statusFilter === 'PARTIAL' && t.status !== 'Partially Paid') return false;
     if (state.statusFilter === 'PAID' && t.status !== 'Paid') return false;
+    if (state.statusFilter === 'BALANCE_MISMATCH' && !t.hasBalanceMismatch) return false;
 
     // Search Query
     if (state.searchQuery) {
@@ -578,51 +605,35 @@ function getDisplayTrips() {
 }
 
 function render() {
-  renderSummaryCards();
+  updateSidebarCounters();
   renderTableOnly();
 }
 
-function renderSummaryCards() {
+function updateSidebarCounters() {
   const scopedTrips = getScopedTrips();
 
-  const totFreight = scopedTrips.reduce((acc, t) => acc + t.freight, 0);
-  const totAdvance = scopedTrips.reduce((acc, t) => acc + t.advance, 0);
-  const totBalance = scopedTrips.reduce((acc, t) => acc + t.balance, 0);
-  const totExpenses = scopedTrips.reduce((acc, t) => acc + t.totalExpenses, 0);
-  
-  let totProfit = 0;
-  let totLoss = 0;
-  scopedTrips.forEach(t => {
-    if (t.netPL >= 0) totProfit += t.netPL;
-    else totLoss += Math.abs(t.netPL);
-  });
+  const countAll = scopedTrips.length;
+  const countNew = scopedTrips.filter(t => t.status === 'New').length;
+  const countProfit = scopedTrips.filter(t => t.netPL >= 0).length;
+  const countLoss = scopedTrips.filter(t => t.netPL < 0).length;
+  const countPending = scopedTrips.filter(t => t.status === 'Pending').length;
+  const countPartial = scopedTrips.filter(t => t.status === 'Partially Paid').length;
+  const countPaid = scopedTrips.filter(t => t.status === 'Paid').length;
+  const countMismatch = scopedTrips.filter(t => t.hasBalanceMismatch).length;
 
   const setEl = (id, val) => {
     const el = document.getElementById(id);
     if (el) el.textContent = val;
   };
 
-  setEl('sum-freight', formatCurrency(totFreight));
-  setEl('sum-advance', formatCurrency(totAdvance));
-  setEl('sum-balance', formatCurrency(totBalance));
-  setEl('sum-expenses', formatCurrency(totExpenses));
-  setEl('sum-profit', formatCurrency(totProfit));
-  setEl('sum-loss', formatCurrency(totLoss));
-
-  // Update status filter badge numbers
-  const countAll = scopedTrips.length;
-  const countProfit = scopedTrips.filter(t => t.netPL >= 0).length;
-  const countLoss = scopedTrips.filter(t => t.netPL < 0).length;
-  const countPending = scopedTrips.filter(t => t.status === 'Pending').length;
-  const countPartial = scopedTrips.filter(t => t.status === 'Partially Paid').length;
-  const countPaid = scopedTrips.filter(t => t.status === 'Paid').length;
-
   setEl('badge-all', countAll);
+  setEl('badge-new', countNew);
   setEl('badge-profit', countProfit);
   setEl('badge-loss', countLoss);
   setEl('badge-pending', countPending);
   setEl('badge-partial', countPartial);
   setEl('badge-paid', countPaid);
+  setEl('badge-mismatch', countMismatch);
 }
 
 function renderTableOnly() {
@@ -632,7 +643,6 @@ function renderTableOnly() {
 
   if (visibleCountLabel) visibleCountLabel.textContent = trips.length;
 
-  // Format clean view scope subtitle
   if (subHeading) {
     let scopeLabel = 'All Trips';
     if (state.viewType === 'TODAY') scopeLabel = `Today (${formatDateDisplay(getTodayISO())})`;
@@ -645,11 +655,13 @@ function renderTableOnly() {
 
     const filterNameMap = {
       ALL: 'All',
+      NEW: 'New Dispatches',
       PROFIT: 'Profit Trips',
       LOSS: 'Loss Trips',
-      PENDING: 'Pending Payment',
+      PENDING: 'Pending Balance',
       PARTIAL: 'Partially Paid',
-      PAID: 'Paid'
+      PAID: 'Paid & Settled',
+      BALANCE_MISMATCH: '⚠️ Balance Mismatch'
     };
 
     subHeading.textContent = `${scopeLabel} • ${filterNameMap[state.statusFilter] || 'All'}`;
@@ -675,9 +687,11 @@ function renderTableOnly() {
       ? `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-black bg-emerald-50 text-emerald-800 border border-emerald-300">P +${formatCurrency(t.netPL)}</span>`
       : `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-black bg-rose-50 text-rose-800 border border-rose-300">L -${formatCurrency(Math.abs(t.netPL))}</span>`;
 
-    // Visual status tags: 🟠 Pending, 🟡 Partially Paid, 🟢 Paid
+    // Visual Status Tags
     let statusBadge = '';
-    if (t.status === 'Paid') {
+    if (t.status === 'New') {
+      statusBadge = `<span class="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-bold rounded-md bg-indigo-50 text-indigo-800 border border-indigo-200">🆕 New</span>`;
+    } else if (t.status === 'Paid') {
       statusBadge = `<span class="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-bold rounded-md bg-emerald-50 text-emerald-800 border border-emerald-300">🟢 Paid</span>`;
     } else if (t.status === 'Partially Paid') {
       statusBadge = `<span class="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-bold rounded-md bg-orange-50 text-orange-800 border border-orange-300">🟡 Partially Paid</span>`;
@@ -685,8 +699,19 @@ function renderTableOnly() {
       statusBadge = `<span class="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-bold rounded-md bg-amber-50 text-amber-800 border border-amber-300">🟠 Pending</span>`;
     }
 
+    // Balance cell with mismatch indicator
+    let balanceDisplay = formatCurrency(t.balance);
+    if (t.hasBalanceMismatch) {
+      balanceDisplay = `
+        <div class="flex items-center justify-end gap-1.5">
+          <span class="text-rose-600 font-black">${formatCurrency(t.balance)}</span>
+          <span class="px-1.5 py-0.5 text-[9px] font-black bg-rose-100 text-rose-800 rounded border border-rose-300" title="Expected: ${formatCurrency(t.freight - t.advance)}">⚠️ Mismatch</span>
+        </div>
+      `;
+    }
+
     return `
-      <tr class="transition hover:bg-gray-50/90 ${t.netPL < 0 ? 'bg-rose-50/20' : ''}">
+      <tr class="transition hover:bg-gray-50/90 ${t.netPL < 0 ? 'bg-rose-50/20' : ''} ${t.hasBalanceMismatch ? 'bg-amber-50/20' : ''}">
         <!-- 1. S.No -->
         <td class="py-3 px-3 text-center font-mono text-gray-500 font-bold">${t.sNo || idx + 1}</td>
         
@@ -714,7 +739,7 @@ function renderTableOnly() {
         <td class="py-3 px-3.5 text-right whitespace-nowrap font-medium text-gray-700">${formatCurrency(t.advance)}</td>
         
         <!-- 9. Balance Amount -->
-        <td class="py-3 px-3.5 text-right whitespace-nowrap font-black text-amber-700">${formatCurrency(t.balance)}</td>
+        <td class="py-3 px-3.5 text-right whitespace-nowrap font-black text-amber-700">${balanceDisplay}</td>
         
         <!-- 10. Halting Details -->
         <td class="py-3 px-3.5 text-gray-500 max-w-[180px] truncate" title="${t.halting || ''}">${t.halting || '-'}</td>
@@ -767,7 +792,7 @@ function renderTableOnly() {
         <!-- 24. Route -->
         <td class="py-3 px-4 whitespace-nowrap font-bold text-gray-800">${t.route || `${t.from} ➔ ${t.to}`}</td>
         
-        <!-- Row Actions (Not a business data column) -->
+        <!-- Row Actions (Separated from business data columns) -->
         <td class="py-3 px-3 text-center whitespace-nowrap bg-gray-50/50">
           <div class="inline-flex items-center gap-1.5 justify-center">
             <button onclick="promptEditTrip(${t.id})" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-gray-700 bg-white border border-gray-300 hover:bg-blue-50 hover:text-blue-700 active:scale-95 transition cursor-pointer shadow-xs" title="Edit Trip">
@@ -791,11 +816,9 @@ window.openAddTripModal = function() {
   const modal = document.getElementById('modal-add-trip');
   if (!modal) return;
 
-  // Prefill defaults
   const tripDateEl = document.getElementById('add-trip-date');
   if (tripDateEl) tripDateEl.value = getTodayISO();
 
-  // Reset inputs
   const resetIds = [
     'add-vehicle', 'add-from', 'add-to', 'add-freight', 'add-advance-date',
     'add-advance', 'add-halting', 'add-trsp-name', 'add-trsp-comm', 'add-diesel',
@@ -808,7 +831,7 @@ window.openAddTripModal = function() {
   });
 
   const statusEl = document.getElementById('add-status');
-  if (statusEl) statusEl.value = 'Pending';
+  if (statusEl) statusEl.value = 'New';
   handleAddStatusChange();
 
   updateAddTripCalculations();
@@ -854,9 +877,9 @@ window.updateAddTripCalculations = function() {
   const totalExpenses = trspComm + diesel + toll + loading + unloading + police + rta + other + driverComm;
   const netPL = freight - totalExpenses;
 
-  const status = getStr('add-status') || 'Pending';
+  const status = getStr('add-status') || 'New';
   let statusAmount = 0;
-  if (status === 'Pending') {
+  if (status === 'New' || status === 'Pending') {
     statusAmount = balance;
   } else if (status === 'Paid') {
     statusAmount = 0;
@@ -868,7 +891,6 @@ window.updateAddTripCalculations = function() {
   const from = getStr('add-from') || 'Origin';
   const to = getStr('add-to') || 'Destination';
 
-  // Update Section 4 READ ONLY display
   const elBal = document.getElementById('calc-preview-balance');
   const elExp = document.getElementById('calc-preview-expenses');
   const elStat = document.getElementById('calc-preview-status-amt');
@@ -939,17 +961,19 @@ window.executeSaveNewTrip = function() {
     rta: getNum('add-rta'),
     other: getNum('add-other'),
     driverCommission: getNum('add-driver-comm'),
-    status: getStr('add-status') || 'Pending',
+    status: getStr('add-status') || 'New',
     statusAmount: getNum('add-status-amount'),
     deleted: false
   };
 
   const calculated = calculateTrip(rawTrip);
-  state.trips.unshift(calculated);
+  
+  // Clean addition: push to end so S.No remains chronologically ordered (1, 2, 3, 4, 5...)
+  state.trips.push(calculated);
   saveTrips();
 
   closeAddTripModal();
-  renderSummaryCards();
+  updateSidebarCounters();
   renderTableOnly();
 
   showToast(`✅ Trip #${newSNo} (${calculated.vehicleNo}) added successfully.`);
@@ -960,7 +984,6 @@ window.executeSaveNewTrip = function() {
 // ==========================================================================
 
 function setupModals() {
-  // Edit Confirm Modal Buttons
   const modalEditConfirm = document.getElementById('modal-edit-confirm');
   const modalEditCancel = document.getElementById('modal-edit-cancel');
   if (modalEditConfirm) {
@@ -978,7 +1001,6 @@ function setupModals() {
     });
   }
 
-  // Save Confirm Modal Buttons (Edit)
   const modalSaveConfirm = document.getElementById('modal-save-confirm');
   const modalSaveCancel = document.getElementById('modal-save-cancel');
   if (modalSaveConfirm) {
@@ -993,7 +1015,6 @@ function setupModals() {
     });
   }
 
-  // Delete Confirm Modal Buttons
   const modalDeleteConfirm = document.getElementById('modal-delete-confirm');
   const modalDeleteCancel = document.getElementById('modal-delete-cancel');
   if (modalDeleteConfirm) {
@@ -1058,7 +1079,7 @@ function executeDeleteTrip() {
 
   trip.deleted = true;
   saveTrips();
-  renderSummaryCards();
+  updateSidebarCounters();
   renderTableOnly();
 
   showToast(`✅ Trip #${trip.sNo || idNum} (${trip.vehicleNo}) deleted successfully.`);
@@ -1165,7 +1186,7 @@ function executeSaveTripEdits() {
 
   saveTrips();
   closeSlideOver();
-  renderSummaryCards();
+  updateSidebarCounters();
   renderTableOnly();
 
   showToast(`✅ Trip updated successfully.`);
@@ -1320,20 +1341,26 @@ async function exportToExcel() {
           cell.font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: 'FFB45309' } };
         }
 
+        // Status Styling (Col 22)
         if (colNumber === 22) {
           cell.alignment = { vertical: 'middle', horizontal: 'center' };
-          if (t.status === 'Paid') {
+          if (t.status === 'New') {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEEF2FF' } };
+            cell.font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: 'FF4338CA' } };
+          } else if (t.status === 'Paid') {
             cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } };
             cell.font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: 'FF047857' } };
           } else if (t.status === 'Partially Paid') {
             cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFEDD5' } };
             cell.font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: 'FFC2410C' } };
           } else {
+            // Pending
             cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } };
             cell.font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: 'FFB45309' } };
           }
         }
 
+        // P/L Styling (Col 23)
         if (colNumber === 23) {
           cell.alignment = { vertical: 'middle', horizontal: 'center' };
           if (t.netPL >= 0) {
@@ -1345,6 +1372,7 @@ async function exportToExcel() {
           }
         }
 
+        // Route (Col 24)
         if (colNumber === 24) {
           cell.font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: 'FF0F172A' } };
         }
@@ -1429,6 +1457,7 @@ async function syncWithGoogleSheet() {
         freight: row.freight,
         advanceDate: row.advanceDate,
         advance: row.advance,
+        balance: row.balance,
         halting: row.halting,
         trspName: row.trspName,
         trspCommission: row.trspCommission || 0,
@@ -1440,7 +1469,7 @@ async function syncWithGoogleSheet() {
         rta: row.rta || 0,
         other: row.other || 0,
         driverCommission: row.driverCommission || 0,
-        status: row.status || 'Pending',
+        status: row.status || 'New',
         statusAmount: row.statusAmount !== undefined ? row.statusAmount : 0,
         deleted: false
       }));
