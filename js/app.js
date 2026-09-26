@@ -2206,6 +2206,7 @@ async function syncWithGoogleSheet() {
 
   const syncBtn = document.getElementById('btn-sync');
   if (syncBtn) syncBtn.innerHTML = '🔄 Syncing...';
+  lastLocalMutationTime = 0;
 
   try {
     const cleanUrl = state.apiUrl.trim();
@@ -2438,9 +2439,13 @@ function broadcastDataChange() {
   }
 }
 
-// 2. Robust Cloud Mutation Dispatcher (Handles normal & CORS redirect modes)
+// 2. Robust Cloud Mutation Dispatcher (Mirroring SR_T Architecture)
+let lastLocalMutationTime = 0;
+
 async function sendCloudMutation(action, payload) {
   if (!state.apiUrl) return;
+  lastLocalMutationTime = Date.now(); // Record mutation time to pause autoSync
+
   const body = JSON.stringify({
     action: action,
     data: payload,
@@ -2452,23 +2457,15 @@ async function sendCloudMutation(action, payload) {
   });
 
   try {
+    // Send as CORS-safelisted text/plain with no-cors (Exact SR_T method)
     await fetch(state.apiUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: body
     });
   } catch (err) {
-    // If standard fetch threw (e.g., 302 redirect CORS warning), fallback to mode: 'no-cors'
-    try {
-      await fetch(state.apiUrl, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: body
-      });
-    } catch (fallbackErr) {
-      console.warn('Cloud mutation network note:', fallbackErr);
-    }
+    console.warn('Cloud mutation network note:', err);
   }
 }
 
@@ -2477,6 +2474,11 @@ let isSyncingInBackground = false;
 async function autoSyncCloud(isSilent = true) {
   if (!state.apiUrl || isSyncingInBackground || !window.navigator.onLine) return;
   if (!state.currentUser) return; // Only sync when logged in
+
+  // Don't sync if local mutation happened within last 8 seconds (prevents overwrite race condition!)
+  if (Date.now() - lastLocalMutationTime < 8000) {
+    return;
+  }
 
   // Don't interrupt user if they are currently filling out Add or Edit modal
   const addModal = document.getElementById('modal-add-trip');
