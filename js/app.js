@@ -1,16 +1,6 @@
 /**
  * LORRY FREIGHT & BROKER MANAGEMENT SYSTEM
- * High-Performance Fleet Operations Engine
- * 
- * Features:
- * - Authentication (Login/Logout)
- * - Top Control Bar: Month, Date From, Date To, Show Entire Month, Search, Download Excel
- * - 24 Exact Business Columns in Master Table
- * - Independent Status & Automatic P/L Calculations (P +₹... / L -₹...)
- * - 2-step Edit & 1-step Delete Confirmation Popups
- * - Auto-dismissing Success Toasts
- * - Click-to-filter Alert / Warning Cards
- * - Excel CSV Export with UTF-8 BOM
+ * Clean, High-Performance Fleet Operations Engine
  */
 
 const MONTH_NAMES = [
@@ -134,13 +124,15 @@ const INITIAL_TRIPS = [
   }
 ];
 
-// Application State
+// Clean Application State
 const state = {
   trips: [],
-  selectedMonth: '2026-08', // 'YYYY-MM'
-  dateFrom: '',
-  dateTo: '',
-  activeFilter: 'ALL', // 'ALL' | 'PENDING' | 'LOSS' | 'PARTIAL' | 'PROFIT' | 'DONE'
+  viewType: 'ALL_TRIPS', // 'TODAY' | 'SELECTED_DATE' | 'DATE_RANGE' | 'ENTIRE_MONTH' | 'ALL_TRIPS'
+  selectedDate: '2026-08-28',
+  dateFrom: '2026-08-28',
+  dateTo: '2026-08-29',
+  selectedMonth: '2026-08',
+  statusFilter: 'ALL',   // 'ALL' | 'PROFIT' | 'LOSS' | 'PENDING' | 'PARTIAL' | 'PAID'
   searchQuery: '',
   apiUrl: localStorage.getItem('lorry_api_url') || '',
   pendingEditTripId: null,
@@ -152,18 +144,19 @@ const state = {
 document.addEventListener('DOMContentLoaded', () => {
   setupAuth();
   loadTrips();
-  setupTopControls();
-  setupFilterCards();
+  setupGlobalControls();
   setupModals();
   setupSlideOverEvents();
 
   if (state.currentUser) {
+    // Render initial scope controls and dashboard
+    renderScopeControls();
     render();
   }
 });
 
 // ==========================================================================
-// 1. Authentication System (Login / Logout)
+// 1. Authentication System
 // ==========================================================================
 
 function setupAuth() {
@@ -188,7 +181,6 @@ function setupAuth() {
       const u = usernameInput ? usernameInput.value.trim() : '';
       const p = passwordInput ? passwordInput.value.trim() : '';
 
-      // Default credentials: admin / admin
       if (u === 'admin' && p === 'admin') {
         state.currentUser = u;
         localStorage.setItem('lorry_auth_user', u);
@@ -196,6 +188,7 @@ function setupAuth() {
         if (loginOverlay) loginOverlay.classList.add('hidden');
         if (navUserLabel) navUserLabel.textContent = u;
         showToast('✅ Signed in successfully as admin.');
+        renderScopeControls();
         render();
       } else {
         if (loginError) loginError.classList.remove('hidden');
@@ -214,11 +207,11 @@ function setupAuth() {
 }
 
 // ==========================================================================
-// 2. Data Persistence & Business Calculation Engine
+// 2. Data Persistence & Business Calculations
 // ==========================================================================
 
 function loadTrips() {
-  const saved = localStorage.getItem('lorry_trips_master_v6');
+  const saved = localStorage.getItem('lorry_trips_master_v7');
   if (saved) {
     try {
       state.trips = JSON.parse(saved);
@@ -234,20 +227,9 @@ function loadTrips() {
 }
 
 function saveTrips() {
-  localStorage.setItem('lorry_trips_master_v6', JSON.stringify(state.trips));
+  localStorage.setItem('lorry_trips_master_v7', JSON.stringify(state.trips));
 }
 
-/**
- * Recalculate trip according to exact business rules:
- * - Balance Amount = Freight Amount - Advance Amount
- * - Total Expenses = TRSP Commission + Diesel + Toll Charges + Loading + Unloading + Police + RTA + Other + Driver Commission
- * - P/L = Freight Amount - Total Expenses
- * - Status Amount:
- *     Pending -> Balance Amount
- *     Paid / Done -> 0
- *     Partially Paid -> remaining unpaid balance
- * - Status does NOT determine P/L
- */
 function calculateTrip(t) {
   const freight = Number(t.freight) || 0;
   const advance = Number(t.advance) || 0;
@@ -266,7 +248,6 @@ function calculateTrip(t) {
   const totalExpenses = trspCommission + diesel + toll + loading + unloading + police + rta + other + driverCommission;
   const netPL = freight - totalExpenses;
 
-  // Status handling: allowed values 'Pending', 'Partially Paid', 'Paid' (or 'Done')
   let status = t.status || 'Pending';
   if (status === 'Done') status = 'Paid';
 
@@ -307,7 +288,6 @@ function calculateTrip(t) {
   };
 }
 
-// Indian Rupee Currency Formatter
 function formatCurrency(val) {
   if (val === undefined || val === null || isNaN(val)) return '₹0';
   const n = Number(val);
@@ -316,7 +296,6 @@ function formatCurrency(val) {
   return isNegative ? `-₹${abs}` : `₹${abs}`;
 }
 
-// Strict DD-MM-YYYY Date Formatter
 function formatDateDisplay(dateStr) {
   if (!dateStr) return '-';
   try {
@@ -325,10 +304,8 @@ function formatDateDisplay(dateStr) {
       const parts = s.split('-');
       if (parts.length === 3) {
         if (parts[0].length === 4) {
-          // YYYY-MM-DD -> DD-MM-YYYY
           return `${String(parts[2]).padStart(2, '0')}-${String(parts[1]).padStart(2, '0')}-${parts[0]}`;
         } else if (parts[2].length === 4) {
-          // DD-MM-YYYY
           return `${String(parts[0]).padStart(2, '0')}-${String(parts[1]).padStart(2, '0')}-${parts[2]}`;
         }
       }
@@ -339,86 +316,131 @@ function formatDateDisplay(dateStr) {
   }
 }
 
+function getTodayISO() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 // ==========================================================================
-// 3. Top Control Bar Events & Filter Handling
+// 3. Clean View Scope Filtering Engine
 // ==========================================================================
 
-function setupTopControls() {
-  const selectMonth = document.getElementById('select-month');
-  const dateFrom = document.getElementById('filter-date-from');
-  const dateTo = document.getElementById('filter-date-to');
-  const btnShowEntireMonth = document.getElementById('btn-show-entire-month');
+function setupGlobalControls() {
   const inputSearch = document.getElementById('input-search');
-  const btnDownloadExcel = document.getElementById('btn-download-excel');
-  const btnSync = document.getElementById('btn-sync');
-  const btnSettings = document.getElementById('btn-settings');
-
-  // Populate Month select options based on recorded trips
-  populateMonthDropdown();
-
-  if (selectMonth) {
-    selectMonth.value = state.selectedMonth;
-    selectMonth.addEventListener('change', (e) => {
-      state.selectedMonth = e.target.value;
-      state.dateFrom = '';
-      state.dateTo = '';
-      if (dateFrom) dateFrom.value = '';
-      if (dateTo) dateTo.value = '';
-      render();
-    });
-  }
-
-  if (dateFrom) {
-    dateFrom.addEventListener('change', (e) => {
-      state.dateFrom = e.target.value;
-      renderTable();
-    });
-  }
-
-  if (dateTo) {
-    dateTo.addEventListener('change', (e) => {
-      state.dateTo = e.target.value;
-      renderTable();
-    });
-  }
-
-  if (btnShowEntireMonth) {
-    btnShowEntireMonth.addEventListener('click', () => {
-      state.dateFrom = '';
-      state.dateTo = '';
-      if (dateFrom) dateFrom.value = '';
-      if (dateTo) dateTo.value = '';
-      renderTable();
-      showToast(`📅 Showing entire month: ${getMonthDisplayTitle(state.selectedMonth)}`);
-    });
-  }
-
   if (inputSearch) {
     inputSearch.addEventListener('input', (e) => {
       state.searchQuery = e.target.value.trim().toLowerCase();
-      renderTable();
+      renderTableOnly();
     });
   }
 
+  const btnDownloadExcel = document.getElementById('btn-download-excel');
   if (btnDownloadExcel) {
     btnDownloadExcel.addEventListener('click', exportToExcel);
   }
 
+  const btnSync = document.getElementById('btn-sync');
   if (btnSync) {
     btnSync.addEventListener('click', syncWithGoogleSheet);
   }
 
+  const btnSettings = document.getElementById('btn-settings');
   if (btnSettings) {
     btnSettings.addEventListener('click', openSettingsModal);
   }
 }
 
-function populateMonthDropdown() {
-  const selectMonth = document.getElementById('select-month');
-  if (!selectMonth) return;
+// Set Scope View Type (TODAY | SELECTED_DATE | DATE_RANGE | ENTIRE_MONTH | ALL_TRIPS)
+window.setViewType = function(type) {
+  state.viewType = type;
 
+  // Update active pill button styling
+  const typeMap = {
+    TODAY: 'btn-view-today',
+    SELECTED_DATE: 'btn-view-selected-date',
+    DATE_RANGE: 'btn-view-date-range',
+    ENTIRE_MONTH: 'btn-view-entire-month',
+    ALL_TRIPS: 'btn-view-all-trips'
+  };
+
+  document.querySelectorAll('.view-type-btn').forEach(btn => {
+    btn.className = 'view-type-btn px-4 py-2 text-xs font-bold rounded-xl transition cursor-pointer select-none bg-gray-100 text-gray-700 hover:bg-gray-200';
+  });
+
+  const activeBtn = document.getElementById(typeMap[type]);
+  if (activeBtn) {
+    activeBtn.className = 'view-type-btn px-4 py-2 text-xs font-black rounded-xl transition cursor-pointer select-none bg-blue-600 text-white shadow-xs';
+  }
+
+  renderScopeControls();
+  render();
+};
+
+function renderScopeControls() {
+  const container = document.getElementById('dynamic-scope-inputs');
+  const activeViewTag = document.getElementById('active-view-tag');
+  if (!container) return;
+
+  if (state.viewType === 'TODAY') {
+    const today = getTodayISO();
+    if (activeViewTag) activeViewTag.textContent = `TODAY (${formatDateDisplay(today)})`;
+    container.innerHTML = `
+      <div class="flex items-center gap-2 py-0.5">
+        <span class="text-xs font-bold text-gray-600">Showing trips scheduled for Today:</span>
+        <span class="px-3 py-1 font-mono text-xs font-black bg-blue-50 text-blue-700 rounded-lg border border-blue-200">${formatDateDisplay(today)}</span>
+      </div>
+    `;
+  } else if (state.viewType === 'SELECTED_DATE') {
+    if (activeViewTag) activeViewTag.textContent = formatDateDisplay(state.selectedDate);
+    container.innerHTML = `
+      <div class="flex items-center gap-2 py-0.5">
+        <label for="scope-single-date" class="text-xs font-bold text-gray-600 uppercase">Select Date:</label>
+        <input type="date" id="scope-single-date" value="${state.selectedDate}" class="px-3 py-1.5 border border-gray-300 rounded-xl text-xs font-bold text-gray-800 bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+        <button onclick="applySelectedDate()" class="px-3.5 py-1.5 text-xs font-black text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-xs transition cursor-pointer">VIEW</button>
+      </div>
+    `;
+  } else if (state.viewType === 'DATE_RANGE') {
+    if (activeViewTag) activeViewTag.textContent = `${formatDateDisplay(state.dateFrom)} ➔ ${formatDateDisplay(state.dateTo)}`;
+    container.innerHTML = `
+      <div class="flex flex-wrap items-center gap-2 py-0.5">
+        <label for="scope-date-from" class="text-xs font-bold text-gray-600 uppercase">From:</label>
+        <input type="date" id="scope-date-from" value="${state.dateFrom}" class="px-3 py-1.5 border border-gray-300 rounded-xl text-xs font-bold text-gray-800 bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+        <span class="text-gray-400 font-bold">➔</span>
+        <label for="scope-date-to" class="text-xs font-bold text-gray-600 uppercase">To:</label>
+        <input type="date" id="scope-date-to" value="${state.dateTo}" class="px-3 py-1.5 border border-gray-300 rounded-xl text-xs font-bold text-gray-800 bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+        <button onclick="applyDateRange()" class="px-3.5 py-1.5 text-xs font-black text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-xs transition cursor-pointer">VIEW</button>
+      </div>
+    `;
+  } else if (state.viewType === 'ENTIRE_MONTH') {
+    const [y, m] = state.selectedMonth.split('-');
+    const mName = MONTH_NAMES[parseInt(m, 10) - 1] || 'August';
+    if (activeViewTag) activeViewTag.textContent = `${mName} ${y}`;
+    container.innerHTML = `
+      <div class="flex items-center gap-2 py-0.5">
+        <label for="scope-month-select" class="text-xs font-bold text-gray-600 uppercase">Select Month:</label>
+        <select id="scope-month-select" class="px-3 py-1.5 border border-gray-300 rounded-xl text-xs font-bold text-gray-800 bg-white focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer">
+          ${getMonthOptionsHTML()}
+        </select>
+        <button onclick="applyEntireMonth()" class="px-3.5 py-1.5 text-xs font-black text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-xs transition cursor-pointer">VIEW</button>
+      </div>
+    `;
+  } else {
+    // ALL_TRIPS
+    if (activeViewTag) activeViewTag.textContent = 'ALL TRIPS';
+    container.innerHTML = `
+      <div class="flex items-center gap-2 py-0.5">
+        <span class="text-xs font-bold text-gray-600">Showing all records logged across the fleet</span>
+      </div>
+    `;
+  }
+}
+
+function getMonthOptionsHTML() {
   const monthsSet = new Set();
-  monthsSet.add('2026-08'); // baseline month
+  monthsSet.add('2026-08');
 
   state.trips.forEach(t => {
     if (t.tripDate && t.tripDate.length >= 7) {
@@ -427,73 +449,118 @@ function populateMonthDropdown() {
   });
 
   const sortedMonths = Array.from(monthsSet).sort().reverse();
-  selectMonth.innerHTML = sortedMonths.map(m => {
+  return sortedMonths.map(m => {
     const [year, mon] = m.split('-');
     const mIdx = parseInt(mon, 10) - 1;
-    const label = `${MONTH_NAMES[mIdx].substring(0, 3)}-${year.substring(2)}`;
+    const label = `${MONTH_NAMES[mIdx]} ${year}`;
     return `<option value="${m}" ${m === state.selectedMonth ? 'selected' : ''}>${label}</option>`;
   }).join('');
 }
 
-function getMonthDisplayTitle(monthStr) {
-  if (!monthStr || !monthStr.includes('-')) return monthStr;
-  const [year, mon] = monthStr.split('-');
-  const mIdx = parseInt(mon, 10) - 1;
-  return `${MONTH_NAMES[mIdx]} ${year}`;
-}
+window.applySelectedDate = function() {
+  const el = document.getElementById('scope-single-date');
+  if (el && el.value) {
+    state.selectedDate = el.value;
+    const activeViewTag = document.getElementById('active-view-tag');
+    if (activeViewTag) activeViewTag.textContent = formatDateDisplay(state.selectedDate);
+    render();
+    showToast(`📅 Scope set to: ${formatDateDisplay(state.selectedDate)}`);
+  }
+};
 
-// Setup Box-Type Metric Filter Cards
-function setupFilterCards() {
-  document.querySelectorAll('.metric-card').forEach(card => {
-    card.addEventListener('click', () => {
-      document.querySelectorAll('.metric-card').forEach(c => {
-        c.classList.remove('border-brand-500', 'border-amber-500', 'border-rose-500', 'border-orange-500', 'border-emerald-500', 'border-teal-500', 'shadow-md');
-        c.classList.add('border-gray-200');
-      });
+window.applyDateRange = function() {
+  const elFrom = document.getElementById('scope-date-from');
+  const elTo = document.getElementById('scope-date-to');
+  if (elFrom && elTo) {
+    state.dateFrom = elFrom.value;
+    state.dateTo = elTo.value;
+    const activeViewTag = document.getElementById('active-view-tag');
+    if (activeViewTag) activeViewTag.textContent = `${formatDateDisplay(state.dateFrom)} ➔ ${formatDateDisplay(state.dateTo)}`;
+    render();
+    showToast(`📅 Scope range: ${formatDateDisplay(state.dateFrom)} to ${formatDateDisplay(state.dateTo)}`);
+  }
+};
 
-      card.classList.remove('border-gray-200');
-      const f = card.dataset.filter;
-      if (f === 'ALL') card.classList.add('border-brand-500', 'shadow-md');
-      else if (f === 'PENDING') card.classList.add('border-amber-500', 'shadow-md');
-      else if (f === 'LOSS') card.classList.add('border-rose-500', 'shadow-md');
-      else if (f === 'PARTIAL') card.classList.add('border-orange-500', 'shadow-md');
-      else if (f === 'PROFIT') card.classList.add('border-emerald-500', 'shadow-md');
-      else if (f === 'DONE') card.classList.add('border-teal-500', 'shadow-md');
+window.applyEntireMonth = function() {
+  const el = document.getElementById('scope-month-select');
+  if (el && el.value) {
+    state.selectedMonth = el.value;
+    const [y, m] = state.selectedMonth.split('-');
+    const mName = MONTH_NAMES[parseInt(m, 10) - 1] || 'Month';
+    const activeViewTag = document.getElementById('active-view-tag');
+    if (activeViewTag) activeViewTag.textContent = `${mName} ${y}`;
+    render();
+    showToast(`📅 Scope set to entire month: ${mName} ${y}`);
+  }
+};
 
-      state.activeFilter = f;
-      renderTable();
-    });
+// Set Status Filter (ALL | PROFIT | LOSS | PENDING | PARTIAL | PAID)
+window.setStatusFilter = function(filter) {
+  state.statusFilter = filter;
+
+  const btnMap = {
+    ALL: 'filter-status-all',
+    PROFIT: 'filter-status-profit',
+    LOSS: 'filter-status-loss',
+    PENDING: 'filter-status-pending',
+    PARTIAL: 'filter-status-partial',
+    PAID: 'filter-status-paid'
+  };
+
+  document.querySelectorAll('.status-filter-btn').forEach(btn => {
+    btn.className = 'status-filter-btn px-3 py-1.5 text-xs font-bold rounded-xl transition cursor-pointer select-none bg-gray-100 text-gray-700 hover:bg-gray-200';
   });
-}
+
+  const active = document.getElementById(btnMap[filter]);
+  if (active) {
+    if (filter === 'PROFIT') active.className = 'status-filter-btn px-3 py-1.5 text-xs font-black rounded-xl transition cursor-pointer select-none bg-emerald-600 text-white shadow-xs';
+    else if (filter === 'LOSS') active.className = 'status-filter-btn px-3 py-1.5 text-xs font-black rounded-xl transition cursor-pointer select-none bg-rose-600 text-white shadow-xs';
+    else if (filter === 'PENDING') active.className = 'status-filter-btn px-3 py-1.5 text-xs font-black rounded-xl transition cursor-pointer select-none bg-amber-600 text-white shadow-xs';
+    else if (filter === 'PARTIAL') active.className = 'status-filter-btn px-3 py-1.5 text-xs font-black rounded-xl transition cursor-pointer select-none bg-orange-600 text-white shadow-xs';
+    else if (filter === 'PAID') active.className = 'status-filter-btn px-3 py-1.5 text-xs font-black rounded-xl transition cursor-pointer select-none bg-teal-600 text-white shadow-xs';
+    else active.className = 'status-filter-btn px-3 py-1.5 text-xs font-black rounded-xl transition cursor-pointer select-none bg-blue-600 text-white shadow-xs';
+  }
+
+  renderTableOnly();
+};
 
 // ==========================================================================
-// 4. Filtering Logic & Table Rendering
+// 4. Data Scope Resolvers & Rendering
 // ==========================================================================
 
-// Get trips matching the selected Month
-function getMonthTrips() {
+// Get all trips matching the selected View Scope
+function getScopedTrips() {
   return state.trips.filter(t => {
     if (t.deleted) return false;
-    if (!t.tripDate) return false;
-    return t.tripDate.startsWith(state.selectedMonth);
+
+    if (state.viewType === 'TODAY') {
+      const today = getTodayISO();
+      return t.tripDate === today;
+    } else if (state.viewType === 'SELECTED_DATE') {
+      return state.selectedDate ? t.tripDate === state.selectedDate : true;
+    } else if (state.viewType === 'DATE_RANGE') {
+      if (state.dateFrom && t.tripDate < state.dateFrom) return false;
+      if (state.dateTo && t.tripDate > state.dateTo) return false;
+      return true;
+    } else if (state.viewType === 'ENTIRE_MONTH') {
+      return (t.tripDate || '').startsWith(state.selectedMonth);
+    }
+    // ALL_TRIPS
+    return true;
   });
 }
 
-// Get trips matching date range, filter boxes, and search
+// Get trips matching View Scope + Status Filter + Search Query
 function getDisplayTrips() {
-  const monthTrips = getMonthTrips();
+  const scopedTrips = getScopedTrips();
 
-  return monthTrips.filter(t => {
-    // Date Range Filter
-    if (state.dateFrom && t.tripDate < state.dateFrom) return false;
-    if (state.dateTo && t.tripDate > state.dateTo) return false;
-
-    // Filter Boxes
-    if (state.activeFilter === 'PENDING' && t.status !== 'Pending') return false;
-    if (state.activeFilter === 'LOSS' && t.netPL >= 0) return false;
-    if (state.activeFilter === 'PARTIAL' && t.status !== 'Partially Paid') return false;
-    if (state.activeFilter === 'PROFIT' && t.netPL < 0) return false;
-    if (state.activeFilter === 'DONE' && t.status !== 'Paid') return false;
+  return scopedTrips.filter(t => {
+    // Status Filter
+    if (state.statusFilter === 'PROFIT' && t.netPL < 0) return false;
+    if (state.statusFilter === 'LOSS' && t.netPL >= 0) return false;
+    if (state.statusFilter === 'PENDING' && t.status !== 'Pending') return false;
+    if (state.statusFilter === 'PARTIAL' && t.status !== 'Partially Paid') return false;
+    if (state.statusFilter === 'PAID' && t.status !== 'Paid') return false;
 
     // Search Query
     if (state.searchQuery) {
@@ -511,157 +578,81 @@ function getDisplayTrips() {
 }
 
 function render() {
-  renderMetricCounters();
-  renderTable();
+  renderSummaryCards();
+  renderTableOnly();
 }
 
-function renderMetricCounters() {
-  const monthTrips = getMonthTrips();
+function renderSummaryCards() {
+  const scopedTrips = getScopedTrips();
 
-  const countAll = monthTrips.length;
-  const countPending = monthTrips.filter(t => t.status === 'Pending').length;
-  const countLoss = monthTrips.filter(t => t.netPL < 0).length;
-  const countPartial = monthTrips.filter(t => t.status === 'Partially Paid').length;
-  const countProfit = monthTrips.filter(t => t.netPL >= 0).length;
-  const countDone = monthTrips.filter(t => t.status === 'Paid').length;
-
-  if (document.getElementById('count-all')) document.getElementById('count-all').textContent = countAll;
-  if (document.getElementById('count-pending')) document.getElementById('count-pending').textContent = countPending;
-  if (document.getElementById('count-loss')) document.getElementById('count-loss').textContent = countLoss;
-  if (document.getElementById('count-partial')) document.getElementById('count-partial').textContent = countPartial;
-  if (document.getElementById('count-profit')) document.getElementById('count-profit').textContent = countProfit;
-  if (document.getElementById('count-done')) document.getElementById('count-done').textContent = countDone;
-
-  // Total Outstanding Unpaid Balance calculation
-  const pendingTrips = monthTrips.filter(t => t.status === 'Pending' || t.status === 'Partially Paid');
-  const totalPendingAmount = pendingTrips.reduce((acc, t) => acc + (t.statusAmount || t.balance), 0);
-  const totalPendingCount = pendingTrips.length;
-
-  const bannerContainer = document.getElementById('banner-outstanding-container');
-  const bannerAmount = document.getElementById('banner-pending-amount');
-  const bannerCount = document.getElementById('banner-pending-count');
-  const bannerTag = document.getElementById('banner-tag');
-  const bannerIcon = document.getElementById('banner-alert-icon');
-  const cardPending = document.getElementById('card-pending');
-  const cardPartial = document.getElementById('card-partial');
-
-  if (bannerAmount) {
-    bannerAmount.textContent = formatCurrency(totalPendingAmount);
-  }
-
-  if (totalPendingAmount > 0) {
-    if (bannerContainer) {
-      bannerContainer.className = 'rounded-3xl border-2 border-rose-500 bg-gradient-to-r from-rose-600 via-rose-700 to-amber-600 text-white p-6 shadow-xl transition-all';
-    }
-    if (bannerIcon) {
-      bannerIcon.textContent = '🚨';
-      bannerIcon.className = 'w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-3xl shadow-inner shrink-0 animate-bounce';
-    }
-    if (bannerTag) {
-      bannerTag.textContent = 'URGENT • UNCOLLECTED REVENUE';
-      bannerTag.className = 'text-xs sm:text-sm font-black uppercase tracking-widest text-rose-100';
-    }
-    if (bannerCount) {
-      bannerCount.textContent = `${totalPendingCount} TRIP${totalPendingCount > 1 ? 'S' : ''} DUE`;
-      bannerCount.className = 'px-2.5 py-0.5 text-xs font-black bg-white text-rose-700 rounded-full shadow-xs';
-    }
-
-    // High visual emphasis & pulse on Pending and Partially Paid warning cards
-    if (cardPending) {
-      cardPending.classList.add('ring-4', 'ring-amber-400', 'ring-offset-2', 'animate-pulse');
-    }
-    if (cardPartial && countPartial > 0) {
-      cardPartial.classList.add('ring-4', 'ring-orange-400', 'ring-offset-2', 'animate-pulse');
-    }
-  } else {
-    // Zero pending balance: Calm emerald settled state
-    if (bannerContainer) {
-      bannerContainer.className = 'rounded-3xl border-2 border-emerald-500 bg-gradient-to-r from-emerald-600 via-teal-700 to-emerald-800 text-white p-6 shadow-xl transition-all';
-    }
-    if (bannerIcon) {
-      bannerIcon.textContent = '✅';
-      bannerIcon.className = 'w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-3xl shadow-inner shrink-0';
-    }
-    if (bannerTag) {
-      bannerTag.textContent = 'ALL BALANCES SETTLED & RECEIVED';
-      bannerTag.className = 'text-xs sm:text-sm font-black uppercase tracking-widest text-emerald-100';
-    }
-    if (bannerCount) {
-      bannerCount.textContent = 'CLEARED (₹0 DUE)';
-      bannerCount.className = 'px-2.5 py-0.5 text-xs font-black bg-white text-emerald-800 rounded-full shadow-xs';
-    }
-
-    if (cardPending) {
-      cardPending.classList.remove('ring-4', 'ring-amber-400', 'ring-offset-2', 'animate-pulse');
-    }
-    if (cardPartial) {
-      cardPartial.classList.remove('ring-4', 'ring-orange-400', 'ring-offset-2', 'animate-pulse');
-    }
-  }
-}
-
-// Quick trigger from the Outstanding Balance Banner
-window.triggerPendingFilter = function() {
-  document.querySelectorAll('.metric-card').forEach(c => {
-    c.classList.remove('border-brand-500', 'border-amber-500', 'border-rose-500', 'border-orange-500', 'border-emerald-500', 'border-teal-500', 'shadow-md');
-    c.classList.add('border-gray-200');
+  const totFreight = scopedTrips.reduce((acc, t) => acc + t.freight, 0);
+  const totAdvance = scopedTrips.reduce((acc, t) => acc + t.advance, 0);
+  const totBalance = scopedTrips.reduce((acc, t) => acc + t.balance, 0);
+  const totExpenses = scopedTrips.reduce((acc, t) => acc + t.totalExpenses, 0);
+  
+  let totProfit = 0;
+  let totLoss = 0;
+  scopedTrips.forEach(t => {
+    if (t.netPL >= 0) totProfit += t.netPL;
+    else totLoss += Math.abs(t.netPL);
   });
 
-  const card = document.getElementById('card-pending');
-  if (card) {
-    card.classList.remove('border-gray-200');
-    card.classList.add('border-amber-500', 'shadow-md');
-  }
+  const setEl = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val;
+  };
 
-  state.activeFilter = 'PENDING';
-  renderTable();
+  setEl('sum-freight', formatCurrency(totFreight));
+  setEl('sum-advance', formatCurrency(totAdvance));
+  setEl('sum-balance', formatCurrency(totBalance));
+  setEl('sum-expenses', formatCurrency(totExpenses));
+  setEl('sum-profit', formatCurrency(totProfit));
+  setEl('sum-loss', formatCurrency(totLoss));
 
-  const tbody = document.getElementById('trips-tbody');
-  if (tbody) {
-    tbody.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }
+  // Update status filter badge numbers
+  const countAll = scopedTrips.length;
+  const countProfit = scopedTrips.filter(t => t.netPL >= 0).length;
+  const countLoss = scopedTrips.filter(t => t.netPL < 0).length;
+  const countPending = scopedTrips.filter(t => t.status === 'Pending').length;
+  const countPartial = scopedTrips.filter(t => t.status === 'Partially Paid').length;
+  const countPaid = scopedTrips.filter(t => t.status === 'Paid').length;
 
-  showToast('⚠️ Filtered table to show pending trips with unpaid balance.');
-};
+  setEl('badge-all', countAll);
+  setEl('badge-profit', countProfit);
+  setEl('badge-loss', countLoss);
+  setEl('badge-pending', countPending);
+  setEl('badge-partial', countPartial);
+  setEl('badge-paid', countPaid);
+}
 
-function renderTable() {
+function renderTableOnly() {
   const trips = getDisplayTrips();
-  const title = document.getElementById('table-title');
-  const badge = document.getElementById('table-active-filter-badge');
-  const stats = document.getElementById('table-quick-stats');
+  const subHeading = document.getElementById('table-view-scope-text');
+  const visibleCountLabel = document.getElementById('visible-count-label');
 
-  if (title) {
-    if (state.dateFrom || state.dateTo) {
-      const fromStr = state.dateFrom ? formatDateDisplay(state.dateFrom) : 'Start';
-      const toStr = state.dateTo ? formatDateDisplay(state.dateTo) : 'End';
-      title.textContent = `Range: ${fromStr} to ${toStr} (${getMonthDisplayTitle(state.selectedMonth)})`;
-    } else {
-      title.textContent = `Month: ${getMonthDisplayTitle(state.selectedMonth)}`;
+  if (visibleCountLabel) visibleCountLabel.textContent = trips.length;
+
+  // Format clean view scope subtitle
+  if (subHeading) {
+    let scopeLabel = 'All Trips';
+    if (state.viewType === 'TODAY') scopeLabel = `Today (${formatDateDisplay(getTodayISO())})`;
+    else if (state.viewType === 'SELECTED_DATE') scopeLabel = formatDateDisplay(state.selectedDate);
+    else if (state.viewType === 'DATE_RANGE') scopeLabel = `${formatDateDisplay(state.dateFrom)} ➔ ${formatDateDisplay(state.dateTo)}`;
+    else if (state.viewType === 'ENTIRE_MONTH') {
+      const [y, m] = state.selectedMonth.split('-');
+      scopeLabel = `${MONTH_NAMES[parseInt(m, 10) - 1]} ${y}`;
     }
-  }
 
-  if (badge) {
-    badge.textContent = `${state.activeFilter} (${trips.length})`;
-  }
+    const filterNameMap = {
+      ALL: 'All',
+      PROFIT: 'Profit Trips',
+      LOSS: 'Loss Trips',
+      PENDING: 'Pending Payment',
+      PARTIAL: 'Partially Paid',
+      PAID: 'Paid'
+    };
 
-  if (stats) {
-    const totFreight = trips.reduce((acc, t) => acc + t.freight, 0);
-    const totAdvance = trips.reduce((acc, t) => acc + t.advance, 0);
-    const totBalance = trips.reduce((acc, t) => acc + t.balance, 0);
-    const totExpenses = trips.reduce((acc, t) => acc + t.totalExpenses, 0);
-    const totNet = totFreight - totExpenses;
-
-    stats.innerHTML = `
-      <span>Freight: <strong class="text-gray-900">${formatCurrency(totFreight)}</strong></span>
-      <span class="text-gray-300">|</span>
-      <span>Advance: <strong class="text-gray-900">${formatCurrency(totAdvance)}</strong></span>
-      <span class="text-gray-300">|</span>
-      <span>Balance: <strong class="text-amber-700">${formatCurrency(totBalance)}</strong></span>
-      <span class="text-gray-300">|</span>
-      <span>Expenses: <strong class="text-gray-900">${formatCurrency(totExpenses)}</strong></span>
-      <span class="text-gray-300">|</span>
-      <span>Net: <strong class="${totNet >= 0 ? 'text-emerald-700 font-extrabold' : 'text-rose-700 font-extrabold'}">${formatCurrency(totNet)}</strong></span>
-    `;
+    subHeading.textContent = `${scopeLabel} • ${filterNameMap[state.statusFilter] || 'All'}`;
   }
 
   const tbody = document.getElementById('trips-tbody');
@@ -671,7 +662,7 @@ function renderTable() {
     tbody.innerHTML = `
       <tr>
         <td colspan="25" class="text-center py-12 px-4 text-gray-400 font-medium">
-          No trip records found for <strong>${getMonthDisplayTitle(state.selectedMonth)}</strong> matching the active filters.
+          No trip records found for the current selection. Choose a different date, month, or status filter.
         </td>
       </tr>
     `;
@@ -679,18 +670,20 @@ function renderTable() {
   }
 
   tbody.innerHTML = trips.map((t, idx) => {
-    // Exact 24 columns in strict order:
-    // 1. S.No, 2. Trip Date, 3. Vehicle No, 4. From, 5. To, 6. Freight Amount,
-    // 7. Advance Date, 8. Advance Amount, 9. Balance Amount, 10. Halting Details,
-    // 11. TRSP Name, 12. TRSP Comm, 13. Diesel, 14. Toll Charges, 15. Loading Charges,
-    // 16. Unloading Charges, 17. Police Exp, 18. RTA C/P, 19. Other Expenses,
-    // 20. Driver Comm, 21. Status Amount, 22. Status, 23. P/L, 24. Route
-    // Followed by Actions (Not counted as a business column)
-
     const isProfit = t.netPL >= 0;
     const plBadge = isProfit 
-      ? `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-black bg-emerald-100 text-emerald-800 border border-emerald-300">P +${formatCurrency(t.netPL)}</span>`
-      : `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-black bg-rose-100 text-rose-800 border border-rose-300">L -${formatCurrency(Math.abs(t.netPL))}</span>`;
+      ? `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-black bg-emerald-50 text-emerald-800 border border-emerald-300">P +${formatCurrency(t.netPL)}</span>`
+      : `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-black bg-rose-50 text-rose-800 border border-rose-300">L -${formatCurrency(Math.abs(t.netPL))}</span>`;
+
+    // Visual status tags: 🟠 Pending, 🟡 Partially Paid, 🟢 Paid
+    let statusBadge = '';
+    if (t.status === 'Paid') {
+      statusBadge = `<span class="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-bold rounded-md bg-emerald-50 text-emerald-800 border border-emerald-300">🟢 Paid</span>`;
+    } else if (t.status === 'Partially Paid') {
+      statusBadge = `<span class="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-bold rounded-md bg-orange-50 text-orange-800 border border-orange-300">🟡 Partially Paid</span>`;
+    } else {
+      statusBadge = `<span class="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-bold rounded-md bg-amber-50 text-amber-800 border border-amber-300">🟠 Pending</span>`;
+    }
 
     return `
       <tr class="transition hover:bg-gray-50/90 ${t.netPL < 0 ? 'bg-rose-50/20' : ''}">
@@ -728,7 +721,7 @@ function renderTable() {
         
         <!-- 11. TRSP Name -->
         <td class="py-3 px-3.5 whitespace-nowrap">
-          <span class="px-2 py-0.5 text-[11px] font-bold bg-amber-50 text-amber-800 rounded-md border border-amber-200">${t.trspName || '-'}</span>
+          <span class="px-2 py-0.5 text-[11px] font-bold bg-gray-100 text-gray-800 rounded-md border border-gray-200">${t.trspName || '-'}</span>
         </td>
         
         <!-- 12. TRSP Comm -->
@@ -759,19 +752,11 @@ function renderTable() {
         <td class="py-3 px-3.5 text-right whitespace-nowrap font-bold text-gray-900">${formatCurrency(t.driverCommission)}</td>
         
         <!-- 21. Status Amount -->
-        <td class="py-3 px-3.5 text-right whitespace-nowrap font-black text-brand-700">${formatCurrency(t.statusAmount)}</td>
+        <td class="py-3 px-3.5 text-right whitespace-nowrap font-black text-blue-700">${formatCurrency(t.statusAmount)}</td>
         
-        <!-- 22. Status (Manual User Select) -->
+        <!-- 22. Status Display -->
         <td class="py-3 px-3.5 whitespace-nowrap">
-          <select onchange="updateTripStatus(${t.id}, this.value)" 
-                  class="px-2 py-1 text-xs font-black rounded-lg border cursor-pointer outline-none transition
-                         ${t.status === 'Paid' ? 'bg-emerald-50 text-emerald-800 border-emerald-300' :
-                           t.status === 'Partially Paid' ? 'bg-orange-50 text-orange-800 border-orange-300' :
-                           'bg-amber-50 text-amber-800 border-amber-300'}">
-            <option value="Pending" ${t.status === 'Pending' ? 'selected' : ''}>Pending</option>
-            <option value="Paid" ${t.status === 'Paid' ? 'selected' : ''}>Paid</option>
-            <option value="Partially Paid" ${t.status === 'Partially Paid' ? 'selected' : ''}>Partially Paid</option>
-          </select>
+          ${statusBadge}
         </td>
         
         <!-- 23. P/L -->
@@ -782,7 +767,7 @@ function renderTable() {
         <!-- 24. Route -->
         <td class="py-3 px-4 whitespace-nowrap font-bold text-gray-800">${t.route || `${t.from} ➔ ${t.to}`}</td>
         
-        <!-- Row Actions (Not counted as a business column) -->
+        <!-- Row Actions (Not a business data column) -->
         <td class="py-3 px-3 text-center whitespace-nowrap bg-gray-50/50">
           <div class="inline-flex items-center gap-1.5 justify-center">
             <button onclick="promptEditTrip(${t.id})" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-gray-700 bg-white border border-gray-300 hover:bg-blue-50 hover:text-blue-700 active:scale-95 transition cursor-pointer shadow-xs" title="Edit Trip">
@@ -798,35 +783,180 @@ function renderTable() {
   }).join('');
 }
 
-// Update Trip Payment Status
-window.updateTripStatus = function(tripId, newStatus) {
-  const idNum = Number(tripId);
-  const trip = state.trips.find(t => Number(t.id) === idNum);
-  if (!trip) return;
+// ==========================================================================
+// 5. Add Trip Modal & Real-Time Calculation Engine
+// ==========================================================================
 
-  trip.status = newStatus;
-  if (newStatus === 'Pending') {
-    trip.statusAmount = trip.balance;
-  } else if (newStatus === 'Paid') {
-    trip.statusAmount = 0;
-  } else if (newStatus === 'Partially Paid') {
-    const current = trip.statusAmount > 0 ? trip.statusAmount : trip.balance;
-    const input = prompt(`Enter remaining unpaid balance for ${trip.vehicleNo} (Total Balance: ${formatCurrency(trip.balance)}):`, current);
-    if (input !== null && !isNaN(Number(input))) {
-      trip.statusAmount = Number(input);
+window.openAddTripModal = function() {
+  const modal = document.getElementById('modal-add-trip');
+  if (!modal) return;
+
+  // Prefill defaults
+  const tripDateEl = document.getElementById('add-trip-date');
+  if (tripDateEl) tripDateEl.value = getTodayISO();
+
+  // Reset inputs
+  const resetIds = [
+    'add-vehicle', 'add-from', 'add-to', 'add-freight', 'add-advance-date',
+    'add-advance', 'add-halting', 'add-trsp-name', 'add-trsp-comm', 'add-diesel',
+    'add-toll', 'add-loading', 'add-unloading', 'add-police', 'add-rta',
+    'add-other', 'add-driver-comm', 'add-status-amount'
+  ];
+  resetIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+
+  const statusEl = document.getElementById('add-status');
+  if (statusEl) statusEl.value = 'Pending';
+  handleAddStatusChange();
+
+  updateAddTripCalculations();
+  modal.classList.remove('hidden');
+};
+
+window.closeAddTripModal = function() {
+  const modal = document.getElementById('modal-add-trip');
+  if (modal) modal.classList.add('hidden');
+};
+
+window.handleAddStatusChange = function() {
+  const statusEl = document.getElementById('add-status');
+  const box = document.getElementById('add-status-amount-box');
+  if (statusEl && box) {
+    if (statusEl.value === 'Partially Paid') {
+      box.classList.remove('hidden');
     } else {
-      trip.statusAmount = trip.balance;
+      box.classList.add('hidden');
+    }
+  }
+  updateAddTripCalculations();
+};
+
+window.updateAddTripCalculations = function() {
+  const getNum = (id) => Number(document.getElementById(id)?.value) || 0;
+  const getStr = (id) => document.getElementById(id)?.value?.trim() || '';
+
+  const freight = getNum('add-freight');
+  const advance = getNum('add-advance');
+  const balance = freight - advance;
+
+  const trspComm = getNum('add-trsp-comm');
+  const diesel = getNum('add-diesel');
+  const toll = getNum('add-toll');
+  const loading = getNum('add-loading');
+  const unloading = getNum('add-unloading');
+  const police = getNum('add-police');
+  const rta = getNum('add-rta');
+  const other = getNum('add-other');
+  const driverComm = getNum('add-driver-comm');
+
+  const totalExpenses = trspComm + diesel + toll + loading + unloading + police + rta + other + driverComm;
+  const netPL = freight - totalExpenses;
+
+  const status = getStr('add-status') || 'Pending';
+  let statusAmount = 0;
+  if (status === 'Pending') {
+    statusAmount = balance;
+  } else if (status === 'Paid') {
+    statusAmount = 0;
+  } else if (status === 'Partially Paid') {
+    const customAmt = getNum('add-status-amount');
+    statusAmount = customAmt > 0 ? customAmt : balance;
+  }
+
+  const from = getStr('add-from') || 'Origin';
+  const to = getStr('add-to') || 'Destination';
+
+  // Update Section 4 READ ONLY display
+  const elBal = document.getElementById('calc-preview-balance');
+  const elExp = document.getElementById('calc-preview-expenses');
+  const elStat = document.getElementById('calc-preview-status-amt');
+  const elPL = document.getElementById('calc-preview-pl');
+  const elRoute = document.getElementById('calc-preview-route');
+
+  if (elBal) elBal.textContent = formatCurrency(balance);
+  if (elExp) elExp.textContent = formatCurrency(totalExpenses);
+  if (elStat) elStat.textContent = formatCurrency(statusAmount);
+
+  if (elPL) {
+    if (netPL >= 0) {
+      elPL.className = 'text-sm font-black text-emerald-600';
+      elPL.textContent = `P +${formatCurrency(netPL)}`;
+    } else {
+      elPL.className = 'text-sm font-black text-rose-600';
+      elPL.textContent = `L -${formatCurrency(Math.abs(netPL))}`;
     }
   }
 
+  if (elRoute) {
+    elRoute.textContent = `${from} ➔ ${to}`;
+  }
+};
+
+window.promptSaveNewTrip = function() {
+  const tripDate = document.getElementById('add-trip-date')?.value;
+  const vehicle = document.getElementById('add-vehicle')?.value?.trim();
+  const from = document.getElementById('add-from')?.value?.trim();
+  const to = document.getElementById('add-to')?.value?.trim();
+  const freight = Number(document.getElementById('add-freight')?.value) || 0;
+
+  if (!tripDate || !vehicle || !from || !to || freight <= 0) {
+    alert('Please fill in required fields: Trip Date, Vehicle No, From, To, and Freight Amount (> 0).');
+    return;
+  }
+
+  openModal('modal-confirm-add');
+};
+
+window.executeSaveNewTrip = function() {
+  closeModal('modal-confirm-add');
+
+  const getNum = (id) => Number(document.getElementById(id)?.value) || 0;
+  const getStr = (id) => document.getElementById(id)?.value?.trim() || '';
+
+  const newId = state.trips.length ? Math.max(...state.trips.map(t => t.id || 0)) + 1 : 1;
+  const newSNo = state.trips.filter(t => !t.deleted).length + 1;
+
+  const rawTrip = {
+    id: newId,
+    sNo: newSNo,
+    tripDate: getStr('add-trip-date') || getTodayISO(),
+    vehicleNo: getStr('add-vehicle').toUpperCase(),
+    from: getStr('add-from'),
+    to: getStr('add-to'),
+    freight: getNum('add-freight'),
+    advanceDate: getStr('add-advance-date'),
+    advance: getNum('add-advance'),
+    halting: getStr('add-halting'),
+    trspName: getStr('add-trsp-name') || 'Direct',
+    trspCommission: getNum('add-trsp-comm'),
+    diesel: getNum('add-diesel'),
+    toll: getNum('add-toll'),
+    loading: getNum('add-loading'),
+    unloading: getNum('add-unloading'),
+    police: getNum('add-police'),
+    rta: getNum('add-rta'),
+    other: getNum('add-other'),
+    driverCommission: getNum('add-driver-comm'),
+    status: getStr('add-status') || 'Pending',
+    statusAmount: getNum('add-status-amount'),
+    deleted: false
+  };
+
+  const calculated = calculateTrip(rawTrip);
+  state.trips.unshift(calculated);
   saveTrips();
-  renderMetricCounters();
-  renderTable();
-  showToast(`✅ Trip #${trip.sNo || idNum} status updated to ${newStatus}.`);
+
+  closeAddTripModal();
+  renderSummaryCards();
+  renderTableOnly();
+
+  showToast(`✅ Trip #${newSNo} (${calculated.vehicleNo}) added successfully.`);
 };
 
 // ==========================================================================
-// 5. Confirmation Popups Workflow (Edit & Delete)
+// 6. Confirmation Popups & Modal Workflows (Edit & Delete)
 // ==========================================================================
 
 function setupModals() {
@@ -848,7 +978,7 @@ function setupModals() {
     });
   }
 
-  // Save Confirm Modal Buttons
+  // Save Confirm Modal Buttons (Edit)
   const modalSaveConfirm = document.getElementById('modal-save-confirm');
   const modalSaveCancel = document.getElementById('modal-save-cancel');
   if (modalSaveConfirm) {
@@ -890,7 +1020,6 @@ function closeModal(modalId) {
   if (modal) modal.classList.add('hidden');
 }
 
-// 1. Prompt Edit Confirmation
 window.promptEditTrip = function(tripId) {
   const idNum = Number(tripId);
   const trip = state.trips.find(t => Number(t.id) === idNum);
@@ -904,12 +1033,10 @@ window.promptEditTrip = function(tripId) {
   openModal('modal-confirm-edit');
 };
 
-// 2. Prompt Save & Recalculate Confirmation
 window.promptSaveTripEdits = function() {
   openModal('modal-confirm-save');
 };
 
-// 3. Prompt Delete Confirmation
 window.promptDeleteTrip = function(tripId) {
   const idNum = Number(tripId);
   const trip = state.trips.find(t => Number(t.id) === idNum);
@@ -918,12 +1045,11 @@ window.promptDeleteTrip = function(tripId) {
   state.pendingDeleteTripId = idNum;
   const msgEl = document.getElementById('modal-delete-message');
   if (msgEl) {
-    msgEl.textContent = `Are you sure you want to delete Trip #${trip.sNo || idNum} (${trip.vehicleNo})? This action cannot be undone.`;
+    msgEl.textContent = `Are you sure you want to delete Trip #${trip.sNo || idNum} (${trip.vehicleNo})?`;
   }
   openModal('modal-confirm-delete');
 };
 
-// Execute Trip Deletion
 function executeDeleteTrip() {
   if (!state.pendingDeleteTripId) return;
   const idNum = Number(state.pendingDeleteTripId);
@@ -932,14 +1058,15 @@ function executeDeleteTrip() {
 
   trip.deleted = true;
   saveTrips();
-  render();
+  renderSummaryCards();
+  renderTableOnly();
 
   showToast(`✅ Trip #${trip.sNo || idNum} (${trip.vehicleNo}) deleted successfully.`);
   state.pendingDeleteTripId = null;
 }
 
 // ==========================================================================
-// 6. Slide-Over Drawer Events & Execution
+// 7. Slide-Over Drawer Events (Edit)
 // ==========================================================================
 
 function setupSlideOverEvents() {
@@ -1038,13 +1165,14 @@ function executeSaveTripEdits() {
 
   saveTrips();
   closeSlideOver();
-  render();
+  renderSummaryCards();
+  renderTableOnly();
 
-  showToast(`✅ Trip #${trip.sNo || idNum} (${trip.vehicleNo}) updated successfully.`);
+  showToast(`✅ Trip updated successfully.`);
 }
 
 // ==========================================================================
-// 7. Auto-Dismissing Toast Notification System
+// 8. Auto-Dismissing Toast Notification System
 // ==========================================================================
 
 function showToast(message, durationMs = 4000) {
@@ -1076,7 +1204,7 @@ function showToast(message, durationMs = 4000) {
 }
 
 // ==========================================================================
-// 8. True Excel (.xlsx) Export with Exact UI Colors & Auto-Fit Widths
+// 9. True Excel (.xlsx) Export with Exact UI Colors & Auto-Fit Widths
 // ==========================================================================
 
 async function exportToExcel() {
@@ -1103,7 +1231,6 @@ async function exportToExcel() {
       views: [{ showGridLines: true }]
     });
 
-    // Exactly 24 Business Column Headers in order
     const headers = [
       'S.No.', 'Trip Date', 'Vehicle No', 'From', 'To', 'Freight Amount',
       'Advance Date', 'Advance Amount', 'Balance Amount', 'Halting Details', 'TRSP Name',
@@ -1112,18 +1239,17 @@ async function exportToExcel() {
       'Status Amount', 'Status', 'P/L', 'Route'
     ];
 
-    // Initialize columns
     worksheet.columns = headers.map(h => ({ header: h, key: h, width: 16 }));
 
-    // 1. Style Header Row
+    // Header Row
     const headerRow = worksheet.getRow(1);
-    headerRow.height = 32;
+    headerRow.height = 30;
     headerRow.eachCell((cell) => {
       cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
       cell.fill = {
         type: 'pattern',
         pattern: 'solid',
-        fgColor: { argb: 'FF0F172A' } // Dark Navy matching UI
+        fgColor: { argb: 'FF1E3A8A' } // Professional Navy Blue
       };
       cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: false };
       cell.border = {
@@ -1134,7 +1260,7 @@ async function exportToExcel() {
       };
     });
 
-    // 2. Add Data Rows
+    // Data Rows
     trips.forEach((t, idx) => {
       const plFormatted = t.netPL >= 0 ? `P +₹${t.netPL.toLocaleString('en-IN')}` : `L -₹${Math.abs(t.netPL).toLocaleString('en-IN')}`;
       const routeStr = `${t.from || ''} ➔ ${t.to || ''}`;
@@ -1169,7 +1295,6 @@ async function exportToExcel() {
       const row = worksheet.addRow(rowValues);
       row.height = 24;
 
-      // Style every cell in data row
       row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
         cell.font = { name: 'Calibri', size: 10.5 };
         cell.alignment = { vertical: 'middle' };
@@ -1180,61 +1305,53 @@ async function exportToExcel() {
           right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
         };
 
-        // Numeric Currency columns
         const numericCols = [6, 8, 9, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21];
         if (numericCols.includes(colNumber)) {
           cell.alignment = { vertical: 'middle', horizontal: 'right' };
           cell.numFmt = '[$₹-4009]#,##0;([$₹-4009]#,##0);"-"';
         } else if ([1, 2, 7].includes(colNumber)) {
-          // S.No and Dates
           cell.alignment = { vertical: 'middle', horizontal: 'center' };
         } else if (colNumber === 3) {
-          // Vehicle No
           cell.alignment = { vertical: 'middle', horizontal: 'center' };
           cell.font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: 'FF1D4ED8' } };
         }
 
-        // Balance Amount emphasis
         if (colNumber === 9 && Number(cell.value) > 0) {
           cell.font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: 'FFB45309' } };
         }
 
-        // Column 22: Status Styling
         if (colNumber === 22) {
           cell.alignment = { vertical: 'middle', horizontal: 'center' };
           if (t.status === 'Paid') {
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } }; // Light emerald
-            cell.font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: 'FF047857' } }; // Dark emerald
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } };
+            cell.font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: 'FF047857' } };
           } else if (t.status === 'Partially Paid') {
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFEDD5' } }; // Light orange
-            cell.font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: 'FFC2410C' } }; // Dark orange
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFEDD5' } };
+            cell.font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: 'FFC2410C' } };
           } else {
-            // Pending
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } }; // Light amber
-            cell.font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: 'FFB45309' } }; // Dark amber
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } };
+            cell.font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: 'FFB45309' } };
           }
         }
 
-        // Column 23: P/L Styling
         if (colNumber === 23) {
           cell.alignment = { vertical: 'middle', horizontal: 'center' };
           if (t.netPL >= 0) {
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } }; // Light green
-            cell.font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: 'FF15803D' } }; // Dark green
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } };
+            cell.font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: 'FF15803D' } };
           } else {
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } }; // Light red
-            cell.font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: 'FFB91C1C' } }; // Dark red
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
+            cell.font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: 'FFB91C1C' } };
           }
         }
 
-        // Column 24: Route Styling
         if (colNumber === 24) {
           cell.font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: 'FF0F172A' } };
         }
       });
     });
 
-    // 3. Programmatically Auto-Fit Column Widths (Prevents ### in Excel)
+    // Auto-Fit Column Widths
     worksheet.columns.forEach((column) => {
       let maxLength = 0;
       column.eachCell({ includeEmpty: true }, (cell) => {
@@ -1253,19 +1370,18 @@ async function exportToExcel() {
 
       const colIdx = Number(column.number);
       let safeMinWidth = 16;
-      if (colIdx === 1) safeMinWidth = 8;          // S.No
-      else if (colIdx === 2 || colIdx === 7) safeMinWidth = 16; // Dates (Prevents ###)
-      else if (colIdx === 3) safeMinWidth = 16;     // Vehicle No
-      else if (colIdx === 4 || colIdx === 5) safeMinWidth = 24; // From / To
-      else if (colIdx === 10) safeMinWidth = 32;    // Halting Details
-      else if (colIdx === 22) safeMinWidth = 16;    // Status
-      else if (colIdx === 23) safeMinWidth = 18;    // P/L
-      else if (colIdx === 24) safeMinWidth = 42;    // Route (e.g. Hyderabad, Telangana ➔ Purnia, Bihar)
+      if (colIdx === 1) safeMinWidth = 8;
+      else if (colIdx === 2 || colIdx === 7) safeMinWidth = 16;
+      else if (colIdx === 3) safeMinWidth = 16;
+      else if (colIdx === 4 || colIdx === 5) safeMinWidth = 24;
+      else if (colIdx === 10) safeMinWidth = 32;
+      else if (colIdx === 22) safeMinWidth = 16;
+      else if (colIdx === 23) safeMinWidth = 18;
+      else if (colIdx === 24) safeMinWidth = 42;
 
       column.width = Math.max(maxLength + 4, safeMinWidth);
     });
 
-    // 4. Generate true .xlsx file buffer and trigger download
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], {
       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
@@ -1273,7 +1389,7 @@ async function exportToExcel() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `Lorry_Trips_${state.selectedMonth}_${state.activeFilter}.xlsx`;
+    a.download = `Lorry_Trips_${state.viewType}_${state.statusFilter}.xlsx`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -1287,7 +1403,7 @@ async function exportToExcel() {
 }
 
 // ==========================================================================
-// 9. Google Apps Script Synchronization
+// 10. Google Apps Script Synchronization
 // ==========================================================================
 
 async function syncWithGoogleSheet() {
@@ -1330,7 +1446,7 @@ async function syncWithGoogleSheet() {
       }));
 
       saveTrips();
-      populateMonthDropdown();
+      renderScopeControls();
       render();
       showToast(`✅ Synchronized ${state.trips.length} trips from Google Sheets!`);
     } else {
