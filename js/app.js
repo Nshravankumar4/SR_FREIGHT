@@ -930,17 +930,18 @@ function renderTripDetails(t) {
   const isProfit = t.netPL >= 0;
   const plLabel = isProfit ? `P +${formatCurrency(t.netPL)}` : `L -${formatCurrency(Math.abs(t.netPL))}`;
   const marginPct = t.freight > 0 ? ((t.netPL / t.freight) * 100).toFixed(1) : 0;
+  const getPct = (val) => t.totalExpenses > 0 ? ((val / t.totalExpenses) * 100).toFixed(1) + '%' : '0%';
 
-  // Status Badge
+  // Status Badge for Executive Header
   let statusBadge = '';
   if (t.status === 'New') {
-    statusBadge = `<span class="px-3 py-1 text-xs font-black rounded-lg bg-indigo-50 text-indigo-800 border border-indigo-200">🆕 NEW DISPATCH</span>`;
+    statusBadge = `<span class="px-3.5 py-1 text-xs font-black rounded-xl bg-indigo-500/20 text-indigo-300 border border-indigo-400/40 shadow-xs flex items-center gap-1.5"><span>🆕</span> NEW DISPATCH</span>`;
   } else if (t.status === 'Paid') {
-    statusBadge = `<span class="px-3 py-1 text-xs font-black rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-300">🟢 PAID & SETTLED</span>`;
+    statusBadge = `<span class="px-3.5 py-1 text-xs font-black rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 shadow-xs flex items-center gap-1.5"><span>🟢</span> PAID & SETTLED</span>`;
   } else if (t.status === 'Partially Paid') {
-    statusBadge = `<span class="px-3 py-1 text-xs font-black rounded-lg bg-orange-50 text-orange-800 border border-orange-300">🟡 PARTIALLY PAID</span>`;
+    statusBadge = `<span class="px-3.5 py-1 text-xs font-black rounded-xl bg-orange-500/20 text-orange-300 border border-orange-400/40 shadow-xs flex items-center gap-1.5"><span>🟡</span> PARTIALLY PAID</span>`;
   } else {
-    statusBadge = `<span class="px-3 py-1 text-xs font-black rounded-lg bg-amber-50 text-amber-800 border border-amber-300">🟠 PENDING BALANCE</span>`;
+    statusBadge = `<span class="px-3.5 py-1 text-xs font-black rounded-xl bg-amber-500/20 text-amber-300 border border-amber-400/40 shadow-xs flex items-center gap-1.5"><span>🟠</span> PENDING BALANCE</span>`;
   }
 
   // Mismatch Alert Box
@@ -948,163 +949,312 @@ function renderTripDetails(t) {
   if (t.hasBalanceMismatch) {
     const expected = t.freight - t.advance;
     mismatchBanner = `
-      <div class="p-3.5 rounded-xl bg-red-50 border-2 border-red-300 flex items-start gap-3 text-red-900">
-        <span class="text-xl">⚠️</span>
-        <div>
-          <div class="text-xs font-black uppercase tracking-wider">Balance Amount Discrepancy Detected</div>
-          <div class="text-xs font-medium mt-0.5">
-            Recorded Balance is <strong>${formatCurrency(t.balance)}</strong>, but Freight (${formatCurrency(t.freight)}) &minus; Advance (${formatCurrency(t.advance)}) equals <strong>${formatCurrency(expected)}</strong>. Please review and update!
+      <div class="p-4 rounded-2xl bg-gradient-to-r from-red-500/10 via-rose-50 to-red-50 border-2 border-red-400 flex items-start gap-3.5 text-red-950 shadow-sm">
+        <span class="text-2xl mt-0.5">⚠️</span>
+        <div class="flex-1">
+          <div class="text-xs font-black uppercase tracking-wider text-red-800">Financial Audit Alert &bull; Balance Discrepancy Detected</div>
+          <div class="text-xs font-semibold text-red-900 mt-1 leading-relaxed">
+            Recorded Balance is <span class="px-2 py-0.5 bg-red-100 rounded-md font-mono font-black text-red-950">${formatCurrency(t.balance)}</span>, 
+            but Contract Freight (<strong class="font-mono">${formatCurrency(t.freight)}</strong>) &minus; Advance Received (<strong class="font-mono">${formatCurrency(t.advance)}</strong>) equals <span class="px-2 py-0.5 bg-emerald-100 text-emerald-900 rounded-md font-mono font-black">${formatCurrency(expected)}</span>. 
+            Please review with the transport broker or adjust this record.
           </div>
         </div>
+        <button onclick="promptEditTrip(${t.id})" class="px-3 py-1.5 text-xs font-black text-white bg-red-600 hover:bg-red-700 rounded-xl transition shadow-xs cursor-pointer">Fix Now</button>
       </div>
     `;
   }
 
   container.innerHTML = `
-    <div class="space-y-5 animate-fade-in">
+    <div class="space-y-6 animate-fade-in">
       
-      <!-- Top Action Bar -->
-      <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 pb-4">
-        <div class="flex items-center gap-3">
-          <span class="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-mono font-black text-sm shadow-xs">
-            #${t.sNo || t.id}
-          </span>
-          <div>
-            <div class="flex items-center gap-2">
-              <h3 class="text-base font-black text-gray-900 tracking-tight font-mono">${t.vehicleNo}</h3>
+      <!-- =================================================================== -->
+      <!-- EXECUTIVE HERO HEADER                                               -->
+      <!-- =================================================================== -->
+      <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-3xl p-5 sm:p-6 shadow-xl border border-indigo-900/60 relative overflow-hidden">
+        
+        <!-- Background Glow Accent -->
+        <div class="absolute -right-10 -bottom-10 w-64 h-64 bg-blue-600/10 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div class="relative z-10 flex flex-wrap items-center justify-between gap-4">
+          
+          <!-- Vehicle & Route Info -->
+          <div class="space-y-2">
+            <div class="flex flex-wrap items-center gap-2.5">
+              <span class="px-3 py-1 bg-cyan-950/80 text-cyan-300 border border-cyan-400/40 rounded-xl font-mono font-black text-xs shadow-2xs tracking-wider">
+                TRIP #${t.sNo || t.id}
+              </span>
+              <h3 class="text-xl sm:text-2xl font-black font-mono tracking-tight text-white flex items-center gap-2">
+                ${t.vehicleNo}
+              </h3>
               ${statusBadge}
             </div>
-            <p class="text-xs font-semibold text-gray-600 mt-0.5 flex items-center gap-1.5">
-              <span>📍</span> <span>${t.from}</span> <span class="text-blue-600">➔</span> <span>${t.to}</span>
-            </p>
-          </div>
-        </div>
 
-        <div class="flex items-center gap-2">
-          <button onclick="promptEditTrip(${t.id})" class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-gray-700 bg-white border border-gray-300 hover:bg-blue-50 hover:text-blue-700 rounded-xl shadow-xs transition active:scale-95 cursor-pointer">
-            <span>✏️ Edit This Trip</span>
-          </button>
-          <button onclick="closeTripDetails()" class="inline-flex items-center gap-1 px-3 py-2 text-xs font-bold text-gray-500 bg-gray-100 hover:bg-gray-200 rounded-xl transition cursor-pointer" title="Close Details">
-            <span>✕ Close</span>
-          </button>
+            <!-- Route Banner -->
+            <div class="flex flex-wrap items-center gap-2 text-xs sm:text-sm font-bold text-slate-200">
+              <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white/10 border border-white/10 text-white">
+                <span>📍 Origin:</span> <strong class="text-cyan-300">${t.from || 'Origin'}</strong>
+              </span>
+              <span class="text-cyan-400 font-black text-base">➔</span>
+              <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white/10 border border-white/10 text-white">
+                <span>🏁 Destination:</span> <strong class="text-cyan-300">${t.to || 'Destination'}</strong>
+              </span>
+              <span class="text-xs text-slate-400 ml-1 font-medium">
+                &bull; Dispatched on <strong class="text-slate-200">${formatDateDisplay(t.tripDate)}</strong>
+              </span>
+            </div>
+          </div>
+
+          <!-- Quick Action Buttons -->
+          <div class="flex items-center gap-2.5">
+            <button onclick="promptEditTrip(${t.id})" class="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-black text-white bg-blue-600 hover:bg-blue-500 rounded-xl shadow-md transition active:scale-95 cursor-pointer">
+              <span>✏️ Edit This Trip</span>
+            </button>
+            <button onclick="closeTripDetails()" class="inline-flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-bold text-slate-300 hover:text-white bg-white/10 hover:bg-white/20 border border-white/15 rounded-xl transition cursor-pointer" title="Close Details">
+              <span>✕ Close</span>
+            </button>
+          </div>
+
         </div>
       </div>
 
       ${mismatchBanner}
 
-      <!-- 4 High-Impact Metric Cards -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+      <!-- =================================================================== -->
+      <!-- 4 HIGH-IMPACT FINANCIAL CARDS (VIBRANT GRADIENT THEMES)             -->
+      <!-- =================================================================== -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
-        <!-- Metric 1: Contract Revenue -->
-        <div class="p-4 rounded-2xl bg-gray-50/80 border border-gray-200">
-          <div class="text-[11px] font-bold text-gray-500 uppercase tracking-wider">6. Freight Amount</div>
-          <div class="text-xl font-black text-gray-900 mt-1 font-mono">${formatCurrency(t.freight)}</div>
-          <div class="text-[11px] text-gray-500 font-medium mt-1">Trip Date: <strong class="text-gray-700">${formatDateDisplay(t.tripDate)}</strong></div>
-        </div>
-
-        <!-- Metric 2: Advance Collected -->
-        <div class="p-4 rounded-2xl bg-blue-50/40 border border-blue-200">
-          <div class="text-[11px] font-bold text-blue-900 uppercase tracking-wider">8. Advance Received</div>
-          <div class="text-xl font-black text-blue-800 mt-1 font-mono">${formatCurrency(t.advance)}</div>
-          <div class="text-[11px] text-blue-700 font-medium mt-1">Advance Date: <strong class="text-blue-900">${formatDateDisplay(t.advanceDate)}</strong></div>
-        </div>
-
-        <!-- Metric 3: Outstanding Balance -->
-        <div class="p-4 rounded-2xl ${t.hasBalanceMismatch ? 'bg-red-50/60 border-red-300' : 'bg-amber-50/40 border-amber-200'} border">
-          <div class="text-[11px] font-bold ${t.hasBalanceMismatch ? 'text-red-900' : 'text-amber-900'} uppercase tracking-wider flex items-center justify-between">
-            <span>9. Balance Amount</span>
-            ${t.hasBalanceMismatch ? '<span class="text-[10px] font-black text-red-700 bg-red-100 px-1.5 py-0.5 rounded">Mismatch</span>' : ''}
+        <!-- Card 1: Freight Revenue -->
+        <div class="bg-gradient-to-br from-indigo-500/10 via-blue-50/50 to-white border-2 border-indigo-200/90 rounded-2xl p-5 shadow-xs hover:shadow-md transition">
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] font-black uppercase tracking-wider text-indigo-900">Total Freight Revenue</span>
+            <span class="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm shadow-2xs">💰</span>
           </div>
-          <div class="text-xl font-black ${t.hasBalanceMismatch ? 'text-red-700' : 'text-amber-800'} mt-1 font-mono">${formatCurrency(t.balance)}</div>
-          <div class="text-[11px] text-gray-600 font-medium mt-1">Status Amt: <strong class="text-gray-900">${formatCurrency(t.statusAmount)}</strong></div>
+          <div class="text-2xl font-black font-mono text-indigo-950 mt-2 tracking-tight">
+            ${formatCurrency(t.freight)}
+          </div>
+          <div class="mt-2.5 pt-2.5 border-t border-indigo-100/80 flex items-center justify-between text-xs">
+            <span class="text-gray-500 font-medium">Trip Date:</span>
+            <strong class="font-semibold text-gray-800">${formatDateDisplay(t.tripDate)}</strong>
+          </div>
         </div>
 
-        <!-- Metric 4: Net Profitability -->
-        <div class="p-4 rounded-2xl ${isProfit ? 'bg-emerald-50/50 border-emerald-300' : 'bg-rose-50/50 border-rose-300'} border">
-          <div class="text-[11px] font-bold ${isProfit ? 'text-emerald-900' : 'text-rose-900'} uppercase tracking-wider flex items-center justify-between">
-            <span>23. Net Profit / Loss</span>
-            <span class="text-[10px] font-bold px-1.5 py-0.5 rounded ${isProfit ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">${marginPct}% margin</span>
+        <!-- Card 2: Advance Collected -->
+        <div class="bg-gradient-to-br from-teal-500/10 via-emerald-50/50 to-white border-2 border-teal-200/90 rounded-2xl p-5 shadow-xs hover:shadow-md transition">
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] font-black uppercase tracking-wider text-teal-900">Advance Received</span>
+            <span class="w-8 h-8 rounded-xl bg-teal-100 text-teal-700 flex items-center justify-center text-sm shadow-2xs">💵</span>
           </div>
-          <div class="text-xl font-black ${isProfit ? 'text-emerald-800' : 'text-rose-800'} mt-1 font-mono">${plLabel}</div>
-          <div class="text-[11px] text-gray-500 font-medium mt-1">Expenses: <strong class="text-gray-900">${formatCurrency(t.totalExpenses)}</strong></div>
+          <div class="text-2xl font-black font-mono text-teal-950 mt-2 tracking-tight">
+            ${formatCurrency(t.advance)}
+          </div>
+          <div class="mt-2.5 pt-2.5 border-t border-teal-100/80 flex items-center justify-between text-xs">
+            <span class="text-gray-500 font-medium">Advance Date:</span>
+            <strong class="font-semibold text-teal-800">${formatDateDisplay(t.advanceDate)}</strong>
+          </div>
+        </div>
+
+        <!-- Card 3: Pending Balance -->
+        <div class="${t.hasBalanceMismatch ? 'bg-gradient-to-br from-rose-500/15 via-red-50 to-white border-2 border-rose-400' : 'bg-gradient-to-br from-amber-500/10 via-orange-50/50 to-white border-2 border-amber-300'} rounded-2xl p-5 shadow-xs hover:shadow-md transition">
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] font-black uppercase tracking-wider ${t.hasBalanceMismatch ? 'text-red-900' : 'text-amber-900'}">
+              Pending Balance
+            </span>
+            <span class="w-8 h-8 rounded-xl ${t.hasBalanceMismatch ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'} flex items-center justify-center text-sm shadow-2xs">⏳</span>
+          </div>
+          <div class="text-2xl font-black font-mono ${t.hasBalanceMismatch ? 'text-red-700' : 'text-amber-950'} mt-2 tracking-tight">
+            ${formatCurrency(t.balance)}
+          </div>
+          <div class="mt-2.5 pt-2.5 ${t.hasBalanceMismatch ? 'border-red-200' : 'border-amber-100/80'} border-t flex items-center justify-between text-xs">
+            <span class="text-gray-500 font-medium">Status Amount:</span>
+            <strong class="font-mono font-bold text-gray-900">${formatCurrency(t.statusAmount)}</strong>
+          </div>
+        </div>
+
+        <!-- Card 4: Net Profit / Loss -->
+        <div class="${isProfit ? 'bg-gradient-to-br from-emerald-500/15 via-green-50 to-white border-2 border-emerald-400' : 'bg-gradient-to-br from-rose-500/15 via-red-50 to-white border-2 border-rose-400'} rounded-2xl p-5 shadow-xs hover:shadow-md transition">
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] font-black uppercase tracking-wider ${isProfit ? 'text-emerald-950' : 'text-rose-950'}">
+              Net Profit / Loss
+            </span>
+            <span class="px-2 py-0.5 text-[10px] font-black rounded-lg ${isProfit ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-rose-100 text-rose-800 border border-rose-300'}">
+              ${marginPct}% margin
+            </span>
+          </div>
+          <div class="text-2xl font-black font-mono ${isProfit ? 'text-emerald-700' : 'text-rose-700'} mt-2 tracking-tight">
+            ${plLabel}
+          </div>
+          <div class="mt-2.5 pt-2.5 ${isProfit ? 'border-emerald-100/80' : 'border-rose-100/80'} border-t flex items-center justify-between text-xs">
+            <span class="text-gray-500 font-medium">Total Expenses:</span>
+            <strong class="font-mono font-bold text-gray-900">${formatCurrency(t.totalExpenses)}</strong>
+          </div>
         </div>
 
       </div>
 
-      <!-- Itemized 9-Expense Ledger Grid -->
-      <div class="border border-gray-200 rounded-2xl overflow-hidden">
-        <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
-          <h4 class="text-xs font-black text-gray-900 uppercase tracking-wider flex items-center gap-1.5">
-            <span>🧾</span> ITEMIZED EN-ROUTE EXPENSES (9 CATEGORIES)
-          </h4>
-          <span class="text-xs font-black text-gray-800 font-mono">
-            Total: ${formatCurrency(t.totalExpenses)}
-          </span>
-        </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-gray-100 bg-white">
+      <!-- =================================================================== -->
+      <!-- ITEMIZED EN-ROUTE EXPENSES (9 INDIVIDUAL ACCENT CARDS)               -->
+      <!-- =================================================================== -->
+      <div class="bg-white border border-gray-200 rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
+        
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 pb-3.5">
+          <div class="flex items-center gap-2.5">
+            <span class="text-xl">🧾</span>
+            <div>
+              <h4 class="text-xs sm:text-sm font-black text-gray-900 uppercase tracking-wider">
+                Itemized En-Route Expenses Ledger
+              </h4>
+              <p class="text-[11px] text-gray-500 font-medium">Complete breakdown across all 9 logistical expense categories</p>
+            </div>
+          </div>
           
-          <!-- Column 1 -->
-          <div class="p-3.5 space-y-2.5">
-            <div class="flex items-center justify-between text-xs">
-              <span class="text-gray-600 font-medium">12. TRSP Commission:</span>
-              <strong class="font-mono text-gray-900">${formatCurrency(t.trspCommission)}</strong>
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-bold text-gray-500 uppercase">Operational Costs Sum:</span>
+            <span class="px-3.5 py-1 text-sm font-black font-mono text-gray-900 bg-gray-100 border border-gray-300 rounded-xl shadow-2xs">
+              ${formatCurrency(t.totalExpenses)}
+            </span>
+          </div>
+        </div>
+
+        <!-- 9 Colorful Category Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+          
+          <!-- 1. Diesel / Fuel -->
+          <div class="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200 flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <span class="w-9 h-9 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center text-base shadow-2xs">⛽</span>
+              <div>
+                <div class="text-xs font-bold text-gray-800">Diesel / Fuel</div>
+                <div class="text-[10px] text-amber-700 font-semibold">${getPct(t.diesel)} of total costs</div>
+              </div>
             </div>
-            <div class="flex items-center justify-between text-xs">
-              <span class="text-gray-600 font-medium">13. Diesel (Fuel):</span>
-              <strong class="font-mono text-gray-900">${formatCurrency(t.diesel)}</strong>
-            </div>
-            <div class="flex items-center justify-between text-xs">
-              <span class="text-gray-600 font-medium">14. Toll Charges:</span>
-              <strong class="font-mono text-gray-900">${formatCurrency(t.toll)}</strong>
-            </div>
+            <span class="text-sm font-black font-mono text-amber-950">${formatCurrency(t.diesel)}</span>
           </div>
 
-          <!-- Column 2 -->
-          <div class="p-3.5 space-y-2.5">
-            <div class="flex items-center justify-between text-xs">
-              <span class="text-gray-600 font-medium">15. Loading Charges:</span>
-              <strong class="font-mono text-gray-900">${formatCurrency(t.loading)}</strong>
+          <!-- 2. Toll & Fastag -->
+          <div class="p-3.5 rounded-2xl bg-sky-50/70 border border-sky-200 flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <span class="w-9 h-9 rounded-xl bg-sky-100 text-sky-800 flex items-center justify-center text-base shadow-2xs">🛣️</span>
+              <div>
+                <div class="text-xs font-bold text-gray-800">Toll & FASTag Charges</div>
+                <div class="text-[10px] text-sky-700 font-semibold">${getPct(t.toll)} of total costs</div>
+              </div>
             </div>
-            <div class="flex items-center justify-between text-xs">
-              <span class="text-gray-600 font-medium">16. Unloading Charges:</span>
-              <strong class="font-mono text-gray-900">${formatCurrency(t.unloading)}</strong>
-            </div>
-            <div class="flex items-center justify-between text-xs">
-              <span class="text-gray-600 font-medium">17. Police Exp:</span>
-              <strong class="font-mono text-gray-900">${formatCurrency(t.police)}</strong>
-            </div>
+            <span class="text-sm font-black font-mono text-sky-950">${formatCurrency(t.toll)}</span>
           </div>
 
-          <!-- Column 3 -->
-          <div class="p-3.5 space-y-2.5">
-            <div class="flex items-center justify-between text-xs">
-              <span class="text-gray-600 font-medium">18. RTA C/P:</span>
-              <strong class="font-mono text-gray-900">${formatCurrency(t.rta)}</strong>
+          <!-- 3. Driver Commission -->
+          <div class="p-3.5 rounded-2xl bg-indigo-50/70 border border-indigo-200 flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <span class="w-9 h-9 rounded-xl bg-indigo-100 text-indigo-800 flex items-center justify-center text-base shadow-2xs">🧑‍✈️</span>
+              <div>
+                <div class="text-xs font-bold text-gray-800">Driver Trip Commission</div>
+                <div class="text-[10px] text-indigo-700 font-semibold">${getPct(t.driverCommission)} of total costs</div>
+              </div>
             </div>
-            <div class="flex items-center justify-between text-xs">
-              <span class="text-gray-600 font-medium">19. Other Expenses:</span>
-              <strong class="font-mono text-gray-900">${formatCurrency(t.other)}</strong>
+            <span class="text-sm font-black font-mono text-indigo-950">${formatCurrency(t.driverCommission)}</span>
+          </div>
+
+          <!-- 4. Transport Broker Commission -->
+          <div class="p-3.5 rounded-2xl bg-purple-50/70 border border-purple-200 flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <span class="w-9 h-9 rounded-xl bg-purple-100 text-purple-800 flex items-center justify-center text-base shadow-2xs">🤝</span>
+              <div>
+                <div class="text-xs font-bold text-gray-800">TRSP Broker Commission</div>
+                <div class="text-[10px] text-purple-700 font-semibold">${getPct(t.trspCommission)} of total costs</div>
+              </div>
             </div>
-            <div class="flex items-center justify-between text-xs">
-              <span class="text-blue-900 font-bold">20. Driver Commission:</span>
-              <strong class="font-mono text-blue-900 font-black">${formatCurrency(t.driverCommission)}</strong>
+            <span class="text-sm font-black font-mono text-purple-950">${formatCurrency(t.trspCommission)}</span>
+          </div>
+
+          <!-- 5. Loading Charges -->
+          <div class="p-3.5 rounded-2xl bg-teal-50/70 border border-teal-200 flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <span class="w-9 h-9 rounded-xl bg-teal-100 text-teal-800 flex items-center justify-center text-base shadow-2xs">📦</span>
+              <div>
+                <div class="text-xs font-bold text-gray-800">Loading Labour Charges</div>
+                <div class="text-[10px] text-teal-700 font-semibold">${getPct(t.loading)} of total costs</div>
+              </div>
             </div>
+            <span class="text-sm font-black font-mono text-teal-950">${formatCurrency(t.loading)}</span>
+          </div>
+
+          <!-- 6. Unloading Charges -->
+          <div class="p-3.5 rounded-2xl bg-cyan-50/70 border border-cyan-200 flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <span class="w-9 h-9 rounded-xl bg-cyan-100 text-cyan-800 flex items-center justify-center text-base shadow-2xs">🚚</span>
+              <div>
+                <div class="text-xs font-bold text-gray-800">Unloading Labour Charges</div>
+                <div class="text-[10px] text-cyan-700 font-semibold">${getPct(t.unloading)} of total costs</div>
+              </div>
+            </div>
+            <span class="text-sm font-black font-mono text-cyan-950">${formatCurrency(t.unloading)}</span>
+          </div>
+
+          <!-- 7. Police Expense -->
+          <div class="p-3.5 rounded-2xl bg-rose-50/70 border border-rose-200 flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <span class="w-9 h-9 rounded-xl bg-rose-100 text-rose-800 flex items-center justify-center text-base shadow-2xs">👮</span>
+              <div>
+                <div class="text-xs font-bold text-gray-800">Police Checkpoint Exp</div>
+                <div class="text-[10px] text-rose-700 font-semibold">${getPct(t.police)} of total costs</div>
+              </div>
+            </div>
+            <span class="text-sm font-black font-mono text-rose-950">${formatCurrency(t.police)}</span>
+          </div>
+
+          <!-- 8. RTA / Checkpost -->
+          <div class="p-3.5 rounded-2xl bg-orange-50/70 border border-orange-200 flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <span class="w-9 h-9 rounded-xl bg-orange-100 text-orange-800 flex items-center justify-center text-base shadow-2xs">🛑</span>
+              <div>
+                <div class="text-xs font-bold text-gray-800">RTA / State Checkpost</div>
+                <div class="text-[10px] text-orange-700 font-semibold">${getPct(t.rta)} of total costs</div>
+              </div>
+            </div>
+            <span class="text-sm font-black font-mono text-orange-950">${formatCurrency(t.rta)}</span>
+          </div>
+
+          <!-- 9. Other Expenses -->
+          <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <span class="w-9 h-9 rounded-xl bg-slate-200 text-slate-700 flex items-center justify-center text-base shadow-2xs">🔧</span>
+              <div>
+                <div class="text-xs font-bold text-gray-800">Other En-Route Costs</div>
+                <div class="text-[10px] text-gray-500 font-semibold">${getPct(t.other)} of total costs</div>
+              </div>
+            </div>
+            <span class="text-sm font-black font-mono text-slate-900">${formatCurrency(t.other)}</span>
           </div>
 
         </div>
       </div>
 
-      <!-- Operational Logistics Details Footer -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 text-xs">
-        <div class="p-3.5 rounded-xl bg-gray-50 border border-gray-200">
-          <span class="font-bold text-gray-500 uppercase text-[10px] block mb-1">10. Halting & Detention Details</span>
-          <p class="text-gray-800 font-medium">${t.halting || 'None recorded'}</p>
+      <!-- =================================================================== -->
+      <!-- OPERATIONAL LOGISTICS NOTES (HALTING & BROKER DETAILS)              -->
+      <!-- =================================================================== -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        
+        <!-- Halting & Demurrage Details -->
+        <div class="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-gray-50 to-slate-50 border border-gray-200 flex items-start gap-3">
+          <span class="w-9 h-9 rounded-xl bg-gray-200/80 text-gray-700 flex items-center justify-center text-base shadow-2xs mt-0.5">⏱️</span>
+          <div class="flex-1">
+            <span class="text-[10px] font-black uppercase tracking-wider text-gray-500 block">Halting & Transit Delay Notes</span>
+            <p class="text-xs font-semibold text-gray-800 mt-1 leading-relaxed">${t.halting || 'No halting delays recorded for this trip dispatch.'}</p>
+          </div>
         </div>
-        <div class="p-3.5 rounded-xl bg-gray-50 border border-gray-200">
-          <span class="font-bold text-gray-500 uppercase text-[10px] block mb-1">11. Transport Broker / Agency (TRSP)</span>
-          <p class="text-gray-800 font-medium">${t.trspName || 'Direct Dispatch (None)'}</p>
+
+        <!-- Transport Broker / Agency Details -->
+        <div class="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-gray-50 to-slate-50 border border-gray-200 flex items-start gap-3">
+          <span class="w-9 h-9 rounded-xl bg-gray-200/80 text-gray-700 flex items-center justify-center text-base shadow-2xs mt-0.5">🏢</span>
+          <div class="flex-1">
+            <span class="text-[10px] font-black uppercase tracking-wider text-gray-500 block">Transport Broker / Agency (TRSP)</span>
+            <p class="text-xs font-bold text-gray-900 mt-1">
+              ${t.trspName ? `<span class="px-2.5 py-1 bg-white border border-gray-300 rounded-lg shadow-2xs">${t.trspName}</span>` : '<span class="text-gray-400">Direct Dispatch (No third-party broker recorded)</span>'}
+            </p>
+          </div>
         </div>
+
       </div>
 
     </div>
