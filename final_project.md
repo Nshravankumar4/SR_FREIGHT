@@ -81,7 +81,7 @@ The **SR_T Lorry Freight Management System** has been fully upgraded, debugged, 
 * `20. Sum OF Total Exp` = TRSP Comm + Diesel + Toll + Loading + Unloading + Police + RTA + Other + Driver Comm
 * `21. Total Exp Given` = Advance Amount + Sum OF Total Exp
 * `23. P/L` = Freight Amount - Total Exp Given
-* `25. Balance Amount` = Freight Amount - Total Exp Given
+* `25. Balance Amount` = Freight Amount - Advance Amount
 
 ---
 

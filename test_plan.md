@@ -36,7 +36,7 @@
 - **TC-MATH-01 (Expenses):** `20. Sum OF Total Exp` = TRSP Comm + Diesel + Toll + Loading + Unloading + Police + RTA + Other + Driver Comm.
 - **TC-MATH-02 (Total Exp Given):** `21. Total Exp Given` = Advance Amount + Sum OF Total Exp.
 - **TC-MATH-03 (P/L):** `23. P/L` = Freight Amount - Total Exp Given.
-- **TC-MATH-04 (Balance):** `25. Balance Amount` = Freight Amount - Total Exp Given.
+- **TC-MATH-04 (Balance):** `25. Balance Amount` = Freight Amount - Advance Amount.
 
 ---
 

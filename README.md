@@ -73,7 +73,7 @@ Just like in the reference architecture (`D:\Repo\SR_T`), the system operates ac
 22. `22. Status` (`New`, `Pending`, `Partially Paid`, `Paid`)
 23. `23. P/L` = `Freight Amount - Total Exp Given`
 24. `24. Date Balance Recd`
-25. `25. Balance Amount` = `Freight Amount - Total Exp Given`
+25. `25. Balance Amount` = `Freight Amount - Advance Amount`
 
 ---
 
