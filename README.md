@@ -18,28 +18,29 @@ A 100% Cloud-First, Enterprise SaaS Platform for Transport Operations, Real-Time
 
 Just like in the reference architecture (`D:\Repo\SR_T`), the system operates across devices without data loss:
 
-1. **Immediate Cloud Reflection:**
-   - Whenever **Admin (Shravan)** or **Employee (Rudra)** adds or edits a trip, it updates local state and dispatches a cloud mutation to Google Apps Script.
-   - Any device opened by Admin or Rudra automatically receives the updates in seconds.
+1. **Immediate Cloud Reflection with Mutation Locks:**
+   - Whenever **Admin (Shravan)** or **Employee (Rudra)** adds or edits a trip, it acquires a mutation lock (`isSaving = true`, `pendingMutationCount++`).
+   - The local state updates immediately and dispatches an asynchronous cloud mutation to Google Apps Script.
+   - The background poller is temporarily held off (`Date.now() - lastSuccessfulMutation < 4000`) so the poller never overwrites pending or newly saved data.
 
 2. **Continuous Background Polling & Tab Focus Sync:**
    - **4-Second Background Poller:** Automatically queries the cloud database every 4 seconds when the user is logged in.
-   - **Tab Focus Auto-Sync:** As soon as a user clicks back to their browser tab (`window.focus`), it instantly checks the cloud for newly added trips.
+   - **Tab Focus Auto-Sync:** As soon as a user clicks back to their browser tab (`window.focus` or `visibilitychange`), it instantly checks the cloud for newly added trips.
    - **Multi-Tab BroadcastChannel:** Any changes in one tab immediately synchronize across all open browser windows (`BroadcastChannel: lorry_sync_channel`).
 
 3. **Zero Data Loss & 3-Layer Backup Architecture (Identical to `SR_T`):**
    - **Layer 1 (LocalStorage Point-in-Time Snapshots):** Up to 25 rolling snapshots (`lorry_backup_snapshots_v1`) capturing exact trip datasets after every Add/Edit/Delete mutation.
-   - **Layer 2 (Google Drive Clones):** Background trigger clones the master workbook into `Lorry_Backups` using Google Apps Script `DriveApp`.
+   - **Layer 2 (Google Drive Clones):** Background trigger clones the master workbook into `Lorry_Backups` using Google Apps Script `DriveApp` on every mutation.
    - **Layer 3 (1-Click Recovery):** Admin can open Cloud Settings and click `[🔄 Restore]` next to any snapshot to instantly restore both local browser state and cloud Google Sheets.
 
 ---
 
 ## 🔐 Dual-Layer Role & Permissions Security
 
-| Role | User ID | Password | View & Export | Add Trips | Edit Trips | Delete Trips | Cloud Settings |
+| Role | Username | Password | View & Export | Add Trips | Edit Trips | Delete Trips | Cloud Settings |
 | :--- | :--- | :--- | :---: | :---: | :---: | :---: | :---: |
-| **Admin** | `Admin` / `Shravan` | `Shravan` | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Employee** | `Rudra` | `RudraSarika@2505` | ✅ | ✅ | ✅ | ❌ Restricted | ❌ Restricted |
+| **Admin** | `admin` or `shravan` | `Shravan` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Employee** | `rudra` | `RudraSarika@2505` | ✅ | ✅ | ✅ | ❌ Restricted | ❌ Restricted |
 
 * **UI Layer:** The `🗑️ Delete` button and `⚙️ Settings` button are completely hidden for Rudra. Any direct programmatic calls trigger security alert toasts.
 * **Backend Layer (`Code.gs`):** Google Apps Script strictly validates `role === 'Admin'` before deleting any row or updating cloud settings.
@@ -90,5 +91,7 @@ D:\Repo\Lorry/
 ├── docs/
 │   ├── GOOGLE_SHEET_SETUP.md    # 24-Column Google Sheet database layout
 │   └── DEPLOYMENT_GUIDE.md      # Cloudflare & Vercel deployment guide
+├── final_project.md             # Comprehensive architecture report & verification log
+├── test_plan.md                 # End-to-end test cases and results
 └── README.md
 ```

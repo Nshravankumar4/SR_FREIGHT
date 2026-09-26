@@ -141,6 +141,11 @@ function getEffectiveApiUrl() {
   return saved.trim();
 }
 
+// Mutation Lock & Poller Mutex
+let isSaving = false;
+let pendingMutationCount = 0;
+let lastSuccessfulMutation = 0;
+
 const state = {
   trips: [],
   viewType: 'ALL_TRIPS', // 'TODAY' | 'SELECTED_DATE' | 'DATE_RANGE' | 'ENTIRE_MONTH' | 'ALL_TRIPS'
@@ -1850,6 +1855,19 @@ window.executeSaveNewTrip = executeSaveNewTrip;
 // ==========================================================================
 
 function setupModals() {
+  const modalAddConfirm = document.getElementById('modal-add-confirm');
+  const modalAddCancel = document.getElementById('modal-add-cancel');
+  if (modalAddConfirm) {
+    modalAddConfirm.addEventListener('click', () => {
+      executeSaveNewTrip();
+    });
+  }
+  if (modalAddCancel) {
+    modalAddCancel.addEventListener('click', () => {
+      closeModal('modal-confirm-add');
+    });
+  }
+
   const modalEditConfirm = document.getElementById('modal-edit-confirm');
   const modalEditCancel = document.getElementById('modal-edit-cancel');
   if (modalEditConfirm) {
@@ -2661,7 +2679,14 @@ async function autoSyncCloud(isSilent = true) {
   if (!state.apiUrl || isSyncingInBackground || !window.navigator.onLine) return;
   if (!state.currentUser) return; // Only sync when logged in
 
-  // Don't sync if local mutation happened within last 8 seconds (prevents overwrite race condition!)
+  // Mutation Lock & Poller Mutex: Never overwrite pending mutations or right after mutation
+  if (isSaving || pendingMutationCount > 0) {
+    console.log("⏸️ Poll skipped: local mutation pending");
+    return;
+  }
+  if (Date.now() - lastSuccessfulMutation < 4000) {
+    return;
+  }
   if (Date.now() - lastLocalMutationTime < 8000) {
     return;
   }
