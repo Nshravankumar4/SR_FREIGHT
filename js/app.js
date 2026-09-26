@@ -2134,7 +2134,16 @@ async function syncWithGoogleSheet() {
   if (syncBtn) syncBtn.innerHTML = '🔄 Syncing...';
 
   try {
-    const res = await fetch(`${state.apiUrl}?action=getTrips`);
+    const cleanUrl = state.apiUrl.trim();
+    const fetchUrl = cleanUrl.includes('?') ? `${cleanUrl}&action=getTrips` : `${cleanUrl}?action=getTrips`;
+    const res = await fetch(fetchUrl);
+    
+    // Check if response is HTML instead of JSON (happens when Google redirects to sign-in page)
+    const contentType = res.headers.get('content-type') || '';
+    if (contentType.includes('text/html')) {
+      throw new Error("Web App returned Google Sign-in page. Please set 'Who has access' to 'Anyone' in Apps Script Deployment.");
+    }
+
     const json = await res.json();
     if (json.status === 'success' && Array.isArray(json.data)) {
       state.trips = json.data.map((row, idx) => calculateTrip({
@@ -2169,10 +2178,14 @@ async function syncWithGoogleSheet() {
       render();
       showToast(`✅ Synchronized ${state.trips.length} trips from Google Sheets!`);
     } else {
-      throw new Error(json.message || 'Invalid server response');
+      throw new Error(json.message || 'Invalid server response format');
     }
   } catch (err) {
-    showToast(`❌ Sync Error: ${err.message}`);
+    if (err.message && err.message.toLowerCase().includes('failed to fetch')) {
+      showToast(`❌ Sync Error: Failed to fetch. Ensure Google Apps Script deployment has 'Who has access' set to 'Anyone' (not 'Only myself').`, 7000);
+    } else {
+      showToast(`❌ Sync Error: ${err.message}`, 6000);
+    }
   } finally {
     if (syncBtn) {
       syncBtn.innerHTML = `
