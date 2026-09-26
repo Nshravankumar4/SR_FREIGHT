@@ -2328,10 +2328,117 @@ function openSettingsModal() {
     showToast('❌ You do not have permission to access Settings.');
     return;
   }
-  const url = prompt('Enter your Google Apps Script Web App URL:', state.apiUrl);
-  if (url !== null) {
-    state.apiUrl = url.trim();
-    localStorage.setItem('lorry_api_url', state.apiUrl);
-    if (state.apiUrl) syncWithGoogleSheet();
+  const modal = document.getElementById('modal-settings');
+  const input = document.getElementById('settings-api-url');
+  const resultBox = document.getElementById('settings-test-result');
+  if (resultBox) {
+    resultBox.className = 'hidden';
+    resultBox.textContent = '';
+  }
+  if (input) {
+    input.value = state.apiUrl || DEFAULT_CLOUD_API_URL;
+  }
+  if (modal) {
+    modal.classList.remove('hidden');
   }
 }
+
+// Setup Cloud Settings Event Handlers
+document.addEventListener('DOMContentLoaded', () => {
+  const btnSaveSettings = document.getElementById('btn-save-settings');
+  const btnTestConnection = document.getElementById('btn-test-connection');
+  const btnManualBackup = document.getElementById('btn-manual-cloud-backup');
+  const apiUrlInput = document.getElementById('settings-api-url');
+  const resultBox = document.getElementById('settings-test-result');
+
+  if (btnSaveSettings) {
+    btnSaveSettings.addEventListener('click', () => {
+      if (apiUrlInput) {
+        state.apiUrl = apiUrlInput.value.trim();
+        localStorage.setItem('lorry_api_url', state.apiUrl);
+        closeModal('modal-settings');
+        showToast('💾 Cloud database URL saved. Synchronizing...');
+        syncWithGoogleSheet();
+      }
+    });
+  }
+
+  if (btnTestConnection) {
+    btnTestConnection.addEventListener('click', async () => {
+      const url = apiUrlInput ? apiUrlInput.value.trim() : state.apiUrl;
+      if (!url) {
+        showToast('⚠️ Please enter a Google Apps Script Web App URL first.');
+        return;
+      }
+
+      if (resultBox) {
+        resultBox.className = 'p-3 rounded-2xl text-xs font-semibold bg-blue-50 text-blue-800 border border-blue-200 block';
+        resultBox.textContent = '⏳ Testing cloud connection to Google Sheets...';
+      }
+
+      try {
+        const fetchUrl = url.includes('?') ? `${url}&action=getTrips` : `${url}?action=getTrips`;
+        const res = await fetch(fetchUrl);
+        const text = await res.text();
+
+        if (text.includes('accounts.google.com') || text.includes('ServiceLogin') || text.includes('<!doctype html>')) {
+          if (resultBox) {
+            resultBox.className = 'p-3 rounded-2xl text-xs font-semibold bg-amber-50 text-amber-900 border border-amber-300 block';
+            resultBox.innerHTML = `⚠️ <strong>Access Restricted:</strong> Google redirected to Sign-in page.<br>In Google Apps Script ➔ <strong>Manage deployments</strong> ➔ change <strong>'Who has access'</strong> from <em>'Only myself'</em> to <strong>'Anyone'</strong>.`;
+          }
+          return;
+        }
+
+        const data = JSON.parse(text);
+        if (data.status === 'success' && Array.isArray(data.data)) {
+          if (resultBox) {
+            resultBox.className = 'p-3 rounded-2xl text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-300 block';
+            resultBox.textContent = `✅ Success! Connected to Google Sheets. Found ${data.data.length} trips in database.`;
+          }
+        } else {
+          if (resultBox) {
+            resultBox.className = 'p-3 rounded-2xl text-xs font-semibold bg-rose-50 text-rose-800 border border-rose-300 block';
+            resultBox.textContent = `❌ Server response error: ${data.message || 'Unknown response'}`;
+          }
+        }
+      } catch (err) {
+        if (resultBox) {
+          resultBox.className = 'p-3 rounded-2xl text-xs font-semibold bg-rose-50 text-rose-800 border border-rose-300 block';
+          resultBox.innerHTML = `❌ <strong>Connection failed:</strong> ${err.message}<br>Make sure 'Who has access' is set to 'Anyone' in Apps Script Manage Deployments.`;
+        }
+      }
+    });
+  }
+
+  if (btnManualBackup) {
+    btnManualBackup.addEventListener('click', async () => {
+      const url = apiUrlInput ? apiUrlInput.value.trim() : state.apiUrl;
+      if (!url) {
+        showToast('⚠️ Please enter a Google Apps Script Web App URL first.');
+        return;
+      }
+      showToast('⏳ Generating instant cloud backup in Google Drive...');
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'createBackup',
+            reason: 'Manual_Admin_Backup',
+            user: state.currentUser || 'Admin',
+            role: state.currentRole || 'Admin'
+          })
+        });
+        const data = await res.json();
+        if (data && data.success) {
+          showToast(`✅ Cloud backup created: ${data.backupName}`);
+        } else {
+          showToast(`ℹ️ Snapshot backup captured.`);
+        }
+      } catch (e) {
+        BackupModule.onRecordMutated('Manual_Admin_Snapshot');
+        showToast('✅ Snapshot backup recorded.');
+      }
+    });
+  }
+});

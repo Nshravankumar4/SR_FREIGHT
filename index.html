@@ -949,6 +949,78 @@
         </button>
       </div>
     </div>
+  <!-- 5. Cloud Database & Backup Settings Modal (Admin Only) -->
+  <div id="modal-settings" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 backdrop-blur-xs p-4 hidden">
+    <div class="bg-white rounded-3xl shadow-2xl border border-gray-100 max-w-lg w-full p-6 sm:p-7 space-y-5 animate-modal">
+      <div class="flex items-center justify-between border-b border-gray-100 pb-3">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-2xl bg-blue-50 border border-blue-200/60 text-blue-700 flex items-center justify-center text-xl font-bold">
+            ⚙️
+          </div>
+          <div>
+            <h3 class="text-base font-extrabold text-gray-900">Cloud Database &amp; Backup Settings</h3>
+            <p class="text-xs text-gray-500 font-medium">Google Apps Script Web App Integration</p>
+          </div>
+        </div>
+        <button onclick="closeModal('modal-settings')" class="p-1.5 text-gray-400 hover:text-gray-700 rounded-xl hover:bg-gray-100 transition cursor-pointer">
+          ✕
+        </button>
+      </div>
+
+      <div class="space-y-4 text-xs">
+        <!-- Web App URL Input -->
+        <div>
+          <label class="block font-bold text-gray-700 uppercase tracking-wider mb-1">
+            Google Apps Script Web App URL
+          </label>
+          <input type="url" id="settings-api-url" class="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 font-mono text-xs focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none" placeholder="https://script.google.com/macros/s/.../exec">
+          <p class="text-[11px] text-gray-400 mt-1">Must end in <code class="bg-gray-100 px-1 py-0.5 rounded font-mono text-gray-700">/exec</code></p>
+        </div>
+
+        <!-- Deployment ID Input (Reference) -->
+        <div>
+          <label class="block font-bold text-gray-700 uppercase tracking-wider mb-1">
+            Active Deployment ID
+          </label>
+          <input type="text" id="settings-deployment-id" class="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 bg-gray-50 font-mono text-xs text-gray-700" value="AKfycbwFo4Ejy4zI7nKzOpPQbtWw3lYn3jHUOWSva0Oa_YZ1G3pFqOSy9QpHdS_lkIIL7vUK" readonly>
+        </div>
+
+        <!-- Connected Live Web Domains -->
+        <div class="bg-slate-50 p-3 rounded-2xl border border-slate-200/70">
+          <span class="block font-bold text-slate-700 mb-1">🌐 Connected Live Cloud Frontends:</span>
+          <div class="flex flex-col gap-1 text-[11px] font-mono text-blue-700">
+            <a href="https://y.srtransport.workers.dev/" target="_blank" class="hover:underline flex items-center gap-1.5">
+              <span>●</span> https://y.srtransport.workers.dev/
+            </a>
+            <a href="https://ytransport.vercel.app/" target="_blank" class="hover:underline flex items-center gap-1.5">
+              <span>●</span> https://ytransport.vercel.app/
+            </a>
+          </div>
+        </div>
+
+        <!-- Live Connection Test Result Box -->
+        <div id="settings-test-result" class="hidden p-3 rounded-2xl text-xs font-semibold"></div>
+
+        <!-- Actions -->
+        <div class="flex items-center gap-2 pt-1">
+          <button type="button" id="btn-test-connection" class="flex-1 py-2.5 px-3 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl transition cursor-pointer text-center">
+            🧪 Test Connection
+          </button>
+          <button type="button" id="btn-manual-cloud-backup" class="flex-1 py-2.5 px-3 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200/80 font-bold rounded-xl transition cursor-pointer text-center">
+            📦 Create Cloud Backup
+          </button>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end gap-2.5 pt-3 border-t border-gray-100">
+        <button onclick="closeModal('modal-settings')" class="px-4 py-2 text-xs font-bold text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition cursor-pointer">
+          CANCEL
+        </button>
+        <button id="btn-save-settings" class="px-4 py-2 text-xs font-extrabold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition shadow-sm cursor-pointer">
+          SAVE &amp; SYNC NOW
+        </button>
+      </div>
+    </div>
   </div>
 
   <!-- Application Logic -->
