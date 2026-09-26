@@ -552,7 +552,26 @@ function loadTrips() {
       state.trips = [];
     }
   } else {
-    state.trips = [];
+    // Check previous version keys if user upgraded
+    const v8 = localStorage.getItem('lorry_trips_master_v8');
+    const v7 = localStorage.getItem('lorry_trips_master_v7');
+    const v6 = localStorage.getItem('lorry_trips_master_v6');
+    const legacy = v8 || v7 || v6 || localStorage.getItem('lorry_trips_master');
+    if (legacy) {
+      try {
+        state.trips = JSON.parse(legacy);
+      } catch {
+        state.trips = [];
+      }
+    } else {
+      state.trips = [];
+    }
+  }
+
+  // By default, if empty, ALWAYS load the initial fleet trips dataset!
+  if (!state.trips || state.trips.length === 0) {
+    state.trips = INITIAL_TRIPS.map(t => calculateTrip(t));
+    saveTrips();
   }
 
   // Sort trips cleanly by S.No ascending
@@ -1104,11 +1123,21 @@ function renderTableOnly() {
     return `
       <tr id="trip-row-${t.id}" class="transition hover:bg-blue-50/40 text-sm font-semibold ${isSelected ? 'bg-blue-100/70 ring-2 ring-blue-500' : ''} ${t.netPL < 0 && !isSelected ? 'bg-rose-50/20' : ''} ${t.hasBalanceMismatch && !isSelected ? 'bg-amber-50/20' : ''}">
         
-        <!-- Dedicated VIEW DETAILS button BEFORE S.No -->
-        <td class="py-3.5 px-3.5 text-center whitespace-nowrap bg-blue-50/30 sticky left-0 z-10 border-r border-blue-100 shadow-2xs">
-          <button onclick="viewTripDetails(${t.id})" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black text-blue-700 bg-white border border-blue-300 hover:bg-blue-600 hover:text-white hover:border-blue-600 active:scale-95 transition cursor-pointer shadow-xs" title="View Full Trip Details & Financial Ledger Below">
-            <span>👁️ View</span>
-          </button>
+        <!-- Dedicated ACTIONS (View, Edit, Delete) BEFORE S.No (Sticky Left) -->
+        <td class="py-3 px-3 text-center whitespace-nowrap bg-blue-50/70 sticky left-0 z-10 border-r border-blue-200 shadow-xs">
+          <div class="inline-flex items-center gap-1 justify-center">
+            <button onclick="viewTripDetails(${t.id})" class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-black text-blue-700 bg-white border border-blue-200 hover:bg-blue-600 hover:text-white transition shadow-2xs cursor-pointer" title="View Full Trip Details & Breakdown">
+              <span>👁️ View</span>
+            </button>
+            <button onclick="promptEditTrip(${t.id})" class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold text-amber-800 bg-amber-50 hover:bg-amber-600 hover:text-white border border-amber-200 transition shadow-2xs cursor-pointer" title="Edit Trip">
+              <span>✏️ Edit</span>
+            </button>
+            ${canDelete() ? `
+            <button onclick="promptDeleteTrip(${t.id})" class="p-1.5 rounded-lg text-gray-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer" title="Delete Trip">
+              <svg class="w-4 h-4 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+            </button>
+            ` : ''}
+          </div>
         </td>
 
         <!-- 1. S.No -->
