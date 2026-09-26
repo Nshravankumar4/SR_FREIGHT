@@ -132,7 +132,7 @@ function doPost(e) {
     // --- C. DELETE TRIP (STRICT ADMIN PERMISSION) ---
     if (action === 'deleteTrip' || action === 'deleteRecord') {
       if (userRole !== 'Admin') {
-        return jsonResponse({ success: false, error: 'Unauthorized: Only Admin (Shravan) can delete trips.' });
+        return jsonResponse({ success: false, error: 'Delete permission denied: Only Admin (Shravan) can delete trips.' });
       }
 
       var targetSNo = String(payload.sNo || payload.id || '').trim();
@@ -156,6 +156,20 @@ function doPost(e) {
         success: deleted,
         status: deleted ? 'success' : 'error',
         message: deleted ? 'Trip #' + targetSNo + ' deleted successfully' : 'Trip not found on master sheet'
+      });
+    }
+
+    // --- STRICT BACKEND SECURITY ENFORCEMENT: Settings Access (Admin only) ---
+    if (action === 'updateSettings' || action === 'settings') {
+      if (userRole !== 'Admin') {
+        return jsonResponse({
+          success: false,
+          error: "Settings permission denied"
+        });
+      }
+      return jsonResponse({
+        success: true,
+        message: "Settings updated successfully"
       });
     }
 

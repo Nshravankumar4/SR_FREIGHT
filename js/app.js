@@ -129,7 +129,7 @@ const INITIAL_TRIPS = [
 ];
 
 // Clean Application State (Cloud Database First)
-const DEFAULT_CLOUD_API_URL = 'https://script.google.com/macros/s/AKfycbwFo4Ejy4zI7nKzOpPQbtWw3lYn3jHUOWSva0Oa_YZ1G3pFqOSy9QpHdS_lkIIL7vUK/exec';
+const DEFAULT_CLOUD_API_URL = 'https://script.google.com/macros/s/AKfycbyp5fBDoLJTAMS-x7K75yST2ZP0aKRWZs9mlyT2SH5ZGnQhvqrc_rfGPNTP8yymqjdQ/exec';
 
 const state = {
   trips: [],
