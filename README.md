@@ -1,65 +1,77 @@
-# LORRY FREIGHT & BROKER MANAGEMENT SYSTEM
+# SR_T LORRY FREIGHT & BROKER MANAGEMENT SYSTEM
 
-A clean, modern, executive SaaS application for Lorry Freight Operations, Broker Reconciliation, and Fleet Financial Management.
+A 100% Cloud-First, Enterprise SaaS Platform for Transport Operations, Real-Time Fleet Financials, and Automated Google Cloud Backups.
 
 ---
 
-## 🚀 Key Features
+## 🌐 Live Production Deployments
 
-1. **Enterprise Authentication (Transport Ledger Management):**
-   - **Executive SaaS Login Screen:** Deep navy gradient backdrop with a centered, rounded white modal card.
-   - **Interactive User Account Switcher:** Side-by-side selectable tiles for **ADMIN** (👑 Administrator) and **RUDRA** (👤 User) with real-time active highlight borders.
-   - **Dynamic Password Input:** Auto-updates placeholder (`Enter Password for Admin` vs `Enter Password for Rudra`), includes inline `👁️` Show/Hide password toggle, and animated shake effect on error.
-   - **Real Project Enterprise Credits:** Includes SSL security badge, `© 2026 SR_T Freight Operations` copyright, `Designed & Developed by Shravan Kumar` credits, and production version tag (`v2.4.0`).
-   - **Configured Users & Roles:**
-     - **Admin**: User ID `Admin` | Password `Shravan` | Role: `Admin` (Full access: Add, Edit, Delete, Settings, View, Excel)
-     - **Rudra**: User ID `Rudra` | Password `RudraSarika@2505` | Role: `User` (Add, Edit, View, Excel; **Delete** and **Settings** blocked)
-   - **Dual-Layer Security:**
-     - **UI Layer**: For Rudra, the `🗑️ Delete` button on trip rows and the `⚙️ Settings` button in the header are completely hidden. If invoked directly, toasts display: `❌ Only Admin can delete trips` / `❌ You do not have permission to access Settings`.
-     - **Backend Layer (`Code.gs`)**: Google Apps Script rejects any `deleteTrip` or `updateSettings` POST requests from non-Admin roles with `{ "success": false, "error": "Delete permission denied" }`.
-   - Top header displays logged-in user and role badge (`👤 Admin (Admin)` or `👤 Rudra (User)`), with a secure `[ Logout ]` button.
+* **Cloudflare Global Network:** [https://y.srtransport.workers.dev/](https://y.srtransport.workers.dev/)
+* **Vercel Edge Cloud:** [https://ytransport.vercel.app/](https://ytransport.vercel.app/)
+* **Active Cloud Google Sheet:** [Connected Google Spreadsheet](https://docs.google.com/spreadsheets/d/1X-whiMGT3BxgdMjayuXHw-d8fZeaX1dKjLeEEiIPQf0/edit)
+* **Live Google Apps Script Web App:** `https://script.google.com/macros/s/AKfycbyp5fBDoLJTAMS-x7K75yST2ZP0aKRWZs9mlyT2SH5ZGnQhvqrc_rfGPNTP8yymqjdQ/exec`
+* **Active Deployment ID:** `AKfycbyp5fBDoLJTAMS-x7K75yST2ZP0aKRWZs9mlyT2SH5ZGnQhvqrc_rfGPNTP8yymqjdQ`
 
-2. **Cloud Database Sync & Automatic Backup Engine (Ref: `D:\Repo\SR_T`):**
-   - **Multi-User Cloud Sync**: Whenever employee **Rudra** or **Admin** adds or edits a trip, it updates local state AND immediately sends an API request (`addTrip` / `updateTrip`) to Google Sheets (`Code.gs`).
-   - **Instant Reflection**: When Admin logs in from another device or refreshes, the app automatically syncs the latest cloud database records from Google Sheets.
-   - **Automated Point-in-Time Backups (`BackupModule`)**: Every single Add, Edit, or Delete automatically saves a timestamped snapshot in `localStorage` (up to 25 snapshots) and triggers a cloud backup in Google Drive / snapshot tab in Google Sheets.
-   - **Admin Security**: Rudra's deletion attempts are prevented on the UI and blocked on the backend. Only Admin can delete records, and every deletion creates an audit backup.
+---
 
-3. **Top Operational Control Bar:**
-   - **View Trips Time Scope:** `[ TODAY ]`, `[ SELECTED DATE ]`, `[ DATE RANGE ]`, `[ ENTIRE MONTH ]`, and `[ ALL TRIPS ]` arranged across the top with responsive date pickers and month selector.
-   - **Real-time Search:** Search across Vehicle No, Route, Origin/Destination, Broker, and S.No.
-   - **Excel Export (.xlsx):** Powered by `ExcelJS` to export true spreadsheets with auto-fit column widths and UI badge colors.
+## ⚡ Multi-User Real-Time Synchronization Engine
 
-3. **8 Big Vibrant Status & Audit Filter Cards:**
-   - Prominent, clickable cards with live counters and distinct colors:
-     - 📋 **ALL TRIPS** (Slate)
-     - 🆕 **NEW DISPATCH** (Indigo)
-     - 🟢 **PROFIT TRIPS** (Emerald, Net P/L ≥ ₹0)
-     - 🔴 **LOSS TRIPS** (Rose, Net P/L < ₹0)
-     - 🟠 **PENDING BALANCE** (Amber, awaiting freight balance)
-     - 🟡 **PARTIALLY PAID** (Orange)
-     - ✔️ **PAID & SETTLED** (Teal)
-     - ⚠️ **BALANCE MISMATCH** (Crimson audit for `Freight - Advance != Balance`)
-   - Clicking any button filters matching trips in active scope.
+Just like in the reference architecture (`D:\Repo\SR_T`), the system operates across devices without data loss:
 
-4. **Master Table with Dedicated "View Details" Column:**
-   - **`👁️ Details` Column:** Located before `1. S.No`. Clicking **`👁️ View`** on any row highlights the trip and displays the comprehensive report in the panel down below the table.
-   - **Exact 25 Business Columns (No Route column):**
-     1. `1. S.No` 2. `2. Trip Date` 3. `3. Vehicle No` 4. `4. From` 5. `5. To` 6. `6. Freight Amount` 7. `7. Advance Date` 8. `8. Advance Amount` 9. `9. Halting Details` 10. `10. TRSP Name` 11. `11. TRSP Comm` 12. `12. Diesel` 13. `13. Toll Charges` 14. `14. Loading Charges` 15. `15. Unloading Charges` 16. `16. Police Exp` 17. `17. RTA C/P` 18. `18. Other Expenses` 19. `19. Driver Comm` 20. `20. Sum OF Total Exp` 21. `21. Total Exp Given` 22. `22. Status` 23. `23. P/L` 24. `24. Date Balance Recd` 25. `25. Balance Amount`.
-   - **Actions Column:** `✏️ Edit` and `🗑️ Delete` separated from business data columns.
+1. **Immediate Cloud Reflection:**
+   - Whenever **Admin (Shravan)** or **Employee (Rudra)** adds or edits a trip, it updates local state and dispatches a cloud mutation to Google Apps Script.
+   - Any device opened by Admin or Rudra automatically receives the updates in seconds.
 
-5. **Trip Details & Financial Breakdown Panel (Below the Table):**
-   - Renders 6 high-impact financial cards, 9-expense itemized ledger, halting details, and profit analysis for the selected trip.
+2. **Continuous Background Polling & Tab Focus Sync:**
+   - **4-Second Background Poller:** Automatically queries the cloud database every 4 seconds when the user is logged in.
+   - **Tab Focus Auto-Sync:** As soon as a user clicks back to their browser tab (`window.focus`), it instantly checks the cloud for newly added trips.
+   - **Multi-Tab BroadcastChannel:** Any changes in one tab immediately synchronize across all open browser windows (`BroadcastChannel: lorry_sync_channel`).
 
-6. **Confirmation Popups & Success Toasts:**
-   - Two-step confirmation for both Edit and Delete operations with instant toast notifications.
+3. **Zero Data Loss & Smart Seeding:**
+   - If a newly connected Google Sheet is empty, the application automatically seeds existing trips into the cloud spreadsheet.
+   - Every mutation (add, edit, delete) automatically triggers a timestamped backup copy in Google Drive (`Lorry_Backups`).
 
-7. **Exact Business Formulas:**
-   - `20. Sum OF Total Exp = TRSP Comm + Diesel + Toll + Loading + Unloading + Police + RTA + Other + Driver Comm` (Sum of 9 expenses)
-   - `21. Total Exp Given = Advance Amount + Sum OF Total Exp`
-   - `23. P/L = Freight Amount - Total Exp Given`
-   - `25. Balance Amount = Freight Amount - Total Exp Given`
-   - `Status`: Manually selected (`New`, `Pending`, `Partially Paid`, `Paid`). Status never overrides P/L logic.
+---
+
+## 🔐 Dual-Layer Role & Permissions Security
+
+| Role | User ID | Password | View & Export | Add Trips | Edit Trips | Delete Trips | Cloud Settings |
+| :--- | :--- | :--- | :---: | :---: | :---: | :---: | :---: |
+| **Admin** | `Admin` / `Shravan` | `Shravan` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Employee** | `Rudra` | `RudraSarika@2505` | ✅ | ✅ | ✅ | ❌ Restricted | ❌ Restricted |
+
+* **UI Layer:** The `🗑️ Delete` button and `⚙️ Settings` button are completely hidden for Rudra. Any direct programmatic calls trigger security alert toasts.
+* **Backend Layer (`Code.gs`):** Google Apps Script strictly validates `role === 'Admin'` before deleting any row or updating cloud settings.
+
+---
+
+## 📊 Exact 25 Business Columns & Calculation Engine
+
+1. `1. S.No.`
+2. `2. Trip Date`
+3. `3. Vehicle No`
+4. `4. From`
+5. `5. To`
+6. `6. Freight Amount`
+7. `7. Advance Date`
+8. `8. Advance Amount`
+9. `9. Halting Details`
+10. `10. TRSP Name`
+11. `11. TRSP Comm`
+12. `12. Diesel`
+13. `13. Toll Charges`
+14. `14. Loading Charges`
+15. `15. Unloading Charges`
+16. `16. Police Exp`
+17. `17. RTA C/P`
+18. `18. Other Expenses`
+19. `19. Driver Comm`
+20. `20. Sum OF Total Exp` = `TRSP Comm + Diesel + Toll + Loading + Unloading + Police + RTA + Other + Driver Comm`
+21. `21. Total Exp Given` = `Advance Amount + Sum OF Total Exp`
+22. `22. Status` (`New`, `Pending`, `Partially Paid`, `Paid`)
+23. `23. P/L` = `Freight Amount - Total Exp Given`
+24. `24. Date Balance Recd`
+25. `25. Balance Amount` = `Freight Amount - Total Exp Given`
 
 ---
 
@@ -67,32 +79,15 @@ A clean, modern, executive SaaS application for Lorry Freight Operations, Broker
 
 ```
 D:\Repo\Lorry/
-├── index.html                   # Master Responsive Operational Dashboard
+├── index.html                   # Master Responsive Operational Dashboard & Settings Modal
 ├── css/
-│   └── styles.css               # Supporting styles
+│   └── styles.css               # Supporting styles & animation keyframes
 ├── js/
-│   └── app.js                   # Application state, math engine, modals, and export
+│   └── app.js                   # State, Real-time Sync Engine, Role Guard, Calculations & ExcelJS
 ├── google-apps-script/
-│   └── Code.gs                  # Google Apps Script Web App (24 Columns + JSON API)
+│   └── Code.gs                  # Google Apps Script Web App (Multi-user API + Drive Backup Engine)
 ├── docs/
 │   ├── GOOGLE_SHEET_SETUP.md    # 24-Column Google Sheet database layout
-│   ├── GOOGLE_FORM_SETUP.md     # Google Form field guide
-│   └── DEPLOYMENT_GUIDE.md      # Zero-cost Cloudflare Pages & Google Apps Script guide
-├── test_plan.md                 # Verification and test cases
+│   └── DEPLOYMENT_GUIDE.md      # Cloudflare & Vercel deployment guide
 └── README.md
 ```
-
----
-
-## 🏃 Quick Start (Local Testing)
-
-1. Open PowerShell in `D:\Repo\Lorry`.
-2. Start Python's built-in web server:
-   ```powershell
-   py -m http.server 8000
-   ```
-3. Open `http://localhost:8000` in your web browser.
-4. Log in with:
-   - **Admin**: User ID `Admin` / Password `Shravan` (Full permissions)
-   - **Rudra**: User ID `Rudra` / Password `RudraSarika@2505` (User permissions, Delete & Settings restricted)
-5. Test date ranges, warning boxes, two-step edit confirmations, delete confirmation, and Excel export.

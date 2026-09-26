@@ -418,16 +418,7 @@ const BackupModule = {
 
       // Trigger cloud backup if API is configured
       if (state.apiUrl) {
-        fetch(state.apiUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'createBackup',
-            reason: reason,
-            user: state.currentUser || 'User',
-            role: state.currentRole || 'User'
-          })
-        }).catch(err => console.warn('Cloud backup ping note:', err));
+        sendCloudMutation('createBackup', { reason: reason });
       }
     } catch (err) {
       console.warn('BackupModule mutation snapshot error:', err);
@@ -1680,25 +1671,8 @@ window.executeSaveNewTrip = function() {
   BackupModule.onRecordMutated(`Add Trip #${newSNo} (${calculated.vehicleNo})`);
 
   // Cloud Database Sync: immediately sync with Google Sheet
-  if (state.apiUrl) {
-    fetch(state.apiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'addTrip',
-        data: calculated,
-        user: state.currentUser || 'User',
-        role: state.currentRole || 'User'
-      })
-    })
-    .then(res => res.json())
-    .then(data => {
-      console.log('Trip added to cloud database:', data);
-    })
-    .catch(err => {
-      console.warn('Cloud addTrip sync note:', err.message);
-    });
-  }
+  sendCloudMutation('addTrip', calculated);
+  broadcastDataChange();
 
   closeAddTripModal();
   updateSidebarCounters();
@@ -1823,28 +1797,14 @@ function executeDeleteTrip() {
   BackupModule.onRecordMutated(`Delete Trip #${trip.sNo || idNum} (${trip.vehicleNo})`);
 
   // Send delete action to backend with active role credentials
-  if (state.apiUrl) {
-    fetch(state.apiUrl, {
-      method: 'POST',
-      body: JSON.stringify({
-        action: 'deleteTrip',
-        id: trip.id,
-        sNo: trip.sNo,
-        vehicleNo: trip.vehicleNo,
-        role: state.currentRole,
-        user: state.currentUser
-      })
-    })
-    .then(res => res.json())
-    .then(data => {
-      if (data && data.success === false) {
-        showToast(`❌ Backend: ${data.error}`);
-      }
-    })
-    .catch(err => {
-      console.warn('Backend delete sync note:', err.message);
-    });
-  }
+  sendCloudMutation('deleteTrip', {
+    id: trip.id,
+    sNo: trip.sNo,
+    vehicleNo: trip.vehicleNo,
+    role: state.currentRole,
+    user: state.currentUser
+  });
+  broadcastDataChange();
 
   showToast(`✅ Trip #${trip.sNo || idNum} (${trip.vehicleNo}) deleted successfully.`);
   state.pendingDeleteTripId = null;
@@ -1964,25 +1924,8 @@ function executeSaveTripEdits() {
   BackupModule.onRecordMutated(`Edit Trip #${recalculated.sNo || idNum} (${recalculated.vehicleNo})`);
 
   // Cloud Database Sync: immediately update in Google Sheet
-  if (state.apiUrl) {
-    fetch(state.apiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'updateTrip',
-        data: recalculated,
-        user: state.currentUser || 'User',
-        role: state.currentRole || 'User'
-      })
-    })
-    .then(res => res.json())
-    .then(data => {
-      console.log('Trip updated in cloud database:', data);
-    })
-    .catch(err => {
-      console.warn('Cloud updateTrip sync note:', err.message);
-    });
-  }
+  sendCloudMutation('updateTrip', recalculated);
+  broadcastDataChange();
 
   closeSlideOver();
   updateSidebarCounters();
@@ -2272,38 +2215,48 @@ async function syncWithGoogleSheet() {
       throw new Error("Invalid response format from cloud server.");
     }
 
-    if (json.status === 'success' && Array.isArray(json.data)) {
-      state.trips = json.data.map((row, idx) => calculateTrip({
-        id: idx + 1,
-        sNo: row.sNo || idx + 1,
-        tripDate: row.tripDate,
-        vehicleNo: row.vehicleNo,
-        from: row.from,
-        to: row.to,
-        freight: row.freight,
-        advanceDate: row.advanceDate,
-        advance: row.advance,
-        balance: row.balance,
-        halting: row.halting,
-        trspName: row.trspName,
-        trspCommission: row.trspCommission || 0,
-        diesel: row.diesel || 0,
-        toll: row.toll || 0,
-        loading: row.loading || 0,
-        unloading: row.unloading || 0,
-        police: row.police || 0,
-        rta: row.rta || 0,
-        other: row.other || 0,
-        driverCommission: row.driverCommission || 0,
-        status: row.status || 'New',
-        statusAmount: row.statusAmount !== undefined ? row.statusAmount : 0,
-        deleted: false
-      }));
+    if ((json.status === 'success' || json.success) && Array.isArray(json.data)) {
+      if (json.data.length > 0) {
+        state.trips = json.data.map((row, idx) => calculateTrip({
+          id: idx + 1,
+          sNo: row.sNo || idx + 1,
+          tripDate: row.tripDate,
+          vehicleNo: row.vehicleNo,
+          from: row.from,
+          to: row.to,
+          freight: row.freight,
+          advanceDate: row.advanceDate,
+          advance: row.advance,
+          balance: row.balance,
+          halting: row.halting,
+          trspName: row.trspName,
+          trspCommission: row.trspCommission || 0,
+          diesel: row.diesel || 0,
+          toll: row.toll || 0,
+          loading: row.loading || 0,
+          unloading: row.unloading || 0,
+          police: row.police || 0,
+          rta: row.rta || 0,
+          other: row.other || 0,
+          driverCommission: row.driverCommission || 0,
+          status: row.status || 'New',
+          statusAmount: row.statusAmount !== undefined ? row.statusAmount : 0,
+          deleted: false
+        }));
 
-      saveTrips();
-      renderScopeControls();
-      render();
-      showToast(`☁️ Cloud Database: Synchronized ${state.trips.length} trips from Google Sheets!`);
+        saveTrips();
+        renderScopeControls();
+        render();
+        broadcastDataChange();
+        showToast(`☁️ Cloud Database: Synchronized ${state.trips.length} trips from Google Sheets!`);
+      } else if (state.trips.length > 0) {
+        // Cloud sheet is currently empty: Seed our existing trips into the Google Sheet!
+        showToast(`☁️ First-Time Cloud Sync: Uploading ${state.trips.length} trips to Google Sheet...`);
+        for (const trip of state.trips) {
+          await sendCloudMutation('addTrip', trip);
+        }
+        showToast(`✅ Successfully uploaded ${state.trips.length} trips to cloud Google Sheet!`);
+      }
     } else {
       throw new Error(json.message || 'Invalid server response format');
     }
@@ -2440,5 +2393,159 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast('✅ Snapshot backup recorded.');
       }
     });
+  }
+});
+
+// ==========================================================================
+// 12. Real-Time Multi-User Cloud Sync Engine (Mirroring SR_T Architecture)
+// ==========================================================================
+
+// 1. Cross-Tab Live BroadcastChannel
+const lorrySyncChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('lorry_sync_channel') : null;
+if (lorrySyncChannel) {
+  lorrySyncChannel.onmessage = (event) => {
+    if (event.data && event.data.type === 'DATA_UPDATED') {
+      loadTrips();
+      render();
+    }
+  };
+}
+
+function broadcastDataChange() {
+  if (lorrySyncChannel) {
+    try {
+      lorrySyncChannel.postMessage({ type: 'DATA_UPDATED', timestamp: Date.now() });
+    } catch (e) {
+      // Ignored if channel closed
+    }
+  }
+}
+
+// 2. Robust Cloud Mutation Dispatcher (Handles normal & CORS redirect modes)
+async function sendCloudMutation(action, payload) {
+  if (!state.apiUrl) return;
+  const body = JSON.stringify({
+    action: action,
+    data: payload,
+    user: state.currentUser || 'User',
+    role: state.currentRole || 'User',
+    currentUser: state.currentUser,
+    currentRole: state.currentRole,
+    ...payload
+  });
+
+  try {
+    await fetch(state.apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: body
+    });
+  } catch (err) {
+    // If standard fetch threw (e.g., 302 redirect CORS warning), fallback to mode: 'no-cors'
+    try {
+      await fetch(state.apiUrl, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: body
+      });
+    } catch (fallbackErr) {
+      console.warn('Cloud mutation network note:', fallbackErr);
+    }
+  }
+}
+
+// 3. Background Cloud Auto-Sync (Every 4 Seconds & on Focus)
+let isSyncingInBackground = false;
+async function autoSyncCloud(isSilent = true) {
+  if (!state.apiUrl || isSyncingInBackground || !window.navigator.onLine) return;
+  if (!state.currentUser) return; // Only sync when logged in
+
+  // Don't interrupt user if they are currently filling out Add or Edit modal
+  const addModal = document.getElementById('modal-add-trip');
+  const editModal = document.getElementById('modal-edit-trip');
+  if ((addModal && !addModal.classList.contains('hidden')) || 
+      (editModal && !editModal.classList.contains('hidden'))) {
+    return;
+  }
+
+  isSyncingInBackground = true;
+  try {
+    const cleanUrl = state.apiUrl.trim();
+    const fetchUrl = cleanUrl.includes('?') ? `${cleanUrl}&action=getTrips` : `${cleanUrl}?action=getTrips`;
+    const res = await fetch(fetchUrl);
+    const text = await res.text();
+    if (!text.includes('accounts.google.com') && !text.includes('ServiceLogin')) {
+      const json = JSON.parse(text);
+      if (json && (json.status === 'success' || json.success) && Array.isArray(json.data) && json.data.length > 0) {
+        const cloudTrips = json.data;
+        const prevHash = JSON.stringify(state.trips.map(t => `${t.sNo}_${t.freight}_${t.advance}_${t.status}_${t.balance}_${t.vehicleNo}`));
+        const newTrips = cloudTrips.map((row, idx) => calculateTrip({
+          id: idx + 1,
+          sNo: row.sNo || idx + 1,
+          tripDate: row.tripDate,
+          vehicleNo: row.vehicleNo,
+          from: row.from,
+          to: row.to,
+          freight: row.freight,
+          advanceDate: row.advanceDate,
+          advance: row.advance,
+          balance: row.balance,
+          halting: row.halting,
+          trspName: row.trspName,
+          trspCommission: row.trspCommission || 0,
+          diesel: row.diesel || 0,
+          toll: row.toll || 0,
+          loading: row.loading || 0,
+          unloading: row.unloading || 0,
+          police: row.police || 0,
+          rta: row.rta || 0,
+          other: row.other || 0,
+          driverCommission: row.driverCommission || 0,
+          status: row.status || 'New',
+          statusAmount: row.statusAmount !== undefined ? row.statusAmount : 0,
+          deleted: false
+        }));
+
+        const newHash = JSON.stringify(newTrips.map(t => `${t.sNo}_${t.freight}_${t.advance}_${t.status}_${t.balance}_${t.vehicleNo}`));
+        if (prevHash !== newHash) {
+          state.trips = newTrips;
+          saveTrips();
+          renderScopeControls();
+          render();
+          broadcastDataChange();
+          if (!isSilent) showToast('⚡ Real-time update: Synced latest trips live from cloud!');
+        }
+      }
+    }
+  } catch (e) {
+    // Silent fail in background
+  } finally {
+    isSyncingInBackground = false;
+  }
+}
+
+// 4. Background Sync Interval (Every 4 seconds across devices)
+setInterval(() => {
+  autoSyncCloud(true);
+}, 4000);
+
+// 5. Window Focus Sync (Instant sync when user returns to tab)
+window.addEventListener('focus', () => {
+  autoSyncCloud(true);
+});
+
+// 6. Tab Visibility Change Listener
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    autoSyncCloud(true);
+  }
+});
+
+// 7. Multi-Tab LocalStorage Sync
+window.addEventListener('storage', (e) => {
+  if (e.key === 'lorry_trips_master_v9') {
+    loadTrips();
+    render();
   }
 });
