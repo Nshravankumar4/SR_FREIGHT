@@ -6,9 +6,11 @@ A clean, modern, executive SaaS application for Lorry Freight Operations, Broker
 
 ## 🚀 Key Features
 
-1. **Role-Based Authentication & Permissions (RBAC):**
-   - Clean login screen with `User ID`, `Password` (`type="password"`), and `👁️ Show / Hide Password` toggle.
-   - Credentials are not prefilled or auto-logged in.
+1. **Enterprise Authentication (Transport Ledger Management):**
+   - **Executive SaaS Login Screen:** Deep navy gradient backdrop with a centered, rounded white modal card.
+   - **Interactive User Account Switcher:** Side-by-side selectable tiles for **ADMIN** (👑 Administrator) and **RUDRA** (👤 User) with real-time active highlight borders.
+   - **Dynamic Password Input:** Auto-updates placeholder (`Enter Password for Admin` vs `Enter Password for Rudra`), includes inline `👁️` Show/Hide password toggle, and animated shake effect on error.
+   - **Real Project Enterprise Credits:** Includes SSL security badge, `© 2026 SR_T Freight Operations` copyright, `Designed & Developed by Shravan Kumar` credits, and production version tag (`v2.4.0`).
    - **Configured Users & Roles:**
      - **Admin**: User ID `Admin` | Password `Shravan` | Role: `Admin` (Full access: Add, Edit, Delete, Settings, View, Excel)
      - **Rudra**: User ID `Rudra` | Password `RudraSarika@2505` | Role: `User` (Add, Edit, View, Excel; **Delete** and **Settings** blocked)

@@ -218,7 +218,60 @@ function setupAuth() {
   const btnTogglePassword = document.getElementById('btn-toggle-password');
   const passwordInput = document.getElementById('login-password');
   const eyeText = document.getElementById('eye-text');
+  const eyeIcon = document.getElementById('eye-icon');
+  const usernameInput = document.getElementById('login-username');
+  const cardAdmin = document.getElementById('account-card-admin');
+  const cardRudra = document.getElementById('account-card-rudra');
 
+  // Account switching helper function
+  function selectAccount(userKey) {
+    if (loginError) loginError.classList.add('hidden');
+    if (userKey === 'Admin') {
+      if (usernameInput) usernameInput.value = 'Admin';
+      if (passwordInput) {
+        passwordInput.placeholder = 'Enter Password for Admin';
+        passwordInput.value = '';
+        passwordInput.focus();
+      }
+      if (cardAdmin) {
+        cardAdmin.className = 'account-card flex items-center gap-3 p-3.5 rounded-2xl border-2 transition-all duration-150 text-left cursor-pointer border-[#1e3a8a] bg-blue-50/60 shadow-xs';
+        const nameEl = cardAdmin.querySelector('.account-name');
+        if (nameEl) nameEl.className = 'account-name text-sm font-extrabold text-[#1e3a8a] leading-tight';
+      }
+      if (cardRudra) {
+        cardRudra.className = 'account-card flex items-center gap-3 p-3.5 rounded-2xl border-2 transition-all duration-150 text-left cursor-pointer border-slate-200 bg-white hover:border-slate-300';
+        const nameEl = cardRudra.querySelector('.account-name');
+        if (nameEl) nameEl.className = 'account-name text-sm font-extrabold text-slate-800 leading-tight';
+      }
+    } else {
+      if (usernameInput) usernameInput.value = 'Rudra';
+      if (passwordInput) {
+        passwordInput.placeholder = 'Enter Password for Rudra';
+        passwordInput.value = '';
+        passwordInput.focus();
+      }
+      if (cardRudra) {
+        cardRudra.className = 'account-card flex items-center gap-3 p-3.5 rounded-2xl border-2 transition-all duration-150 text-left cursor-pointer border-[#1e3a8a] bg-blue-50/60 shadow-xs';
+        const nameEl = cardRudra.querySelector('.account-name');
+        if (nameEl) nameEl.className = 'account-name text-sm font-extrabold text-[#1e3a8a] leading-tight';
+      }
+      if (cardAdmin) {
+        cardAdmin.className = 'account-card flex items-center gap-3 p-3.5 rounded-2xl border-2 transition-all duration-150 text-left cursor-pointer border-slate-200 bg-white hover:border-slate-300';
+        const nameEl = cardAdmin.querySelector('.account-name');
+        if (nameEl) nameEl.className = 'account-name text-sm font-extrabold text-slate-800 leading-tight';
+      }
+    }
+  }
+
+  // Account card click handlers
+  if (cardAdmin) {
+    cardAdmin.addEventListener('click', () => selectAccount('Admin'));
+  }
+  if (cardRudra) {
+    cardRudra.addEventListener('click', () => selectAccount('Rudra'));
+  }
+
+  // Show / Hide Password toggle
   if (btnTogglePassword && passwordInput) {
     btnTogglePassword.addEventListener('click', () => {
       const isPassword = passwordInput.type === 'password';
@@ -226,20 +279,25 @@ function setupAuth() {
       if (eyeText) {
         eyeText.textContent = isPassword ? 'Hide Password' : 'Show Password';
       }
+      if (eyeIcon) {
+        eyeIcon.textContent = isPassword ? '🙈' : '👁️';
+      }
     });
   }
 
+  // Initial State Check
   if (!state.currentUser || !state.currentRole) {
     if (loginOverlay) loginOverlay.classList.remove('hidden');
+    selectAccount('Rudra');
   } else {
     if (loginOverlay) loginOverlay.classList.add('hidden');
     applyRolePermissions();
   }
 
+  // Login Form Submission
   if (loginForm) {
     loginForm.addEventListener('submit', (e) => {
       e.preventDefault();
-      const usernameInput = document.getElementById('login-username');
       const u = usernameInput ? usernameInput.value.trim() : '';
       const p = passwordInput ? passwordInput.value : '';
 
@@ -258,17 +316,29 @@ function setupAuth() {
         if (passwordInput) passwordInput.value = '';
         if (passwordInput) passwordInput.type = 'password';
         if (eyeText) eyeText.textContent = 'Show Password';
+        if (eyeIcon) eyeIcon.textContent = '👁️';
 
         applyRolePermissions();
         showToast(`✅ Signed in successfully as ${state.currentUser} (${state.currentRole}).`);
         renderScopeControls();
         render();
       } else {
-        if (loginError) loginError.classList.remove('hidden');
+        if (loginError) {
+          loginError.textContent = `❌ Invalid password for ${u}. Please check credentials.`;
+          loginError.classList.remove('hidden');
+          // Re-trigger shake animation
+          loginError.classList.remove('animate-shake');
+          void loginError.offsetWidth;
+          loginError.classList.add('animate-shake');
+        }
+        if (passwordInput) {
+          passwordInput.select();
+        }
       }
     });
   }
 
+  // Logout Handler
   if (btnLogout) {
     btnLogout.addEventListener('click', () => {
       state.currentUser = null;
@@ -276,13 +346,13 @@ function setupAuth() {
       localStorage.removeItem('lorry_auth_user');
       localStorage.removeItem('lorry_auth_role');
 
-      const usernameInput = document.getElementById('login-username');
-      if (usernameInput) usernameInput.value = '';
+      selectAccount('Rudra');
       if (passwordInput) {
         passwordInput.value = '';
         passwordInput.type = 'password';
       }
       if (eyeText) eyeText.textContent = 'Show Password';
+      if (eyeIcon) eyeIcon.textContent = '👁️';
       if (loginError) loginError.classList.add('hidden');
       if (loginOverlay) loginOverlay.classList.remove('hidden');
       closeTripDetails();

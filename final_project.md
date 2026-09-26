@@ -176,8 +176,9 @@ Arranged in an 8-column responsive grid across the top of the dashboard:
 ## 7. Interactive Modals & Safety Controls
 
 1. **Authentication Guard & Role-Based Access Control (RBAC)**:
-   - Clean login screen with `User ID`, `Password` (`type="password"`), and `👁️ Show / Hide Password` toggle.
-   - Credentials are not prefilled or auto-logged in.
+   - **Executive SaaS Login Screen ("Transport Ledger Management"):** Deep navy gradient backdrop with a centered, rounded white modal card.
+   - **Interactive User Account Switcher:** Side-by-side selectable tiles for **ADMIN** (👑 Administrator) and **RUDRA** (👤 User) with active highlight borders and dynamic password placeholder updates.
+   - **Enterprise Metadata & Footer:** Includes SSL encryption badge, `© 2026 SR_T Freight Operations` copyright, `Designed & Developed by Shravan Kumar` credits, and production version tag (`v2.4.0`).
    - **Users & Credentials:**
      - **Admin**: User ID `Admin` | Password `Shravan` | Role: `Admin` (Full permissions: Add, Edit, Delete, View, Export, Settings)
      - **Rudra**: User ID `Rudra` | Password `RudraSarika@2505` | Role: `User` (User permissions: Add, Edit, View, Export; **Delete & Settings blocked**)
