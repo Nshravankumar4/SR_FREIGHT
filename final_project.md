@@ -69,60 +69,68 @@ The layout is arranged in a full-width **Top-to-Bottom** flow:
 
 ---
 
-## 3. Master Business Columns (Exact 24 Columns + Navigation)
+## 3. Master Business Columns (Exact 25 Columns + Navigation)
 
-The master table contains **exactly 24 standard business columns**, preceded by a dedicated **`👁️ Details`** column on the left and followed by an **Actions** column on the right:
+The master table contains **exactly 25 standard business columns**, preceded by a dedicated **`👁️ Details`** column on the left and followed by an **Actions** column on the right:
 
-| Column # | Header Name | Data Type | Formula / Source | Example Value |
+| Column # | Header Name | Data Type | Formula / Business Logic | Example Value |
 |---|---|---|---|---|
-| **NAV** | `👁️ Details` | Action Button | Opens complete report down below | `👁️ View` |
-| **1** | `S.No.` | Number | Sequential Trip Index (1, 2, 3...) | `1` |
-| **2** | `Trip Date` | Date (DD-MM-YYYY) | Dispatch date | `28-08-2026` |
-| **3** | `Vehicle No` | String | Vehicle registration number | `TS15UE1122` |
-| **4** | `From` | String | Origin location | `Hyderabad, Telangana` |
-| **5** | `To` | String | Destination location | `Purnia, Bihar` |
-| **6** | `Freight Amount` | Currency (₹) | Total agreed contract revenue | `₹1,00,000` |
-| **7** | `Advance Date` | Date (DD-MM-YYYY) | Date advance was credited | `28-08-2026` |
-| **8** | `Advance Amount` | Currency (₹) | Advance payment received | `₹90,000` |
-| **9** | `Balance Amount` | Currency (₹) | **Auto:** `Freight Amount - Advance Amount` | `₹10,000` |
-| **10** | `Halting Details` | Text | Halting, demurrage, or transit delay notes | `2 days halting` |
-| **11** | `TRSP Name` | String | Transport broker or agency name | `MRC Logistics` |
-| **12** | `TRSP Commission` | Currency (₹) | Broker commission fee | `₹2,000` |
-| **13** | `Diesel` | Currency (₹) | Fuel expenses en route | `₹50,000` |
-| **14** | `Toll Charges` | Currency (₹) | FASTag & toll booth charges | `₹10,000` |
-| **15** | `Loading Charges` | Currency (₹) | Origin loading labour fees | `₹2,500` |
-| **16** | `Unloading Charges` | Currency (₹) | Destination unloading labour fees | `₹2,500` |
-| **17** | `Police Exp` | Currency (₹) | En-route checkpoint charges | `₹1,000` |
-| **18** | `RTA C/P` | Currency (₹) | Transport authority checkpost charges | `₹1,000` |
-| **19** | `Other Expenses` | Currency (₹) | Miscellaneous en-route expenses | `₹1,000` |
-| **20** | `Driver Trip Commission` | Currency (₹) | Commission or trip wages paid to driver | `₹12,000` |
-| **21** | `Status Amount` | Currency (₹) | Outstanding balance to collect / settled amt | `₹10,000` |
-| **22** | `Status` | Enum | `New`, `Pending`, `Partially Paid`, `Paid` | `🟠 Pending` |
-| **23** | `P/L` | Badge | **Auto:** `Freight - Total Expenses` | `P +₹18,000` |
-| **24** | `Route` | String | Origin ➔ Destination concatenated | `Hyderabad ➔ Purnia` |
+| **NAV** | `👁️ Details` | Action Button | Opens complete ledger & expense breakdown down below | `👁️ View` |
+| **1** | `1. S.No` | Number | Sequential Trip Index (1, 2, 3...) | `1` |
+| **2** | `2. Trip Date` | Date (DD-MM-YYYY) | Dispatch date | `28-08-2026` |
+| **3** | `3. Vehicle No` | String | Vehicle registration number badge | `TS15UE1122` |
+| **4** | `4. From` | String | Origin location | `Hyderabad, Telangana` |
+| **5** | `5. To` | String | Destination location | `Purnia, Bihar` |
+| **6** | `6. Freight Amount` | Currency (₹) | Total agreed contract freight revenue | `₹2,00,000` |
+| **7** | `7. Advance Date` | Date (DD-MM-YYYY) | Date advance payment was credited | `28-08-2026` |
+| **8** | `8. Advance Amount` | Currency (₹) | Advance payment received | `₹90,000` |
+| **9** | `9. Halting Details` | Text | Halting, demurrage, or transit delay notes | `Two days halting during transit` |
+| **10** | `10. TRSP Name` | String | Transport broker or agency name | `MRC` |
+| **11** | `11. TRSP Comm` | Currency (₹) | Broker commission fee | `₹2,000` |
+| **12** | `12. Diesel` | Currency (₹) | Fuel expenses en route | `₹50,000` |
+| **13** | `13. Toll Charges` | Currency (₹) | FASTag & toll booth charges | `₹10,000` |
+| **14** | `14. Loading Charges` | Currency (₹) | Origin loading labour fees | `₹2,500` |
+| **15** | `15. Unloading Charges` | Currency (₹) | Destination unloading labour fees | `₹2,500` |
+| **16** | `16. Police Exp` | Currency (₹) | En-route checkpoint charges | `₹1,000` |
+| **17** | `17. RTA C/P` | Currency (₹) | Transport authority checkpost charges | `₹1,000` |
+| **18** | `18. Other Expenses` | Currency (₹) | Miscellaneous en-route expenses | `₹1,000` |
+| **19** | `19. Driver Comm` | Currency (₹) | Commission or trip wages paid to driver | `₹12,000` |
+| **20** | `20. Sum OF Total Exp` | Currency (₹) | **Auto:** $\sum_{i=11}^{19} \text{Expense}_i$ (Sum of 9 expenses) | `₹82,000` |
+| **21** | `21. Total Exp Given` | Currency (₹) | **Auto:** `Advance Amount + Sum OF Total Exp` | `₹1,72,000` |
+| **22** | `22. Status` | Enum | `New`, `Pending`, `Partially Paid`, `Paid` | `🟠 Pending` |
+| **23** | `23. P/L` | Badge | **Auto:** `Freight Amount - Total Exp Given` | `P +₹28,000` |
+| **24** | `24. Date Balance Recd` | Date (DD-MM-YYYY) | Date remaining balance was received | `25-09-2026` |
+| **25** | `25. Balance Amount` | Currency (₹) | **Auto:** `Freight Amount - Total Exp Given` | `₹28,000` |
 | **ACT** | `Actions` | Action Group | Auxiliary management (`✏️ Edit`, `🗑️ Delete`) | `✏️ Edit` / `🗑️ Delete` |
 
 ---
 
 ## 4. Financial Calculations & Audit Engine
 
-### 1. Balance Amount Calculation
-$$\text{Balance Amount} = \text{Freight Amount} - \text{Advance Amount}$$
-
-### 2. Total En-Route Expenses Sum
-$$\text{Total Expenses} = \sum_{i=1}^{9} \text{Expense}_i$$
+### 1. 20. Sum OF Total Exp (9 Logistical En-Route Categories)
+$$\text{Sum OF Total Exp} = \sum_{i=1}^{9} \text{Expense}_i$$
 Includes: `TRSP Commission` + `Diesel` + `Toll Charges` + `Loading Charges` + `Unloading Charges` + `Police Exp` + `RTA C/P` + `Other Expenses` + `Driver Trip Commission`.
+*(In baseline example: $2,000 + 50,000 + 10,000 + 2,500 + 2,500 + 1,000 + 1,000 + 1,000 + 12,000 = ₹82,000$)*
 
-### 3. Net Profit / Loss (P/L)
-$$\text{Net P/L} = \text{Freight Amount} - \text{Total Expenses}$$
+### 2. 21. Total Exp Amount Given
+$$\text{Total Exp Given} = \text{Advance Amount} + \text{Sum OF Total Exp}$$
+*(In baseline example: $90,000 + 82,000 = ₹1,72,000$)*
+
+### 3. 23. Net Profit / Loss (P/L)
+$$\text{Net P/L} = \text{Freight Amount} - \text{Total Exp Given}$$
+*(In baseline example: $2,00,000 - 1,72,000 = +₹28,000$ Profit)*
 - If $\text{Net P/L} \ge 0$: Displayed as `P +₹<Amount>` in bold emerald green (`bg-emerald-50 text-emerald-800 border-emerald-300`).
 - If $\text{Net P/L} < 0$: Displayed as `L -₹<Amount>` in bold rose red (`bg-rose-50 text-rose-800 border-rose-300`).
 
-### 4. Automated Balance Mismatch Detection
-Audits whether the recorded balance matches the mathematical difference:
-$$\text{Is Mismatched} = \big| \text{Balance Amount} - (\text{Freight Amount} - \text{Advance Amount}) \big| > 0.01$$
+### 4. 25. Balance Amount
+$$\text{Balance Amount} = \text{Freight Amount} - \text{Total Exp Given}$$
+*(In baseline example: $2,00,000 - 1,72,000 = ₹28,000$)*
+
+### 5. Automated Balance Mismatch Detection
+Audits whether the recorded balance matches the mathematical formula:
+$$\text{Is Mismatched} = \big| \text{Balance Amount} - (\text{Freight Amount} - \text{Total Exp Given}) \big| > 0.01$$
 - When mismatched, the table balance cell displays a `⚠️ Mismatch` alert pill.
-- The sidebar counter for **⚠️ BALANCE MISMATCH** automatically increments, allowing one-click filtering for audit reconciliation.
+- The top filter counter for **⚠️ BALANCE MISMATCH** automatically increments, allowing one-click filtering for audit reconciliation.
 
 ---
 
@@ -134,15 +142,17 @@ $$\text{Is Mismatched} = \big| \text{Balance Amount} - (\text{Freight Amount} - 
    - The selected table row is highlighted with a clear blue selection ring (`ring-2 ring-blue-500 bg-blue-100/70`).
    - The application automatically scrolls smoothly down to the **Trip Details & Audit Breakdown Panel** (`#trip-details-panel`) below the sheet.
 3. **What is displayed in the Down-Sheet Details Panel**:
-   - **Header Bar**: Trip ID index (`#1`), Vehicle Registration Number, Origin ➔ Destination, Current Status badge, a shortcut `✏️ Edit This Trip` button, and a `✕ Close` button.
+   - **Header Bar**: Trip ID index (`#1`), Vehicle Registration Number, Origin and Destination badges, Current Status badge, a shortcut `✏️ Edit This Trip` button, and a `✕ Close` button.
    - **Discrepancy Banner**: If a balance mismatch exists, a prominent red alert card specifies both the recorded balance and expected balance.
-   - **4 High-Impact Metric Cards**:
-     1. `Freight Amount` with Trip Date.
-     2. `Advance Amount` with Advance Date.
-     3. `Balance Amount` with Status Amount.
-     4. `Net Profit / Loss` with Profit Margin percentage.
-   - **9-Expense Itemized Ledger**: A clean 3-column breakdown displaying every expense category with exact figures, followed by the total operational cost.
-   - **Operational Logistics Notes**: Full text of Halting & Demurrage notes and Transport Broker Agency details.
+   - **6 Financial Reconciliation Cards**:
+     1. `6. Freight Amount` with Trip Date.
+     2. `8. Advance Amount` with Advance Date.
+     3. `20. Sum OF Total Exp` (Sum of 9 expenses).
+     4. `21. Total Exp Given` (Advance + Expenses).
+     5. `23. Net P/L` with Profit Margin percentage.
+     6. `25. Balance Amount` with Date Balance Received.
+   - **Itemized En-Route Expenses Ledger (9 Categories)**: A clean grid displaying every expense category with exact figures and percentage of operational costs.
+   - **Operational Logistics Notes**: Full text of Halting & Demurrage notes (Column 9) and Transport Broker Agency details (Column 10).
 
 ---
 

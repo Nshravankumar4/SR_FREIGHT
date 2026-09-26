@@ -8,7 +8,7 @@ const MONTH_NAMES = [
   'July', 'August', 'September', 'October', 'November', 'December'
 ];
 
-// Baseline Data (August 2026 records from Excel)
+// Baseline Data (August 2026 records from Excel & User Business Formula)
 const INITIAL_TRIPS = [
   {
     id: 1,
@@ -17,10 +17,9 @@ const INITIAL_TRIPS = [
     vehicleNo: 'TS15UE1122',
     from: 'Hyderabad, Telangana',
     to: 'Purnia, Bihar',
-    freight: 100000,
+    freight: 200000,
     advanceDate: '2026-08-28',
     advance: 90000,
-    balance: 10000,
     halting: 'Two days halting during transit',
     trspName: 'MRC',
     trspCommission: 2000,
@@ -33,9 +32,11 @@ const INITIAL_TRIPS = [
     other: 1000,
     driverCommission: 12000,
     totalExpenses: 82000,
-    netPL: 18000,
+    totalExpGiven: 172000,
     status: 'Pending',
-    statusAmount: 10000,
+    netPL: 28000,
+    balanceReceivedDate: '2026-09-25',
+    balance: 28000,
     deleted: false
   },
   {
@@ -45,10 +46,9 @@ const INITIAL_TRIPS = [
     vehicleNo: 'TG15T6666',
     from: 'Hyderabad, Telangana',
     to: 'Purnia, Bihar',
-    freight: 100000,
+    freight: 250000,
     advanceDate: '2026-08-28',
     advance: 90000,
-    balance: 10000,
     halting: 'Two days halting during transit',
     trspName: 'MRC',
     trspCommission: 2000,
@@ -60,10 +60,12 @@ const INITIAL_TRIPS = [
     rta: 1000,
     other: 1000,
     driverCommission: 12000,
-    totalExpenses: 112000,
-    netPL: -12000,
+    totalExpenses: 110000,
+    totalExpGiven: 200000,
     status: 'Paid',
-    statusAmount: 0,
+    netPL: 50000,
+    balanceReceivedDate: '2026-08-30',
+    balance: 50000,
     deleted: false
   },
   {
@@ -75,8 +77,7 @@ const INITIAL_TRIPS = [
     to: 'Kedch',
     freight: 200000,
     advanceDate: '2026-08-29',
-    advance: 150000,
-    balance: 50000,
+    advance: 100000,
     halting: 'Two days halting during transit',
     trspName: 'MRC',
     trspCommission: 2000,
@@ -89,9 +90,11 @@ const INITIAL_TRIPS = [
     other: 1000,
     driverCommission: 12000,
     totalExpenses: 82000,
-    netPL: 118000,
+    totalExpGiven: 182000,
     status: 'Paid',
-    statusAmount: 0,
+    netPL: 18000,
+    balanceReceivedDate: '2026-08-29',
+    balance: 18000,
     deleted: false
   },
   {
@@ -101,10 +104,9 @@ const INITIAL_TRIPS = [
     vehicleNo: 'TG15T6666',
     from: 'Hyderabad, Telangana',
     to: 'Mechal',
-    freight: 250000,
+    freight: 300000,
     advanceDate: '2026-08-29',
     advance: 155000,
-    balance: 95000,
     halting: 'Two days halting during transit',
     trspName: 'MRC',
     trspCommission: 2000,
@@ -117,9 +119,11 @@ const INITIAL_TRIPS = [
     other: 1000,
     driverCommission: 90000,
     totalExpenses: 263000,
-    netPL: -13000,
+    totalExpGiven: 418000,
     status: 'Pending',
-    statusAmount: 95000,
+    netPL: -118000,
+    balanceReceivedDate: '',
+    balance: -118000,
     deleted: false
   }
 ];
@@ -134,6 +138,7 @@ const state = {
   selectedMonth: '2026-08',
   statusFilter: 'ALL',   // 'ALL' | 'NEW' | 'PROFIT' | 'LOSS' | 'PENDING' | 'PARTIAL' | 'PAID' | 'BALANCE_MISMATCH'
   searchQuery: '',
+  selectedTripId: null,
   apiUrl: localStorage.getItem('lorry_api_url') || '',
   pendingEditTripId: null,
   pendingDeleteTripId: null,
@@ -211,7 +216,7 @@ function setupAuth() {
 // ==========================================================================
 
 function loadTrips() {
-  const saved = localStorage.getItem('lorry_trips_master_v8');
+  const saved = localStorage.getItem('lorry_trips_master_v9');
   if (saved) {
     try {
       state.trips = JSON.parse(saved);
@@ -230,21 +235,12 @@ function loadTrips() {
 function saveTrips() {
   // Always sort chronologically / by S.No ascending
   state.trips.sort((a, b) => (Number(a.sNo) || 0) - (Number(b.sNo) || 0));
-  localStorage.setItem('lorry_trips_master_v8', JSON.stringify(state.trips));
+  localStorage.setItem('lorry_trips_master_v9', JSON.stringify(state.trips));
 }
 
 function calculateTrip(t) {
   const freight = Number(t.freight) || 0;
   const advance = Number(t.advance) || 0;
-  
-  // Balance calculation
-  const expectedBalance = freight - advance;
-  const balance = t.balance !== undefined && t.balance !== null && !isNaN(Number(t.balance))
-    ? Number(t.balance)
-    : expectedBalance;
-
-  // Check if balance matches Freight - Advance
-  const hasBalanceMismatch = balance !== expectedBalance;
 
   const trspCommission = Number(t.trspCommission) || 0;
   const diesel = Number(t.diesel) || 0;
@@ -256,17 +252,30 @@ function calculateTrip(t) {
   const other = Number(t.other) || 0;
   const driverCommission = Number(t.driverCommission) || 0;
 
+  // 20. Sum OF Total Exp = 9 logistical expenses
   const totalExpenses = trspCommission + diesel + toll + loading + unloading + police + rta + other + driverCommission;
-  const netPL = freight - totalExpenses;
+
+  // 21. Total Exp Amount Given = Advance Amount + Sum OF Total Exp
+  const totalExpGiven = advance + totalExpenses;
+
+  // 23. P/L = Freight Amount - Total Exp Amount Given
+  const netPL = freight - totalExpGiven;
+
+  // 25. Balance Amount = Freight Amount - Total Exp Amount Given (or custom balance)
+  const expectedBalance = freight - totalExpGiven;
+  const balance = (t.balance !== undefined && t.balance !== null && t.balance !== '' && !isNaN(Number(t.balance)))
+    ? Number(t.balance)
+    : expectedBalance;
+
+  // Balance discrepancy check
+  const hasBalanceMismatch = balance !== expectedBalance;
 
   // Status: 'New' | 'Pending' | 'Partially Paid' | 'Paid'
   let status = t.status || 'Pending';
   if (status === 'Done') status = 'Paid';
 
   let statusAmount = 0;
-  if (status === 'New') {
-    statusAmount = balance;
-  } else if (status === 'Pending') {
+  if (status === 'New' || status === 'Pending') {
     statusAmount = balance;
   } else if (status === 'Paid') {
     statusAmount = 0;
@@ -276,15 +285,12 @@ function calculateTrip(t) {
 
   const from = (t.from || '').trim();
   const to = (t.to || '').trim();
-  const route = `${from} ➔ ${to}`;
+  const balanceReceivedDate = t.balanceReceivedDate || t.dateOfBalanceReceived || '';
 
   return {
     ...t,
     freight,
     advance,
-    balance,
-    expectedBalance,
-    hasBalanceMismatch,
     trspCommission,
     diesel,
     toll,
@@ -295,12 +301,16 @@ function calculateTrip(t) {
     other,
     driverCommission,
     totalExpenses,
+    totalExpGiven,
     netPL,
+    expectedBalance,
+    balance,
+    hasBalanceMismatch,
     status,
     statusAmount,
     from,
     to,
-    route
+    balanceReceivedDate
   };
 }
 
@@ -643,12 +653,12 @@ function getDisplayTrips() {
 
     // Search Query
     if (state.searchQuery) {
-      const q = state.searchQuery;
+      const q = state.searchQuery.toLowerCase();
       const match = (t.vehicleNo || '').toLowerCase().includes(q) ||
                     (t.from || '').toLowerCase().includes(q) ||
                     (t.to || '').toLowerCase().includes(q) ||
-                    (t.route || '').toLowerCase().includes(q) ||
-                    (t.trspName || '').toLowerCase().includes(q);
+                    (t.trspName || '').toLowerCase().includes(q) ||
+                    String(t.sNo || '').includes(q);
       if (!match) return false;
     }
 
@@ -725,7 +735,7 @@ function renderTableOnly() {
   if (!trips.length) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="26" class="text-center py-12 px-4 text-gray-400 font-medium">
+        <td colspan="27" class="text-center py-12 px-4 text-gray-400 font-medium">
           No trip records found for the current selection. Choose a different date, month, or status filter.
         </td>
       </tr>
@@ -736,19 +746,19 @@ function renderTableOnly() {
   tbody.innerHTML = trips.map((t, idx) => {
     const isProfit = t.netPL >= 0;
     const plBadge = isProfit 
-      ? `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-black bg-emerald-50 text-emerald-800 border border-emerald-300">P +${formatCurrency(t.netPL)}</span>`
-      : `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-black bg-rose-50 text-rose-800 border border-rose-300">L -${formatCurrency(Math.abs(t.netPL))}</span>`;
+      ? `<span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-black bg-emerald-50 text-emerald-800 border border-emerald-300">P +${formatCurrency(t.netPL)}</span>`
+      : `<span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-black bg-rose-50 text-rose-800 border border-rose-300">L -${formatCurrency(Math.abs(t.netPL))}</span>`;
 
     // Visual Status Tags
     let statusBadge = '';
     if (t.status === 'New') {
-      statusBadge = `<span class="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-bold rounded-md bg-indigo-50 text-indigo-800 border border-indigo-200">🆕 New</span>`;
+      statusBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold rounded-lg bg-indigo-50 text-indigo-800 border border-indigo-200">🆕 New</span>`;
     } else if (t.status === 'Paid') {
-      statusBadge = `<span class="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-bold rounded-md bg-emerald-50 text-emerald-800 border border-emerald-300">🟢 Paid</span>`;
+      statusBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-300">🟢 Paid</span>`;
     } else if (t.status === 'Partially Paid') {
-      statusBadge = `<span class="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-bold rounded-md bg-orange-50 text-orange-800 border border-orange-300">🟡 Partially Paid</span>`;
+      statusBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold rounded-lg bg-orange-50 text-orange-800 border border-orange-300">🟡 Partially Paid</span>`;
     } else {
-      statusBadge = `<span class="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-bold rounded-md bg-amber-50 text-amber-800 border border-amber-300">🟠 Pending</span>`;
+      statusBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold rounded-lg bg-amber-50 text-amber-800 border border-amber-300">🟠 Pending</span>`;
     }
 
     // Balance cell with mismatch indicator
@@ -757,7 +767,7 @@ function renderTableOnly() {
       balanceDisplay = `
         <div class="flex items-center justify-end gap-1.5">
           <span class="text-rose-600 font-black">${formatCurrency(t.balance)}</span>
-          <span class="px-1.5 py-0.5 text-[9px] font-black bg-rose-100 text-rose-800 rounded border border-rose-300" title="Expected: ${formatCurrency(t.freight - t.advance)}">⚠️ Mismatch</span>
+          <span class="px-1.5 py-0.5 text-[9px] font-black bg-rose-100 text-rose-800 rounded border border-rose-300" title="Expected: ${formatCurrency(t.freight - t.totalExpGiven)}">⚠️ Mismatch</span>
         </div>
       `;
     }
@@ -765,102 +775,105 @@ function renderTableOnly() {
     const isSelected = state.selectedTripId === t.id;
 
     return `
-      <tr id="trip-row-${t.id}" class="transition hover:bg-blue-50/40 ${isSelected ? 'bg-blue-100/70 ring-2 ring-blue-500' : ''} ${t.netPL < 0 && !isSelected ? 'bg-rose-50/20' : ''} ${t.hasBalanceMismatch && !isSelected ? 'bg-amber-50/20' : ''}">
+      <tr id="trip-row-${t.id}" class="transition hover:bg-blue-50/40 text-sm font-semibold ${isSelected ? 'bg-blue-100/70 ring-2 ring-blue-500' : ''} ${t.netPL < 0 && !isSelected ? 'bg-rose-50/20' : ''} ${t.hasBalanceMismatch && !isSelected ? 'bg-amber-50/20' : ''}">
         
         <!-- Dedicated VIEW DETAILS button BEFORE S.No -->
-        <td class="py-3 px-3 text-center whitespace-nowrap bg-blue-50/30 sticky left-0 z-10 border-r border-blue-100 shadow-2xs">
-          <button onclick="viewTripDetails(${t.id})" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black text-blue-700 bg-white border border-blue-300 hover:bg-blue-600 hover:text-white hover:border-blue-600 active:scale-95 transition cursor-pointer shadow-xs" title="View Full Trip Details & Financial Reconciliation Below">
+        <td class="py-3.5 px-3.5 text-center whitespace-nowrap bg-blue-50/30 sticky left-0 z-10 border-r border-blue-100 shadow-2xs">
+          <button onclick="viewTripDetails(${t.id})" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black text-blue-700 bg-white border border-blue-300 hover:bg-blue-600 hover:text-white hover:border-blue-600 active:scale-95 transition cursor-pointer shadow-xs" title="View Full Trip Details & Financial Ledger Below">
             <span>👁️ View</span>
           </button>
         </td>
 
         <!-- 1. S.No -->
-        <td class="py-3 px-3 text-center font-mono text-gray-500 font-bold">${t.sNo || idx + 1}</td>
+        <td class="py-3.5 px-3.5 text-center font-mono text-gray-500 font-bold">${t.sNo || idx + 1}</td>
         
         <!-- 2. Trip Date -->
-        <td class="py-3 px-3.5 whitespace-nowrap font-bold text-gray-900">${formatDateDisplay(t.tripDate)}</td>
+        <td class="py-3.5 px-3.5 whitespace-nowrap font-bold text-gray-900">${formatDateDisplay(t.tripDate)}</td>
         
         <!-- 3. Vehicle No -->
-        <td class="py-3 px-3.5 whitespace-nowrap">
-          <span class="px-2 py-0.5 font-mono text-[11px] font-extrabold bg-blue-50 text-blue-700 rounded-md border border-blue-200">${t.vehicleNo}</span>
+        <td class="py-3.5 px-3.5 whitespace-nowrap">
+          <span class="px-2.5 py-1 font-mono text-xs font-black bg-blue-50 text-blue-700 rounded-lg border border-blue-200">${t.vehicleNo}</span>
         </td>
         
         <!-- 4. From -->
-        <td class="py-3 px-3.5 whitespace-nowrap font-medium text-gray-800">${t.from || '-'}</td>
+        <td class="py-3.5 px-3.5 whitespace-nowrap text-gray-800">${t.from || '-'}</td>
         
         <!-- 5. To -->
-        <td class="py-3 px-3.5 whitespace-nowrap font-medium text-gray-800">${t.to || '-'}</td>
+        <td class="py-3.5 px-3.5 whitespace-nowrap text-gray-800">${t.to || '-'}</td>
         
         <!-- 6. Freight Amount -->
-        <td class="py-3 px-3.5 text-right whitespace-nowrap font-black text-gray-900">${formatCurrency(t.freight)}</td>
+        <td class="py-3.5 px-3.5 text-right whitespace-nowrap font-black text-gray-900">${formatCurrency(t.freight)}</td>
         
         <!-- 7. Advance Date -->
-        <td class="py-3 px-3.5 whitespace-nowrap text-gray-500">${formatDateDisplay(t.advanceDate)}</td>
+        <td class="py-3.5 px-3.5 whitespace-nowrap text-gray-500 text-center">${formatDateDisplay(t.advanceDate)}</td>
         
         <!-- 8. Advance Amount -->
-        <td class="py-3 px-3.5 text-right whitespace-nowrap font-medium text-gray-700">${formatCurrency(t.advance)}</td>
+        <td class="py-3.5 px-3.5 text-right whitespace-nowrap text-gray-700">${formatCurrency(t.advance)}</td>
         
-        <!-- 9. Balance Amount -->
-        <td class="py-3 px-3.5 text-right whitespace-nowrap font-black text-amber-700">${balanceDisplay}</td>
+        <!-- 9. Halting Details -->
+        <td class="py-3.5 px-3.5 text-gray-500 max-w-[180px] truncate" title="${t.halting || ''}">${t.halting || '-'}</td>
         
-        <!-- 10. Halting Details -->
-        <td class="py-3 px-3.5 text-gray-500 max-w-[180px] truncate" title="${t.halting || ''}">${t.halting || '-'}</td>
-        
-        <!-- 11. TRSP Name -->
-        <td class="py-3 px-3.5 whitespace-nowrap">
-          <span class="px-2 py-0.5 text-[11px] font-bold bg-gray-100 text-gray-800 rounded-md border border-gray-200">${t.trspName || '-'}</span>
+        <!-- 10. TRSP Name -->
+        <td class="py-3.5 px-3.5 whitespace-nowrap text-center">
+          <span class="px-2.5 py-0.5 text-xs font-bold bg-gray-100 text-gray-800 rounded-md border border-gray-200">${t.trspName || '-'}</span>
         </td>
         
-        <!-- 12. TRSP Comm -->
-        <td class="py-3 px-3.5 text-right whitespace-nowrap font-medium text-gray-700">${formatCurrency(t.trspCommission)}</td>
+        <!-- 11. TRSP Comm -->
+        <td class="py-3.5 px-3.5 text-right whitespace-nowrap text-gray-700">${formatCurrency(t.trspCommission)}</td>
         
-        <!-- 13. Diesel -->
-        <td class="py-3 px-3.5 text-right whitespace-nowrap font-medium text-gray-700">${formatCurrency(t.diesel)}</td>
+        <!-- 12. Diesel -->
+        <td class="py-3.5 px-3.5 text-right whitespace-nowrap text-gray-700">${formatCurrency(t.diesel)}</td>
         
-        <!-- 14. Toll Charges -->
-        <td class="py-3 px-3.5 text-right whitespace-nowrap font-medium text-gray-700">${formatCurrency(t.toll)}</td>
+        <!-- 13. Toll Charges -->
+        <td class="py-3.5 px-3.5 text-right whitespace-nowrap text-gray-700">${formatCurrency(t.toll)}</td>
         
-        <!-- 15. Loading Charges -->
-        <td class="py-3 px-3.5 text-right whitespace-nowrap font-medium text-gray-700">${formatCurrency(t.loading)}</td>
+        <!-- 14. Loading Charges -->
+        <td class="py-3.5 px-3.5 text-right whitespace-nowrap text-gray-700">${formatCurrency(t.loading)}</td>
         
-        <!-- 16. Unloading Charges -->
-        <td class="py-3 px-3.5 text-right whitespace-nowrap font-medium text-gray-700">${formatCurrency(t.unloading)}</td>
+        <!-- 15. Unloading Charges -->
+        <td class="py-3.5 px-3.5 text-right whitespace-nowrap text-gray-700">${formatCurrency(t.unloading)}</td>
         
-        <!-- 17. Police Exp -->
-        <td class="py-3 px-3.5 text-right whitespace-nowrap font-medium text-gray-700">${formatCurrency(t.police)}</td>
+        <!-- 16. Police Exp -->
+        <td class="py-3.5 px-3.5 text-right whitespace-nowrap text-gray-700">${formatCurrency(t.police)}</td>
         
-        <!-- 18. RTA C/P -->
-        <td class="py-3 px-3.5 text-right whitespace-nowrap font-medium text-gray-700">${formatCurrency(t.rta)}</td>
+        <!-- 17. RTA C/P -->
+        <td class="py-3.5 px-3.5 text-right whitespace-nowrap text-gray-700">${formatCurrency(t.rta)}</td>
         
-        <!-- 19. Other Expenses -->
-        <td class="py-3 px-3.5 text-right whitespace-nowrap font-medium text-gray-700">${formatCurrency(t.other)}</td>
+        <!-- 18. Other Expenses -->
+        <td class="py-3.5 px-3.5 text-right whitespace-nowrap text-gray-700">${formatCurrency(t.other)}</td>
         
-        <!-- 20. Driver Trip Commission -->
-        <td class="py-3 px-3.5 text-right whitespace-nowrap font-bold text-gray-900">${formatCurrency(t.driverCommission)}</td>
+        <!-- 19. Driver Trip Commission -->
+        <td class="py-3.5 px-3.5 text-right whitespace-nowrap font-bold text-gray-900">${formatCurrency(t.driverCommission)}</td>
         
-        <!-- 21. Status Amount -->
-        <td class="py-3 px-3.5 text-right whitespace-nowrap font-black text-blue-700">${formatCurrency(t.statusAmount)}</td>
+        <!-- 20. Sum OF Total Exp -->
+        <td class="py-3.5 px-3.5 text-right whitespace-nowrap font-black text-indigo-700 bg-indigo-50/40">${formatCurrency(t.totalExpenses)}</td>
+        
+        <!-- 21. Total Exp Given -->
+        <td class="py-3.5 px-3.5 text-right whitespace-nowrap font-black text-purple-700 bg-purple-50/40">${formatCurrency(t.totalExpGiven)}</td>
         
         <!-- 22. Status Display -->
-        <td class="py-3 px-3.5 whitespace-nowrap">
+        <td class="py-3.5 px-3.5 whitespace-nowrap text-center">
           ${statusBadge}
         </td>
         
         <!-- 23. P/L -->
-        <td class="py-3 px-3.5 whitespace-nowrap text-center">
+        <td class="py-3.5 px-3.5 whitespace-nowrap text-center">
           ${plBadge}
         </td>
         
-        <!-- 24. Route -->
-        <td class="py-3 px-4 whitespace-nowrap font-bold text-gray-800">${t.route || `${t.from} ➔ ${t.to}`}</td>
+        <!-- 24. Date Balance Received -->
+        <td class="py-3.5 px-3.5 whitespace-nowrap text-center text-gray-600 font-semibold">${formatDateDisplay(t.balanceReceivedDate)}</td>
+
+        <!-- 25. Balance Amount -->
+        <td class="py-3.5 px-3.5 text-right whitespace-nowrap font-black text-amber-700 bg-amber-50/40">${balanceDisplay}</td>
         
         <!-- Row Actions (Separated from business data columns) -->
-        <td class="py-3 px-3 text-center whitespace-nowrap bg-gray-50/50">
+        <td class="py-3.5 px-3.5 text-center whitespace-nowrap bg-gray-50/50">
           <div class="inline-flex items-center gap-1.5 justify-center">
-            <button onclick="promptEditTrip(${t.id})" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-gray-700 bg-white border border-gray-300 hover:bg-blue-50 hover:text-blue-700 active:scale-95 transition cursor-pointer shadow-xs" title="Edit Trip">
+            <button onclick="promptEditTrip(${t.id})" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-gray-700 bg-white border border-gray-300 hover:bg-blue-50 hover:text-blue-700 active:scale-95 transition cursor-pointer shadow-xs" title="Edit Trip">
               <span>✏️ Edit</span>
             </button>
-            <button onclick="promptDeleteTrip(${t.id})" class="p-1.5 rounded-lg text-gray-400 hover:text-rose-600 hover:bg-rose-50 active:scale-95 transition cursor-pointer" title="Delete Trip">
+            <button onclick="promptDeleteTrip(${t.id})" class="p-2 rounded-lg text-gray-400 hover:text-rose-600 hover:bg-rose-50 active:scale-95 transition cursor-pointer" title="Delete Trip">
               <svg class="w-4 h-4 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
             </button>
           </div>
@@ -947,7 +960,7 @@ function renderTripDetails(t) {
   // Mismatch Alert Box
   let mismatchBanner = '';
   if (t.hasBalanceMismatch) {
-    const expected = t.freight - t.advance;
+    const expected = t.freight - t.totalExpGiven;
     mismatchBanner = `
       <div class="p-4 rounded-2xl bg-gradient-to-r from-red-500/10 via-rose-50 to-red-50 border-2 border-red-400 flex items-start gap-3.5 text-red-950 shadow-sm">
         <span class="text-2xl mt-0.5">⚠️</span>
@@ -955,7 +968,7 @@ function renderTripDetails(t) {
           <div class="text-xs font-black uppercase tracking-wider text-red-800">Financial Audit Alert &bull; Balance Discrepancy Detected</div>
           <div class="text-xs font-semibold text-red-900 mt-1 leading-relaxed">
             Recorded Balance is <span class="px-2 py-0.5 bg-red-100 rounded-md font-mono font-black text-red-950">${formatCurrency(t.balance)}</span>, 
-            but Contract Freight (<strong class="font-mono">${formatCurrency(t.freight)}</strong>) &minus; Advance Received (<strong class="font-mono">${formatCurrency(t.advance)}</strong>) equals <span class="px-2 py-0.5 bg-emerald-100 text-emerald-900 rounded-md font-mono font-black">${formatCurrency(expected)}</span>. 
+            but Contract Freight (<strong class="font-mono">${formatCurrency(t.freight)}</strong>) &minus; Total Expenses Given (<strong class="font-mono">${formatCurrency(t.totalExpGiven)}</strong>) equals <span class="px-2 py-0.5 bg-emerald-100 text-emerald-900 rounded-md font-mono font-black">${formatCurrency(expected)}</span>. 
             Please review with the transport broker or adjust this record.
           </div>
         </div>
@@ -977,7 +990,7 @@ function renderTripDetails(t) {
 
         <div class="relative z-10 flex flex-wrap items-center justify-between gap-4">
           
-          <!-- Vehicle & Route Info -->
+          <!-- Vehicle & Station Info -->
           <div class="space-y-2">
             <div class="flex flex-wrap items-center gap-2.5">
               <span class="px-3 py-1 bg-cyan-950/80 text-cyan-300 border border-cyan-400/40 rounded-xl font-mono font-black text-xs shadow-2xs tracking-wider">
@@ -989,14 +1002,14 @@ function renderTripDetails(t) {
               ${statusBadge}
             </div>
 
-            <!-- Route Banner -->
+            <!-- Origin & Destination Banner -->
             <div class="flex flex-wrap items-center gap-2 text-xs sm:text-sm font-bold text-slate-200">
               <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white/10 border border-white/10 text-white">
-                <span>📍 Origin:</span> <strong class="text-cyan-300">${t.from || 'Origin'}</strong>
+                <span>📍 From:</span> <strong class="text-cyan-300">${t.from || '-'}</strong>
               </span>
               <span class="text-cyan-400 font-black text-base">➔</span>
               <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white/10 border border-white/10 text-white">
-                <span>🏁 Destination:</span> <strong class="text-cyan-300">${t.to || 'Destination'}</strong>
+                <span>🏁 To:</span> <strong class="text-cyan-300">${t.to || '-'}</strong>
               </span>
               <span class="text-xs text-slate-400 ml-1 font-medium">
                 &bull; Dispatched on <strong class="text-slate-200">${formatDateDisplay(t.tripDate)}</strong>
@@ -1020,73 +1033,101 @@ function renderTripDetails(t) {
       ${mismatchBanner}
 
       <!-- =================================================================== -->
-      <!-- 4 HIGH-IMPACT FINANCIAL CARDS (VIBRANT GRADIENT THEMES)             -->
+      <!-- 6 FINANCIAL RECONCILIATION CARDS                                    -->
       <!-- =================================================================== -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3.5">
         
-        <!-- Card 1: Freight Revenue -->
-        <div class="bg-gradient-to-br from-indigo-500/10 via-blue-50/50 to-white border-2 border-indigo-200/90 rounded-2xl p-5 shadow-xs hover:shadow-md transition">
+        <!-- Card 1: 6. Freight Amount -->
+        <div class="bg-gradient-to-br from-indigo-500/10 via-blue-50/50 to-white border-2 border-indigo-200/90 rounded-2xl p-4 shadow-xs">
           <div class="flex items-center justify-between">
-            <span class="text-[11px] font-black uppercase tracking-wider text-indigo-900">Total Freight Revenue</span>
-            <span class="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm shadow-2xs">💰</span>
+            <span class="text-[10px] font-black uppercase tracking-wider text-indigo-900">6. Freight Amount</span>
+            <span class="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs">💰</span>
           </div>
-          <div class="text-2xl font-black font-mono text-indigo-950 mt-2 tracking-tight">
+          <div class="text-xl font-black font-mono text-indigo-950 mt-1.5 tracking-tight">
             ${formatCurrency(t.freight)}
           </div>
-          <div class="mt-2.5 pt-2.5 border-t border-indigo-100/80 flex items-center justify-between text-xs">
-            <span class="text-gray-500 font-medium">Trip Date:</span>
-            <strong class="font-semibold text-gray-800">${formatDateDisplay(t.tripDate)}</strong>
+          <div class="mt-2 pt-2 border-t border-indigo-100 flex items-center justify-between text-[11px]">
+            <span class="text-gray-500">Trip Date:</span>
+            <strong class="text-gray-800">${formatDateDisplay(t.tripDate)}</strong>
           </div>
         </div>
 
-        <!-- Card 2: Advance Collected -->
-        <div class="bg-gradient-to-br from-teal-500/10 via-emerald-50/50 to-white border-2 border-teal-200/90 rounded-2xl p-5 shadow-xs hover:shadow-md transition">
+        <!-- Card 2: 8. Advance Amount -->
+        <div class="bg-gradient-to-br from-teal-500/10 via-emerald-50/50 to-white border-2 border-teal-200/90 rounded-2xl p-4 shadow-xs">
           <div class="flex items-center justify-between">
-            <span class="text-[11px] font-black uppercase tracking-wider text-teal-900">Advance Received</span>
-            <span class="w-8 h-8 rounded-xl bg-teal-100 text-teal-700 flex items-center justify-center text-sm shadow-2xs">💵</span>
+            <span class="text-[10px] font-black uppercase tracking-wider text-teal-900">8. Advance Amount</span>
+            <span class="w-7 h-7 rounded-lg bg-teal-100 text-teal-700 flex items-center justify-center text-xs">💵</span>
           </div>
-          <div class="text-2xl font-black font-mono text-teal-950 mt-2 tracking-tight">
+          <div class="text-xl font-black font-mono text-teal-950 mt-1.5 tracking-tight">
             ${formatCurrency(t.advance)}
           </div>
-          <div class="mt-2.5 pt-2.5 border-t border-teal-100/80 flex items-center justify-between text-xs">
-            <span class="text-gray-500 font-medium">Advance Date:</span>
-            <strong class="font-semibold text-teal-800">${formatDateDisplay(t.advanceDate)}</strong>
+          <div class="mt-2 pt-2 border-t border-teal-100 flex items-center justify-between text-[11px]">
+            <span class="text-gray-500">Advance Date:</span>
+            <strong class="text-teal-800">${formatDateDisplay(t.advanceDate)}</strong>
           </div>
         </div>
 
-        <!-- Card 3: Pending Balance -->
-        <div class="${t.hasBalanceMismatch ? 'bg-gradient-to-br from-rose-500/15 via-red-50 to-white border-2 border-rose-400' : 'bg-gradient-to-br from-amber-500/10 via-orange-50/50 to-white border-2 border-amber-300'} rounded-2xl p-5 shadow-xs hover:shadow-md transition">
+        <!-- Card 3: 20. Sum OF Total Exp -->
+        <div class="bg-gradient-to-br from-blue-500/10 via-indigo-50/50 to-white border-2 border-indigo-300 rounded-2xl p-4 shadow-xs">
           <div class="flex items-center justify-between">
-            <span class="text-[11px] font-black uppercase tracking-wider ${t.hasBalanceMismatch ? 'text-red-900' : 'text-amber-900'}">
-              Pending Balance
-            </span>
-            <span class="w-8 h-8 rounded-xl ${t.hasBalanceMismatch ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'} flex items-center justify-center text-sm shadow-2xs">⏳</span>
+            <span class="text-[10px] font-black uppercase tracking-wider text-indigo-900">20. Sum OF Total Exp</span>
+            <span class="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs">🧾</span>
           </div>
-          <div class="text-2xl font-black font-mono ${t.hasBalanceMismatch ? 'text-red-700' : 'text-amber-950'} mt-2 tracking-tight">
-            ${formatCurrency(t.balance)}
+          <div class="text-xl font-black font-mono text-indigo-700 mt-1.5 tracking-tight">
+            ${formatCurrency(t.totalExpenses)}
           </div>
-          <div class="mt-2.5 pt-2.5 ${t.hasBalanceMismatch ? 'border-red-200' : 'border-amber-100/80'} border-t flex items-center justify-between text-xs">
-            <span class="text-gray-500 font-medium">Status Amount:</span>
-            <strong class="font-mono font-bold text-gray-900">${formatCurrency(t.statusAmount)}</strong>
+          <div class="mt-2 pt-2 border-t border-indigo-100 flex items-center justify-between text-[11px]">
+            <span class="text-gray-500">Sum of 9 Exp:</span>
+            <strong class="text-indigo-800">${formatCurrency(t.totalExpenses)}</strong>
           </div>
         </div>
 
-        <!-- Card 4: Net Profit / Loss -->
-        <div class="${isProfit ? 'bg-gradient-to-br from-emerald-500/15 via-green-50 to-white border-2 border-emerald-400' : 'bg-gradient-to-br from-rose-500/15 via-red-50 to-white border-2 border-rose-400'} rounded-2xl p-5 shadow-xs hover:shadow-md transition">
+        <!-- Card 4: 21. Total Exp Given -->
+        <div class="bg-gradient-to-br from-purple-500/10 via-purple-50/50 to-white border-2 border-purple-300 rounded-2xl p-4 shadow-xs">
           <div class="flex items-center justify-between">
-            <span class="text-[11px] font-black uppercase tracking-wider ${isProfit ? 'text-emerald-950' : 'text-rose-950'}">
-              Net Profit / Loss
-            </span>
-            <span class="px-2 py-0.5 text-[10px] font-black rounded-lg ${isProfit ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-rose-100 text-rose-800 border border-rose-300'}">
-              ${marginPct}% margin
+            <span class="text-[10px] font-black uppercase tracking-wider text-purple-900">21. Total Exp Given</span>
+            <span class="w-7 h-7 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center text-xs">📦</span>
+          </div>
+          <div class="text-xl font-black font-mono text-purple-700 mt-1.5 tracking-tight">
+            ${formatCurrency(t.totalExpGiven)}
+          </div>
+          <div class="mt-2 pt-2 border-t border-purple-100 flex items-center justify-between text-[11px]">
+            <span class="text-gray-500">Adv + Expenses</span>
+            <strong class="text-purple-800 font-bold">Sum Given</strong>
+          </div>
+        </div>
+
+        <!-- Card 5: 23. Net P/L -->
+        <div class="${isProfit ? 'bg-gradient-to-br from-emerald-500/15 via-green-50 to-white border-2 border-emerald-400' : 'bg-gradient-to-br from-rose-500/15 via-red-50 to-white border-2 border-rose-400'} rounded-2xl p-4 shadow-xs">
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] font-black uppercase tracking-wider ${isProfit ? 'text-emerald-950' : 'text-rose-950'}">23. Net P/L</span>
+            <span class="px-1.5 py-0.5 text-[9px] font-black rounded ${isProfit ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-rose-100 text-rose-800 border border-rose-300'}">
+              ${marginPct}%
             </span>
           </div>
-          <div class="text-2xl font-black font-mono ${isProfit ? 'text-emerald-700' : 'text-rose-700'} mt-2 tracking-tight">
+          <div class="text-xl font-black font-mono ${isProfit ? 'text-emerald-700' : 'text-rose-700'} mt-1.5 tracking-tight">
             ${plLabel}
           </div>
-          <div class="mt-2.5 pt-2.5 ${isProfit ? 'border-emerald-100/80' : 'border-rose-100/80'} border-t flex items-center justify-between text-xs">
-            <span class="text-gray-500 font-medium">Total Expenses:</span>
-            <strong class="font-mono font-bold text-gray-900">${formatCurrency(t.totalExpenses)}</strong>
+          <div class="mt-2 pt-2 border-t ${isProfit ? 'border-emerald-100' : 'border-rose-100'} flex items-center justify-between text-[11px]">
+            <span class="text-gray-500">Freight - Given</span>
+            <strong class="${isProfit ? 'text-emerald-800' : 'text-rose-800'} font-bold">Margin</strong>
+          </div>
+        </div>
+
+        <!-- Card 6: 25. Balance Amount -->
+        <div class="${t.hasBalanceMismatch ? 'bg-gradient-to-br from-rose-500/15 via-red-50 to-white border-2 border-rose-400' : 'bg-gradient-to-br from-amber-500/10 via-orange-50/50 to-white border-2 border-amber-300'} rounded-2xl p-4 shadow-xs">
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] font-black uppercase tracking-wider ${t.hasBalanceMismatch ? 'text-red-900' : 'text-amber-900'}">
+              25. Balance Amount
+            </span>
+            <span class="w-7 h-7 rounded-lg ${t.hasBalanceMismatch ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'} flex items-center justify-center text-xs">⏳</span>
+          </div>
+          <div class="text-xl font-black font-mono ${t.hasBalanceMismatch ? 'text-red-700' : 'text-amber-950'} mt-1.5 tracking-tight">
+            ${formatCurrency(t.balance)}
+          </div>
+          <div class="mt-2 pt-2 ${t.hasBalanceMismatch ? 'border-red-200' : 'border-amber-100'} border-t flex items-center justify-between text-[11px]">
+            <span class="text-gray-500">Date Recd:</span>
+            <strong class="font-semibold text-gray-900">${formatDateDisplay(t.balanceReceivedDate)}</strong>
           </div>
         </div>
 
@@ -1102,15 +1143,15 @@ function renderTripDetails(t) {
             <span class="text-xl">🧾</span>
             <div>
               <h4 class="text-xs sm:text-sm font-black text-gray-900 uppercase tracking-wider">
-                Itemized En-Route Expenses Ledger
+                Itemized En-Route Expenses Ledger (9 Categories)
               </h4>
               <p class="text-[11px] text-gray-500 font-medium">Complete breakdown across all 9 logistical expense categories</p>
             </div>
           </div>
           
           <div class="flex items-center gap-2">
-            <span class="text-xs font-bold text-gray-500 uppercase">Operational Costs Sum:</span>
-            <span class="px-3.5 py-1 text-sm font-black font-mono text-gray-900 bg-gray-100 border border-gray-300 rounded-xl shadow-2xs">
+            <span class="text-xs font-bold text-gray-500 uppercase">20. Sum OF Total Exp:</span>
+            <span class="px-3.5 py-1 text-sm font-black font-mono text-indigo-800 bg-indigo-50 border border-indigo-300 rounded-xl shadow-2xs">
               ${formatCurrency(t.totalExpenses)}
             </span>
           </div>
@@ -1119,112 +1160,112 @@ function renderTripDetails(t) {
         <!-- 9 Colorful Category Cards -->
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
           
-          <!-- 1. Diesel / Fuel -->
-          <div class="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200 flex items-center justify-between">
-            <div class="flex items-center gap-2.5">
-              <span class="w-9 h-9 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center text-base shadow-2xs">⛽</span>
-              <div>
-                <div class="text-xs font-bold text-gray-800">Diesel / Fuel</div>
-                <div class="text-[10px] text-amber-700 font-semibold">${getPct(t.diesel)} of total costs</div>
-              </div>
-            </div>
-            <span class="text-sm font-black font-mono text-amber-950">${formatCurrency(t.diesel)}</span>
-          </div>
-
-          <!-- 2. Toll & Fastag -->
-          <div class="p-3.5 rounded-2xl bg-sky-50/70 border border-sky-200 flex items-center justify-between">
-            <div class="flex items-center gap-2.5">
-              <span class="w-9 h-9 rounded-xl bg-sky-100 text-sky-800 flex items-center justify-center text-base shadow-2xs">🛣️</span>
-              <div>
-                <div class="text-xs font-bold text-gray-800">Toll & FASTag Charges</div>
-                <div class="text-[10px] text-sky-700 font-semibold">${getPct(t.toll)} of total costs</div>
-              </div>
-            </div>
-            <span class="text-sm font-black font-mono text-sky-950">${formatCurrency(t.toll)}</span>
-          </div>
-
-          <!-- 3. Driver Commission -->
-          <div class="p-3.5 rounded-2xl bg-indigo-50/70 border border-indigo-200 flex items-center justify-between">
-            <div class="flex items-center gap-2.5">
-              <span class="w-9 h-9 rounded-xl bg-indigo-100 text-indigo-800 flex items-center justify-center text-base shadow-2xs">🧑‍✈️</span>
-              <div>
-                <div class="text-xs font-bold text-gray-800">Driver Trip Commission</div>
-                <div class="text-[10px] text-indigo-700 font-semibold">${getPct(t.driverCommission)} of total costs</div>
-              </div>
-            </div>
-            <span class="text-sm font-black font-mono text-indigo-950">${formatCurrency(t.driverCommission)}</span>
-          </div>
-
-          <!-- 4. Transport Broker Commission -->
+          <!-- 11. Transport Broker Commission -->
           <div class="p-3.5 rounded-2xl bg-purple-50/70 border border-purple-200 flex items-center justify-between">
             <div class="flex items-center gap-2.5">
               <span class="w-9 h-9 rounded-xl bg-purple-100 text-purple-800 flex items-center justify-center text-base shadow-2xs">🤝</span>
               <div>
-                <div class="text-xs font-bold text-gray-800">TRSP Broker Commission</div>
-                <div class="text-[10px] text-purple-700 font-semibold">${getPct(t.trspCommission)} of total costs</div>
+                <div class="text-xs font-bold text-gray-800">11. TRSP Commission</div>
+                <div class="text-[10px] text-purple-700 font-semibold">${getPct(t.trspCommission)} of expenses</div>
               </div>
             </div>
             <span class="text-sm font-black font-mono text-purple-950">${formatCurrency(t.trspCommission)}</span>
           </div>
 
-          <!-- 5. Loading Charges -->
+          <!-- 12. Diesel / Fuel -->
+          <div class="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200 flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <span class="w-9 h-9 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center text-base shadow-2xs">⛽</span>
+              <div>
+                <div class="text-xs font-bold text-gray-800">12. Diesel / Fuel</div>
+                <div class="text-[10px] text-amber-700 font-semibold">${getPct(t.diesel)} of expenses</div>
+              </div>
+            </div>
+            <span class="text-sm font-black font-mono text-amber-950">${formatCurrency(t.diesel)}</span>
+          </div>
+
+          <!-- 13. Toll Charges -->
+          <div class="p-3.5 rounded-2xl bg-sky-50/70 border border-sky-200 flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <span class="w-9 h-9 rounded-xl bg-sky-100 text-sky-800 flex items-center justify-center text-base shadow-2xs">🛣️</span>
+              <div>
+                <div class="text-xs font-bold text-gray-800">13. Toll & FASTag Charges</div>
+                <div class="text-[10px] text-sky-700 font-semibold">${getPct(t.toll)} of expenses</div>
+              </div>
+            </div>
+            <span class="text-sm font-black font-mono text-sky-950">${formatCurrency(t.toll)}</span>
+          </div>
+
+          <!-- 14. Loading Charges -->
           <div class="p-3.5 rounded-2xl bg-teal-50/70 border border-teal-200 flex items-center justify-between">
             <div class="flex items-center gap-2.5">
               <span class="w-9 h-9 rounded-xl bg-teal-100 text-teal-800 flex items-center justify-center text-base shadow-2xs">📦</span>
               <div>
-                <div class="text-xs font-bold text-gray-800">Loading Labour Charges</div>
-                <div class="text-[10px] text-teal-700 font-semibold">${getPct(t.loading)} of total costs</div>
+                <div class="text-xs font-bold text-gray-800">14. Loading Labour Charges</div>
+                <div class="text-[10px] text-teal-700 font-semibold">${getPct(t.loading)} of expenses</div>
               </div>
             </div>
             <span class="text-sm font-black font-mono text-teal-950">${formatCurrency(t.loading)}</span>
           </div>
 
-          <!-- 6. Unloading Charges -->
+          <!-- 15. Unloading Charges -->
           <div class="p-3.5 rounded-2xl bg-cyan-50/70 border border-cyan-200 flex items-center justify-between">
             <div class="flex items-center gap-2.5">
               <span class="w-9 h-9 rounded-xl bg-cyan-100 text-cyan-800 flex items-center justify-center text-base shadow-2xs">🚚</span>
               <div>
-                <div class="text-xs font-bold text-gray-800">Unloading Labour Charges</div>
-                <div class="text-[10px] text-cyan-700 font-semibold">${getPct(t.unloading)} of total costs</div>
+                <div class="text-xs font-bold text-gray-800">15. Unloading Charges</div>
+                <div class="text-[10px] text-cyan-700 font-semibold">${getPct(t.unloading)} of expenses</div>
               </div>
             </div>
             <span class="text-sm font-black font-mono text-cyan-950">${formatCurrency(t.unloading)}</span>
           </div>
 
-          <!-- 7. Police Expense -->
+          <!-- 16. Police Exp -->
           <div class="p-3.5 rounded-2xl bg-rose-50/70 border border-rose-200 flex items-center justify-between">
             <div class="flex items-center gap-2.5">
               <span class="w-9 h-9 rounded-xl bg-rose-100 text-rose-800 flex items-center justify-center text-base shadow-2xs">👮</span>
               <div>
-                <div class="text-xs font-bold text-gray-800">Police Checkpoint Exp</div>
-                <div class="text-[10px] text-rose-700 font-semibold">${getPct(t.police)} of total costs</div>
+                <div class="text-xs font-bold text-gray-800">16. Police Checkpoint Exp</div>
+                <div class="text-[10px] text-rose-700 font-semibold">${getPct(t.police)} of expenses</div>
               </div>
             </div>
             <span class="text-sm font-black font-mono text-rose-950">${formatCurrency(t.police)}</span>
           </div>
 
-          <!-- 8. RTA / Checkpost -->
+          <!-- 17. RTA C/P -->
           <div class="p-3.5 rounded-2xl bg-orange-50/70 border border-orange-200 flex items-center justify-between">
             <div class="flex items-center gap-2.5">
               <span class="w-9 h-9 rounded-xl bg-orange-100 text-orange-800 flex items-center justify-center text-base shadow-2xs">🛑</span>
               <div>
-                <div class="text-xs font-bold text-gray-800">RTA / State Checkpost</div>
-                <div class="text-[10px] text-orange-700 font-semibold">${getPct(t.rta)} of total costs</div>
+                <div class="text-xs font-bold text-gray-800">17. RTA / State Checkpost</div>
+                <div class="text-[10px] text-orange-700 font-semibold">${getPct(t.rta)} of expenses</div>
               </div>
             </div>
             <span class="text-sm font-black font-mono text-orange-950">${formatCurrency(t.rta)}</span>
           </div>
 
-          <!-- 9. Other Expenses -->
+          <!-- 18. Other Expenses -->
           <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between">
             <div class="flex items-center gap-2.5">
               <span class="w-9 h-9 rounded-xl bg-slate-200 text-slate-700 flex items-center justify-center text-base shadow-2xs">🔧</span>
               <div>
-                <div class="text-xs font-bold text-gray-800">Other En-Route Costs</div>
-                <div class="text-[10px] text-gray-500 font-semibold">${getPct(t.other)} of total costs</div>
+                <div class="text-xs font-bold text-gray-800">18. Other En-Route Costs</div>
+                <div class="text-[10px] text-gray-500 font-semibold">${getPct(t.other)} of expenses</div>
               </div>
             </div>
             <span class="text-sm font-black font-mono text-slate-900">${formatCurrency(t.other)}</span>
+          </div>
+
+          <!-- 19. Driver Commission -->
+          <div class="p-3.5 rounded-2xl bg-indigo-50/70 border border-indigo-200 flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <span class="w-9 h-9 rounded-xl bg-indigo-100 text-indigo-800 flex items-center justify-center text-base shadow-2xs">🧑‍✈️</span>
+              <div>
+                <div class="text-xs font-bold text-gray-800">19. Driver Trip Commission</div>
+                <div class="text-[10px] text-indigo-700 font-semibold">${getPct(t.driverCommission)} of expenses</div>
+              </div>
+            </div>
+            <span class="text-sm font-black font-mono text-indigo-950">${formatCurrency(t.driverCommission)}</span>
           </div>
 
         </div>
@@ -1239,7 +1280,7 @@ function renderTripDetails(t) {
         <div class="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-gray-50 to-slate-50 border border-gray-200 flex items-start gap-3">
           <span class="w-9 h-9 rounded-xl bg-gray-200/80 text-gray-700 flex items-center justify-center text-base shadow-2xs mt-0.5">⏱️</span>
           <div class="flex-1">
-            <span class="text-[10px] font-black uppercase tracking-wider text-gray-500 block">Halting & Transit Delay Notes</span>
+            <span class="text-[10px] font-black uppercase tracking-wider text-gray-500 block">9. Halting & Transit Delay Notes</span>
             <p class="text-xs font-semibold text-gray-800 mt-1 leading-relaxed">${t.halting || 'No halting delays recorded for this trip dispatch.'}</p>
           </div>
         </div>
@@ -1248,7 +1289,7 @@ function renderTripDetails(t) {
         <div class="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-gray-50 to-slate-50 border border-gray-200 flex items-start gap-3">
           <span class="w-9 h-9 rounded-xl bg-gray-200/80 text-gray-700 flex items-center justify-center text-base shadow-2xs mt-0.5">🏢</span>
           <div class="flex-1">
-            <span class="text-[10px] font-black uppercase tracking-wider text-gray-500 block">Transport Broker / Agency (TRSP)</span>
+            <span class="text-[10px] font-black uppercase tracking-wider text-gray-500 block">10. Transport Broker / Agency (TRSP)</span>
             <p class="text-xs font-bold text-gray-900 mt-1">
               ${t.trspName ? `<span class="px-2.5 py-1 bg-white border border-gray-300 rounded-lg shadow-2xs">${t.trspName}</span>` : '<span class="text-gray-400">Direct Dispatch (No third-party broker recorded)</span>'}
             </p>
@@ -1315,7 +1356,6 @@ window.updateAddTripCalculations = function() {
 
   const freight = getNum('add-freight');
   const advance = getNum('add-advance');
-  const balance = freight - advance;
 
   const trspComm = getNum('add-trsp-comm');
   const diesel = getNum('add-diesel');
@@ -1327,45 +1367,35 @@ window.updateAddTripCalculations = function() {
   const other = getNum('add-other');
   const driverComm = getNum('add-driver-comm');
 
+  // 20. Sum OF Total Exp (9 expenses)
   const totalExpenses = trspComm + diesel + toll + loading + unloading + police + rta + other + driverComm;
-  const netPL = freight - totalExpenses;
 
-  const status = getStr('add-status') || 'New';
-  let statusAmount = 0;
-  if (status === 'New' || status === 'Pending') {
-    statusAmount = balance;
-  } else if (status === 'Paid') {
-    statusAmount = 0;
-  } else if (status === 'Partially Paid') {
-    const customAmt = getNum('add-status-amount');
-    statusAmount = customAmt > 0 ? customAmt : balance;
-  }
+  // 21. Total Exp Given = Advance + Total Expenses
+  const totalExpGiven = advance + totalExpenses;
 
-  const from = getStr('add-from') || 'Origin';
-  const to = getStr('add-to') || 'Destination';
+  // 23. P/L = Freight - Total Exp Given
+  const netPL = freight - totalExpGiven;
+
+  // 25. Balance Amount = Freight - Total Exp Given
+  const balance = freight - totalExpGiven;
 
   const elBal = document.getElementById('calc-preview-balance');
   const elExp = document.getElementById('calc-preview-expenses');
-  const elStat = document.getElementById('calc-preview-status-amt');
+  const elExpGiven = document.getElementById('calc-preview-exp-given');
   const elPL = document.getElementById('calc-preview-pl');
-  const elRoute = document.getElementById('calc-preview-route');
 
   if (elBal) elBal.textContent = formatCurrency(balance);
   if (elExp) elExp.textContent = formatCurrency(totalExpenses);
-  if (elStat) elStat.textContent = formatCurrency(statusAmount);
+  if (elExpGiven) elExpGiven.textContent = formatCurrency(totalExpGiven);
 
   if (elPL) {
     if (netPL >= 0) {
-      elPL.className = 'text-sm font-black text-emerald-600';
+      elPL.className = 'text-base font-black text-emerald-600 font-mono';
       elPL.textContent = `P +${formatCurrency(netPL)}`;
     } else {
-      elPL.className = 'text-sm font-black text-rose-600';
+      elPL.className = 'text-base font-black text-rose-600 font-mono';
       elPL.textContent = `L -${formatCurrency(Math.abs(netPL))}`;
     }
-  }
-
-  if (elRoute) {
-    elRoute.textContent = `${from} ➔ ${to}`;
   }
 };
 
@@ -1415,7 +1445,7 @@ window.executeSaveNewTrip = function() {
     other: getNum('add-other'),
     driverCommission: getNum('add-driver-comm'),
     status: getStr('add-status') || 'New',
-    statusAmount: getNum('add-status-amount'),
+    balanceReceivedDate: getStr('add-balance-date'),
     deleted: false
   };
 
@@ -1582,6 +1612,8 @@ function openEditSlideOver(tripId) {
   setVal('edit-other', trip.other || 0);
   setVal('edit-driver-comm', trip.driverCommission || 0);
   setVal('edit-status', trip.status || 'Pending');
+  setVal('edit-balance-date', trip.balanceReceivedDate || '');
+  setVal('edit-balance', trip.balance !== undefined && trip.balance !== null ? trip.balance : '');
 
   if (backdrop && panel) {
     backdrop.classList.remove('hidden');
@@ -1630,6 +1662,14 @@ function executeSaveTripEdits() {
   trip.other = getNum('edit-other');
   trip.driverCommission = getNum('edit-driver-comm');
   trip.status = getVal('edit-status', trip.status);
+  trip.balanceReceivedDate = getVal('edit-balance-date', trip.balanceReceivedDate || '');
+
+  const customBal = getVal('edit-balance');
+  if (customBal !== '') {
+    trip.balance = Number(customBal);
+  } else {
+    delete trip.balance;
+  }
 
   const recalculated = calculateTrip(trip);
   const idx = state.trips.findIndex(t => Number(t.id) === idNum);
@@ -1706,18 +1746,19 @@ async function exportToExcel() {
     });
 
     const headers = [
-      'S.No.', 'Trip Date', 'Vehicle No', 'From', 'To', 'Freight Amount',
-      'Advance Date', 'Advance Amount', 'Balance Amount', 'Halting Details', 'TRSP Name',
-      'TRSP Commission', 'Diesel', 'Toll Charges', 'Loading Charges', 'Unloading Charges',
-      'Police Exp', 'RTA C/P', 'Other Expenses', 'Driver Trip Commission',
-      'Status Amount', 'Status', 'P/L', 'Route'
+      '1. S.No.', '2. Trip Date', '3. Vehicle No', '4. From', '5. To', '6. Freight Amount',
+      '7. Advance Date', '8. Advance Amount', '9. Halting Details', '10. TRSP Name',
+      '11. TRSP Commission', '12. Diesel', '13. Toll Charges', '14. Loading Charges', '15. Unloading Charges',
+      '16. Police Exp', '17. RTA C/P', '18. Other Expenses', '19. Driver Trip Commission',
+      '20. Sum OF Total Exp', '21. Total Exp Given', '22. Status', '23. P/L', '24. Date of Balance Recd',
+      '25. Balance Amount'
     ];
 
     worksheet.columns = headers.map(h => ({ header: h, key: h, width: 16 }));
 
     // Header Row
     const headerRow = worksheet.getRow(1);
-    headerRow.height = 30;
+    headerRow.height = 32;
     headerRow.eachCell((cell) => {
       cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
       cell.fill = {
@@ -1737,7 +1778,6 @@ async function exportToExcel() {
     // Data Rows
     trips.forEach((t, idx) => {
       const plFormatted = t.netPL >= 0 ? `P +₹${t.netPL.toLocaleString('en-IN')}` : `L -₹${Math.abs(t.netPL).toLocaleString('en-IN')}`;
-      const routeStr = `${t.from || ''} ➔ ${t.to || ''}`;
 
       const rowValues = [
         t.sNo || idx + 1,
@@ -1748,7 +1788,6 @@ async function exportToExcel() {
         t.freight,
         formatDateDisplay(t.advanceDate),
         t.advance,
-        t.balance,
         t.halting || '',
         t.trspName || '',
         t.trspCommission,
@@ -1760,14 +1799,16 @@ async function exportToExcel() {
         t.rta,
         t.other,
         t.driverCommission,
-        t.statusAmount,
+        t.totalExpenses,
+        t.totalExpGiven,
         t.status,
         plFormatted,
-        routeStr
+        formatDateDisplay(t.balanceReceivedDate),
+        t.balance
       ];
 
       const row = worksheet.addRow(rowValues);
-      row.height = 24;
+      row.height = 25;
 
       row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
         cell.font = { name: 'Calibri', size: 10.5 };
@@ -1779,19 +1820,27 @@ async function exportToExcel() {
           right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
         };
 
-        const numericCols = [6, 8, 9, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21];
+        const numericCols = [6, 8, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 25];
         if (numericCols.includes(colNumber)) {
           cell.alignment = { vertical: 'middle', horizontal: 'right' };
           cell.numFmt = '[$₹-4009]#,##0;([$₹-4009]#,##0);"-"';
-        } else if ([1, 2, 7].includes(colNumber)) {
+        } else if ([1, 2, 7, 10, 24].includes(colNumber)) {
           cell.alignment = { vertical: 'middle', horizontal: 'center' };
         } else if (colNumber === 3) {
           cell.alignment = { vertical: 'middle', horizontal: 'center' };
           cell.font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: 'FF1D4ED8' } };
         }
 
-        if (colNumber === 9 && Number(cell.value) > 0) {
-          cell.font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: 'FFB45309' } };
+        // Highlight Col 20: Sum OF Total Exp
+        if (colNumber === 20) {
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEEF2FF' } };
+          cell.font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: 'FF4338CA' } };
+        }
+
+        // Highlight Col 21: Total Exp Given
+        if (colNumber === 21) {
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3E8FF' } };
+          cell.font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: 'FF6B21A8' } };
         }
 
         // Status Styling (Col 22)
@@ -1825,9 +1874,10 @@ async function exportToExcel() {
           }
         }
 
-        // Route (Col 24)
-        if (colNumber === 24) {
-          cell.font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: 'FF0F172A' } };
+        // Highlight Col 25: Balance Amount
+        if (colNumber === 25) {
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } };
+          cell.font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: 'FFB45309' } };
         }
       });
     });
@@ -1852,13 +1902,15 @@ async function exportToExcel() {
       const colIdx = Number(column.number);
       let safeMinWidth = 16;
       if (colIdx === 1) safeMinWidth = 8;
-      else if (colIdx === 2 || colIdx === 7) safeMinWidth = 16;
+      else if (colIdx === 2 || colIdx === 7 || colIdx === 24) safeMinWidth = 16;
       else if (colIdx === 3) safeMinWidth = 16;
       else if (colIdx === 4 || colIdx === 5) safeMinWidth = 24;
-      else if (colIdx === 10) safeMinWidth = 32;
+      else if (colIdx === 9) safeMinWidth = 28;
+      else if (colIdx === 10) safeMinWidth = 18;
+      else if (colIdx === 20 || colIdx === 21) safeMinWidth = 18;
       else if (colIdx === 22) safeMinWidth = 16;
       else if (colIdx === 23) safeMinWidth = 18;
-      else if (colIdx === 24) safeMinWidth = 42;
+      else if (colIdx === 25) safeMinWidth = 18;
 
       column.width = Math.max(maxLength + 4, safeMinWidth);
     });

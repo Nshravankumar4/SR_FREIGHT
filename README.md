@@ -30,21 +30,22 @@ A clean, modern, executive SaaS application for Lorry Freight Operations, Broker
 
 4. **Master Table with Dedicated "View Details" Column:**
    - **`👁️ Details` Column:** Located before `1. S.No`. Clicking **`👁️ View`** on any row highlights the trip and displays the comprehensive report in the panel down below the table.
-   - **Exact 24 Business Columns:**
-     1. `S.No.` 2. `Trip Date` 3. `Vehicle No` 4. `From` 5. `To` 6. `Freight Amount` 7. `Advance Date` 8. `Advance Amount` 9. `Balance Amount` 10. `Halting Details` 11. `TRSP Name` 12. `TRSP Commission` 13. `Diesel` 14. `Toll Charges` 15. `Loading Charges` 16. `Unloading Charges` 17. `Police Exp` 18. `RTA C/P` 19. `Other Expenses` 20. `Driver Trip Commission` 21. `Status Amount` 22. `Status` 23. `P/L` 24. `Route`.
+   - **Exact 25 Business Columns (No Route column):**
+     1. `1. S.No` 2. `2. Trip Date` 3. `3. Vehicle No` 4. `4. From` 5. `5. To` 6. `6. Freight Amount` 7. `7. Advance Date` 8. `8. Advance Amount` 9. `9. Halting Details` 10. `10. TRSP Name` 11. `11. TRSP Comm` 12. `12. Diesel` 13. `13. Toll Charges` 14. `14. Loading Charges` 15. `15. Unloading Charges` 16. `16. Police Exp` 17. `17. RTA C/P` 18. `18. Other Expenses` 19. `19. Driver Comm` 20. `20. Sum OF Total Exp` 21. `21. Total Exp Given` 22. `22. Status` 23. `23. P/L` 24. `24. Date Balance Recd` 25. `25. Balance Amount`.
    - **Actions Column:** `✏️ Edit` and `🗑️ Delete` separated from business data columns.
 
 5. **Trip Details & Financial Breakdown Panel (Below the Table):**
-   - Renders 4 high-impact metric cards, 9-expense itemized ledger, halting details, and profit analysis for the selected trip.
+   - Renders 6 high-impact financial cards, 9-expense itemized ledger, halting details, and profit analysis for the selected trip.
 
 6. **Confirmation Popups & Success Toasts:**
    - Two-step confirmation for both Edit and Delete operations with instant toast notifications.
 
-6. **Automated Calculations & Independence:**
-   - `Balance Amount = Freight Amount - Advance Amount`
-   - `Total Expenses = TRSP Commission + Diesel + Toll + Loading + Unloading + Police + RTA + Other + Driver Commission`
-   - `P/L = Freight Amount - Total Expenses`
-   - `Status`: Manually selected (`Pending`, `Partially Paid`, `Paid`). Status never overrides P/L logic.
+7. **Exact Business Formulas:**
+   - `20. Sum OF Total Exp = TRSP Comm + Diesel + Toll + Loading + Unloading + Police + RTA + Other + Driver Comm` (Sum of 9 expenses)
+   - `21. Total Exp Given = Advance Amount + Sum OF Total Exp`
+   - `23. P/L = Freight Amount - Total Exp Given`
+   - `25. Balance Amount = Freight Amount - Total Exp Given`
+   - `Status`: Manually selected (`New`, `Pending`, `Partially Paid`, `Paid`). Status never overrides P/L logic.
 
 ---
 

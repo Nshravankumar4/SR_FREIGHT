@@ -378,40 +378,41 @@
       <!-- Master Data Table Card -->
       <div class="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden">
         <div class="overflow-x-auto custom-scrollbar">
-          <table class="min-w-full divide-y divide-gray-200 text-left text-xs">
-            <thead class="bg-gray-100/90 sticky top-0 backdrop-blur-xs text-gray-600 font-bold uppercase tracking-wider select-none text-[11px]">
+          <table class="min-w-full divide-y divide-gray-200 text-left text-sm">
+            <thead class="bg-gray-100/90 sticky top-0 backdrop-blur-xs text-gray-700 font-black uppercase tracking-wider select-none text-xs">
               <tr>
                 <!-- Dedicated VIEW DETAILS button column BEFORE S.No -->
-                <th scope="col" class="py-3.5 px-3 text-center whitespace-nowrap bg-blue-50 text-blue-900 font-black border-r border-blue-100 sticky left-0 z-10 shadow-2xs">
+                <th scope="col" class="py-4 px-3.5 text-center whitespace-nowrap bg-blue-50 text-blue-900 font-black border-r border-blue-100 sticky left-0 z-10 shadow-2xs">
                   👁️ Details
                 </th>
-                <!-- Exactly 24 Business Columns in order -->
-                <th scope="col" class="py-3.5 px-3 text-center whitespace-nowrap">1. S.No</th>
-                <th scope="col" class="py-3.5 px-3.5 whitespace-nowrap">2. Trip Date</th>
-                <th scope="col" class="py-3.5 px-3.5 whitespace-nowrap">3. Vehicle No</th>
-                <th scope="col" class="py-3.5 px-3.5 whitespace-nowrap">4. From</th>
-                <th scope="col" class="py-3.5 px-3.5 whitespace-nowrap">5. To</th>
-                <th scope="col" class="py-3.5 px-3.5 text-right whitespace-nowrap font-extrabold text-gray-900">6. Freight Amount</th>
-                <th scope="col" class="py-3.5 px-3.5 whitespace-nowrap">7. Advance Date</th>
-                <th scope="col" class="py-3.5 px-3.5 text-right whitespace-nowrap font-bold">8. Advance Amount</th>
-                <th scope="col" class="py-3.5 px-3.5 text-right whitespace-nowrap font-extrabold text-amber-700">9. Balance Amount</th>
-                <th scope="col" class="py-3.5 px-3.5 whitespace-nowrap">10. Halting Details</th>
-                <th scope="col" class="py-3.5 px-3.5 whitespace-nowrap">11. TRSP Name</th>
-                <th scope="col" class="py-3.5 px-3.5 text-right whitespace-nowrap">12. TRSP Comm</th>
-                <th scope="col" class="py-3.5 px-3.5 text-right whitespace-nowrap">13. Diesel</th>
-                <th scope="col" class="py-3.5 px-3.5 text-right whitespace-nowrap">14. Toll Charges</th>
-                <th scope="col" class="py-3.5 px-3.5 text-right whitespace-nowrap">15. Loading Charges</th>
-                <th scope="col" class="py-3.5 px-3.5 text-right whitespace-nowrap">16. Unloading Charges</th>
-                <th scope="col" class="py-3.5 px-3.5 text-right whitespace-nowrap">17. Police Exp</th>
-                <th scope="col" class="py-3.5 px-3.5 text-right whitespace-nowrap">18. RTA C/P</th>
-                <th scope="col" class="py-3.5 px-3.5 text-right whitespace-nowrap">19. Other Expenses</th>
-                <th scope="col" class="py-3.5 px-3.5 text-right whitespace-nowrap">20. Driver Comm</th>
-                <th scope="col" class="py-3.5 px-3.5 text-right whitespace-nowrap font-extrabold text-blue-700">21. Status Amount</th>
-                <th scope="col" class="py-3.5 px-3.5 whitespace-nowrap font-extrabold">22. Status</th>
-                <th scope="col" class="py-3.5 px-3.5 whitespace-nowrap font-extrabold text-center">23. P/L</th>
-                <th scope="col" class="py-3.5 px-4 whitespace-nowrap font-bold text-gray-800">24. Route</th>
+                <!-- Exact 25 Business Columns (From and To independent columns) -->
+                <th scope="col" class="py-4 px-3.5 text-center whitespace-nowrap">1. S.No</th>
+                <th scope="col" class="py-4 px-3.5 whitespace-nowrap">2. Trip Date</th>
+                <th scope="col" class="py-4 px-3.5 whitespace-nowrap">3. Vehicle No</th>
+                <th scope="col" class="py-4 px-3.5 whitespace-nowrap">4. From</th>
+                <th scope="col" class="py-4 px-3.5 whitespace-nowrap">5. To</th>
+                <th scope="col" class="py-4 px-3.5 text-right whitespace-nowrap font-black text-gray-900">6. Freight Amount</th>
+                <th scope="col" class="py-4 px-3.5 whitespace-nowrap">7. Advance Date</th>
+                <th scope="col" class="py-4 px-3.5 text-right whitespace-nowrap font-bold">8. Advance Amount</th>
+                <th scope="col" class="py-4 px-3.5 whitespace-nowrap">9. Halting Details</th>
+                <th scope="col" class="py-4 px-3.5 whitespace-nowrap">10. TRSP Name</th>
+                <th scope="col" class="py-4 px-3.5 text-right whitespace-nowrap">11. TRSP Comm</th>
+                <th scope="col" class="py-4 px-3.5 text-right whitespace-nowrap">12. Diesel</th>
+                <th scope="col" class="py-4 px-3.5 text-right whitespace-nowrap">13. Toll Charges</th>
+                <th scope="col" class="py-4 px-3.5 text-right whitespace-nowrap">14. Loading Charges</th>
+                <th scope="col" class="py-4 px-3.5 text-right whitespace-nowrap">15. Unloading Charges</th>
+                <th scope="col" class="py-4 px-3.5 text-right whitespace-nowrap">16. Police Exp</th>
+                <th scope="col" class="py-4 px-3.5 text-right whitespace-nowrap">17. RTA C/P</th>
+                <th scope="col" class="py-4 px-3.5 text-right whitespace-nowrap">18. Other Expenses</th>
+                <th scope="col" class="py-4 px-3.5 text-right whitespace-nowrap">19. Driver Comm</th>
+                <th scope="col" class="py-4 px-3.5 text-right whitespace-nowrap font-black text-indigo-700 bg-indigo-50/50">20. Sum OF Total Exp</th>
+                <th scope="col" class="py-4 px-3.5 text-right whitespace-nowrap font-black text-purple-700 bg-purple-50/50">21. Total Exp Given</th>
+                <th scope="col" class="py-4 px-3.5 whitespace-nowrap font-black text-center">22. Status</th>
+                <th scope="col" class="py-4 px-3.5 whitespace-nowrap font-black text-center">23. P/L</th>
+                <th scope="col" class="py-4 px-3.5 whitespace-nowrap">24. Date Balance Recd</th>
+                <th scope="col" class="py-4 px-3.5 text-right whitespace-nowrap font-black text-amber-700 bg-amber-50/50">25. Balance Amount</th>
                 <!-- Row Action (Not counted as a business column) -->
-                <th scope="col" class="py-3.5 px-3 text-center whitespace-nowrap text-gray-500 font-bold bg-gray-200/50">Actions</th>
+                <th scope="col" class="py-4 px-3.5 text-center whitespace-nowrap text-gray-600 font-black bg-gray-200/50">Actions</th>
               </tr>
             </thead>
             <tbody id="trips-tbody" class="divide-y divide-gray-100 bg-white">
@@ -548,24 +549,24 @@
           </div>
         </div>
 
-        <!-- SECTION 3: PAYMENT STATUS -->
+        <!-- SECTION 3: PAYMENT STATUS & RECONCILIATION -->
         <div class="space-y-3 pt-3 border-t border-gray-100">
           <h4 class="text-xs font-black text-amber-700 uppercase tracking-wider flex items-center gap-2">
-            <span>💳</span> 3. PAYMENT STATUS
+            <span>💳</span> 3. PAYMENT STATUS & RECONCILIATION
           </h4>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label class="block font-bold text-gray-700 mb-1">Status</label>
-              <select id="add-status" onchange="handleAddStatusChange()" class="w-full px-3 py-2 border border-gray-300 rounded-xl font-bold bg-white focus:ring-2 focus:ring-blue-500">
+              <label class="block font-bold text-gray-700 mb-1">Payment Status</label>
+              <select id="add-status" class="w-full px-3 py-2 border border-gray-300 rounded-xl font-bold bg-white focus:ring-2 focus:ring-blue-500">
                 <option value="New">New (Fresh Dispatch)</option>
                 <option value="Pending" selected>Pending</option>
                 <option value="Partially Paid">Partially Paid</option>
                 <option value="Paid">Paid</option>
               </select>
             </div>
-            <div id="add-status-amount-box" class="hidden">
-              <label class="block font-bold text-gray-700 mb-1">Remaining Unpaid Amount (₹)</label>
-              <input type="number" id="add-status-amount" oninput="updateAddTripCalculations()" class="w-full px-3 py-2 border border-orange-300 rounded-xl font-bold text-orange-700" placeholder="0">
+            <div>
+              <label class="block font-bold text-gray-700 mb-1">Date of Balance Received</label>
+              <input type="date" id="add-balance-date" class="w-full px-3 py-2 border border-gray-300 rounded-xl font-medium">
             </div>
           </div>
         </div>
@@ -573,28 +574,24 @@
         <!-- SECTION 4: CALCULATED DETAILS (READ ONLY) -->
         <div class="space-y-2 pt-3 border-t border-gray-100">
           <h4 class="text-xs font-black text-gray-500 uppercase tracking-wider flex items-center gap-2">
-            <span>⚡</span> 4. CALCULATED DETAILS (READ ONLY)
+            <span>⚡</span> 4. CALCULATED DETAILS (AUTOMATIC)
           </h4>
-          <div class="grid grid-cols-2 sm:grid-cols-5 gap-2.5 bg-gray-50 p-3.5 rounded-2xl border border-gray-200">
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-gray-50 p-4 rounded-2xl border border-gray-200">
             <div>
-              <div class="text-[10px] font-bold text-gray-500 uppercase">Balance Amount</div>
-              <div id="calc-preview-balance" class="text-sm font-black text-amber-600">₹0</div>
+              <div class="text-[11px] font-bold text-gray-500 uppercase">20. Sum OF Total Exp</div>
+              <div id="calc-preview-expenses" class="text-base font-black text-indigo-700 font-mono">₹0</div>
             </div>
             <div>
-              <div class="text-[10px] font-bold text-gray-500 uppercase">Total Expenses</div>
-              <div id="calc-preview-expenses" class="text-sm font-black text-gray-900">₹0</div>
+              <div class="text-[11px] font-bold text-gray-500 uppercase">21. Total Exp Given</div>
+              <div id="calc-preview-exp-given" class="text-base font-black text-purple-700 font-mono">₹0</div>
             </div>
             <div>
-              <div class="text-[10px] font-bold text-gray-500 uppercase">Status Amount</div>
-              <div id="calc-preview-status-amt" class="text-sm font-black text-blue-700">₹0</div>
+              <div class="text-[11px] font-bold text-gray-500 uppercase">23. Net P/L</div>
+              <div id="calc-preview-pl" class="text-base font-black text-emerald-600 font-mono">P +₹0</div>
             </div>
             <div>
-              <div class="text-[10px] font-bold text-gray-500 uppercase">Net P/L</div>
-              <div id="calc-preview-pl" class="text-sm font-black text-emerald-600">P +₹0</div>
-            </div>
-            <div class="col-span-2 sm:col-span-1">
-              <div class="text-[10px] font-bold text-gray-500 uppercase">Generated Route</div>
-              <div id="calc-preview-route" class="text-xs font-bold text-gray-800 truncate">- ➔ -</div>
+              <div class="text-[11px] font-bold text-gray-500 uppercase">25. Balance Amount</div>
+              <div id="calc-preview-balance" class="text-base font-black text-amber-600 font-mono">₹0</div>
             </div>
           </div>
         </div>
@@ -679,6 +676,17 @@
             <option value="Partially Paid">Partially Paid</option>
             <option value="Paid">Paid</option>
           </select>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block font-bold text-gray-700 mb-1">Date of Balance Received</label>
+          <input type="date" id="edit-balance-date" class="w-full px-3 py-2 border border-gray-300 rounded-xl font-medium">
+        </div>
+        <div>
+          <label class="block font-bold text-gray-700 mb-1">Balance Amount (₹)</label>
+          <input type="number" id="edit-balance" class="w-full px-3 py-2 border border-gray-300 rounded-xl font-bold text-amber-700">
         </div>
       </div>
 
