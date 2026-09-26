@@ -1,6 +1,16 @@
-build/
-.qtcreator/
-*.user
-*.exe
-*.dll
+# Node / Build artifacts
+.dist/
+node_modules/
+
+# Python artifacts
+__pycache__/
+*.pyc
+
+# Temporary Excel lock files
+~$*.xlsx
+
+# Environment / local settings
+.env
+.DS_Store
+Thumbs.db
 
