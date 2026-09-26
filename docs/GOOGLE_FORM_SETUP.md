@@ -5,10 +5,10 @@ This document specifies the exact fields, question types, validation rules, and 
 ---
 
 ## Form Title & Settings
-- **Form Title:** `Lorry Trip Entry Form`
-- **Description:** `Enter details for completed or ongoing lorry trips. Data will automatically synchronize with the Lorry Fleet Master Sheet & Web App.`
+- **Form Title:** `SR_T Lorry Trip Entry Form`
+- **Description:** `Enter details for completed or ongoing lorry trips. Data will automatically synchronize with the Lorry Fleet Master Sheet & Web Dashboard.`
 - **Settings:**
-  - Collect email addresses: *Optional (recommended if tracking employee entries)*
+  - Collect email addresses: *Optional*
   - Link responses to spreadsheet: *Select existing spreadsheet `Lorry Fleet Master Database` > `Trips` tab.*
 
 ---
@@ -27,7 +27,6 @@ This document specifies the exact fields, question types, validation rules, and 
      - `TS15UE1122`
      - `TG15T6666`
      - *(Add additional fleet vehicles)*
-   - **Validation (if Short text):** Regular expression: `^[a-zA-Z0-9\s]+$`
 
 3. **From (Origin Location)**
    - **Type:** Short text
@@ -42,9 +41,9 @@ This document specifies the exact fields, question types, validation rules, and 
 5. **Halting Details**
    - **Type:** Short text / Paragraph
    - **Required:** No (Default: "None")
-   - **Example:** `Two days halting during transit due to unloading delay`
+   - **Example:** `Two days halting during transit`
 
-6. **Transport / Broker Name**
+6. **TRSP Name (Transport Broker)**
    - **Type:** Short text / Dropdown
    - **Required:** Yes
    - **Example:** `MRC`
@@ -74,7 +73,7 @@ This document specifies the exact fields, question types, validation rules, and 
 
 *(Enter ₹0 for any expense category that does not apply)*
 
-10. **Transport / Broker Commission (₹)**
+10. **TRSP Commission (₹)**
     - **Type:** Short text (Validation: Number >= 0)
     - **Required:** Yes (Default: `0`)
 
@@ -98,11 +97,11 @@ This document specifies the exact fields, question types, validation rules, and 
     - **Type:** Short text (Validation: Number >= 0)
     - **Required:** Yes (Default: `0`)
 
-16. **RTA Checkpost Charges (₹)**
+16. **RTA C/P (₹)**
     - **Type:** Short text (Validation: Number >= 0)
     - **Required:** Yes (Default: `0`)
 
-17. **Other Miscellaneous Expenses (₹)**
+17. **Other Expenses (₹)**
     - **Type:** Short text (Validation: Number >= 0)
     - **Required:** Yes (Default: `0`)
 
@@ -110,12 +109,18 @@ This document specifies the exact fields, question types, validation rules, and 
     - **Type:** Short text (Validation: Number >= 0)
     - **Required:** Yes (Default: `0`)
 
+19. **Payment Status**
+    - **Type:** Multiple choice
+    - **Options:** `Pending`, `Partially Paid`, `Paid`
+    - **Required:** Yes (Default: `Pending`)
+
 ---
 
-## Note on Automated Fields
-The following fields do **NOT** need to be in the Google Form; they are calculated automatically by the Google Sheet and Web App:
-- `Balance Amount` (`Freight - Advance`)
-- `Total Expenses` (`Sum of 9 expense items`)
-- `Net Profit / Loss` (`Freight - Total Expenses`)
-- `Status P/L` (`P` or `L`)
+## Automated Business Columns
 
+The following 5 columns are calculated automatically by the Apps Script & Web Dashboard and must **NOT** be prompted in the form:
+- **Balance Amount:** `Freight Amount - Advance Amount`
+- **Total Expenses:** Sum of the 9 operating expenses
+- **Status Amount:** Balance for Pending, ₹0 for Paid, remaining balance for Partially Paid
+- **P/L:** `P +₹...` or `L -₹...` calculated as `Freight Amount - Total Expenses`
+- **Route:** `${From} ➔ ${To}`

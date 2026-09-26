@@ -1,6 +1,32 @@
 /**
- * LORRY FREIGHT MANAGEMENT - GOOGLE APPS SCRIPT BACKEND
- * Connects Google Form -> Form Responses 1 -> Master Trips Sheet -> JSON API
+ * LORRY FREIGHT & BROKER MANAGEMENT SYSTEM - GOOGLE APPS SCRIPT BACKEND
+ * Connects Google Form -> Form Responses 1 -> Master Trips Sheet (24 Columns) -> JSON API
+ * 
+ * Master Trips Table Columns (Exact 24 Business Columns):
+ * 1. S.No.
+ * 2. Trip Date
+ * 3. Vehicle No
+ * 4. From
+ * 5. To
+ * 6. Freight Amount
+ * 7. Advance Date
+ * 8. Advance Amount
+ * 9. Balance Amount
+ * 10. Halting Details
+ * 11. TRSP Name
+ * 12. TRSP Commission
+ * 13. Diesel
+ * 14. Toll Charges
+ * 15. Loading Charges
+ * 16. Unloading Charges
+ * 17. Police Exp
+ * 18. RTA C/P
+ * 19. Other Expenses
+ * 20. Driver Trip Commission
+ * 21. Status Amount
+ * 22. Status
+ * 23. P/L
+ * 24. Route
  */
 
 const SHEET_TRIPS = 'Trips';
@@ -44,7 +70,8 @@ function doPost(e) {
       payload = e.parameter;
     }
 
-    const newTrip = calculateTripRow(payload, sheet.getLastRow());
+    const nextSNo = sheet.getLastRow();
+    const newTrip = calculateTripRow(payload, nextSNo);
     appendTripToMaster(sheet, newTrip);
 
     responseData = { status: 'success', message: 'Trip added successfully', data: newTrip };
@@ -91,11 +118,12 @@ function onFormSubmit(e) {
     status: values[19] || 'Pending'
   };
 
-  const calculated = calculateTripRow(payload, masterSheet.getLastRow());
+  const nextSNo = masterSheet.getLastRow();
+  const calculated = calculateTripRow(payload, nextSNo);
   appendTripToMaster(masterSheet, calculated);
 }
 
-// Fetch all trips from Master Sheet
+// Fetch all trips from Master Sheet (24 Columns)
 function fetchAllTrips(sheet) {
   const data = sheet.getDataRange().getValues();
   if (data.length <= 1) return [];
@@ -125,15 +153,18 @@ function fetchAllTrips(sheet) {
     const rta = Number(r[17]) || 0;
     const other = Number(r[18]) || 0;
     const driverCommission = Number(r[19]) || 0;
-    const status = String(r[21] || 'Pending').trim();
+    
+    let status = String(r[21] || 'Pending').trim();
+    if (status === 'Done') status = 'Paid';
 
     let statusAmount = balance;
-    if (status === 'Done' || status === 'Paid') statusAmount = 0;
+    if (status === 'Paid') statusAmount = 0;
     else if (status === 'Partially Paid') statusAmount = Number(r[20]) || balance;
 
     const totalExpenses = trspCommission + diesel + toll + loading + unloading + police + rta + other + driverCommission;
     const netPL = freight - totalExpenses;
-    const pl = netPL >= 0 ? 'Profit' : 'Loss';
+    const plFormatted = netPL >= 0 ? `P +₹${Math.abs(netPL).toLocaleString('en-IN')}` : `L -₹${Math.abs(netPL).toLocaleString('en-IN')}`;
+    const route = r[23] ? String(r[23]).trim() : `${fromLoc} ➔ ${toLoc}`;
 
     trips.push({
       sNo: sNo,
@@ -156,18 +187,18 @@ function fetchAllTrips(sheet) {
       rta: rta,
       other: other,
       driverCommission: driverCommission,
-      totalExpenses: totalExpenses,
       statusAmount: statusAmount,
       status: status,
       netPL: netPL,
-      pl: pl
+      pl: plFormatted,
+      route: route
     });
   }
 
   return trips;
 }
 
-// Calculate row values based on business logic
+// Calculate row values based on strict business logic
 function calculateTripRow(p, nextSNo) {
   const freight = Number(p.freight) || 0;
   const advance = Number(p.advance) || 0;
@@ -185,15 +216,18 @@ function calculateTripRow(p, nextSNo) {
 
   const totalExpenses = trspCommission + diesel + toll + loading + unloading + police + rta + other + driverCommission;
   const netPL = freight - totalExpenses;
-  const pl = netPL >= 0 ? 'Profit' : 'Loss';
+  const plFormatted = netPL >= 0 ? `P +₹${Math.abs(netPL).toLocaleString('en-IN')}` : `L -₹${Math.abs(netPL).toLocaleString('en-IN')}`;
 
-  const status = p.status || 'Pending';
+  let status = p.status || 'Pending';
+  if (status === 'Done') status = 'Paid';
+
   let statusAmount = balance;
-  if (status === 'Done' || status === 'Paid') statusAmount = 0;
+  if (status === 'Paid') statusAmount = 0;
   else if (status === 'Partially Paid') statusAmount = Number(p.statusAmount) || balance;
 
   const fromLoc = String(p.from || '').trim();
   const toLoc = String(p.to || '').trim();
+  const route = `${fromLoc} ➔ ${toLoc}`;
 
   return {
     sNo: nextSNo || 1,
@@ -219,11 +253,12 @@ function calculateTripRow(p, nextSNo) {
     statusAmount: statusAmount,
     status: status,
     netPL: netPL,
-    pl: pl
+    pl: plFormatted,
+    route: route
   };
 }
 
-// Append formatted row to Trips sheet
+// Append formatted row to Trips sheet (Exact 24 Columns)
 function appendTripToMaster(sheet, t) {
   sheet.appendRow([
     t.sNo,
@@ -248,11 +283,12 @@ function appendTripToMaster(sheet, t) {
     t.driverCommission,
     t.statusAmount,
     t.status,
-    t.netPL
+    t.pl,
+    t.route
   ]);
 }
 
-// Setup Trips Sheet with the exact 23 columns
+// Setup Trips Sheet with the exact 24 business columns
 function setupTripsSheet(ss) {
   let sheet = ss.getSheetByName(SHEET_TRIPS);
   if (!sheet) sheet = ss.insertSheet(SHEET_TRIPS);
@@ -262,7 +298,7 @@ function setupTripsSheet(ss) {
     'Advance Date', 'Advance Amount', 'Balance Amount', 'Halting Details',
     'TRSP Name', 'TRSP Commission', 'Diesel', 'Toll Charges', 'Loading Charges',
     'Unloading Charges', 'Police Exp', 'RTA C/P', 'Other Expenses', 'Driver Trip Commission',
-    'Status Amount', 'Payment Status', 'Net Profit / Loss'
+    'Status Amount', 'Status', 'P/L', 'Route'
   ];
 
   sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
