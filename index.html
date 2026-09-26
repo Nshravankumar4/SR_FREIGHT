@@ -1010,6 +1010,18 @@
             📦 Create Cloud Backup
           </button>
         </div>
+
+        <!-- Point-in-Time Backup Snapshots History -->
+        <div class="border-t border-gray-100 pt-3 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="block font-bold text-gray-700">💾 Point-in-Time Snapshots (History)</span>
+            <span id="backup-snapshot-count" class="text-[11px] text-gray-500 font-medium">0 snapshots</span>
+          </div>
+          <p class="text-[11px] text-gray-400">Every Add, Edit, Delete, or Manual Backup automatically captures a snapshot. Admin can restore any past state with 1 click.</p>
+          <div id="backup-snapshots-container" class="max-h-48 overflow-y-auto space-y-1.5 border border-gray-200 rounded-xl p-2 bg-slate-50/50">
+            <!-- Populated dynamically by BackupModule.renderUI() -->
+          </div>
+        </div>
       </div>
 
       <div class="flex items-center justify-end gap-2.5 pt-3 border-t border-gray-100">

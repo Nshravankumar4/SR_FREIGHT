@@ -27,9 +27,10 @@ Just like in the reference architecture (`D:\Repo\SR_T`), the system operates ac
    - **Tab Focus Auto-Sync:** As soon as a user clicks back to their browser tab (`window.focus`), it instantly checks the cloud for newly added trips.
    - **Multi-Tab BroadcastChannel:** Any changes in one tab immediately synchronize across all open browser windows (`BroadcastChannel: lorry_sync_channel`).
 
-3. **Zero Data Loss & Smart Seeding:**
-   - If a newly connected Google Sheet is empty, the application automatically seeds existing trips into the cloud spreadsheet.
-   - Every mutation (add, edit, delete) automatically triggers a timestamped backup copy in Google Drive (`Lorry_Backups`).
+3. **Zero Data Loss & 3-Layer Backup Architecture (Identical to `SR_T`):**
+   - **Layer 1 (LocalStorage Point-in-Time Snapshots):** Up to 25 rolling snapshots (`lorry_backup_snapshots_v1`) capturing exact trip datasets after every Add/Edit/Delete mutation.
+   - **Layer 2 (Google Drive Clones):** Background trigger clones the master workbook into `Lorry_Backups` using Google Apps Script `DriveApp`.
+   - **Layer 3 (1-Click Recovery):** Admin can open Cloud Settings and click `[🔄 Restore]` next to any snapshot to instantly restore both local browser state and cloud Google Sheets.
 
 ---
 

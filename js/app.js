@@ -206,6 +206,7 @@ function applyRolePermissions() {
 document.addEventListener('DOMContentLoaded', () => {
   setupAuth();
   loadTrips();
+  BackupModule.init();
   setupGlobalControls();
   setupModals();
   setupSlideOverEvents();
@@ -379,6 +380,17 @@ function setupAuth() {
   }
 }
 
+// Helper to sanitize HTML for UI output
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 // ==========================================================================
 // 1.5 Cloud & Local Point-in-Time Backup Module (Ref: D:\Repo\SR_T)
 // ==========================================================================
@@ -388,6 +400,7 @@ const BackupModule = {
 
   init() {
     this.loadSnapshots();
+    this.renderUI();
   },
 
   loadSnapshots() {
@@ -415,6 +428,7 @@ const BackupModule = {
     try {
       this.loadSnapshots();
       const snapshot = {
+        id: 'SNAP-' + Date.now(),
         timestamp: new Date().toISOString(),
         displayTime: new Date().toLocaleString('en-IN'),
         reason: reason,
@@ -425,6 +439,7 @@ const BackupModule = {
       };
       this.snapshots.unshift(snapshot);
       this.saveSnapshots();
+      this.renderUI();
 
       // Trigger cloud backup if API is configured
       if (state.apiUrl) {
@@ -433,8 +448,100 @@ const BackupModule = {
     } catch (err) {
       console.warn('BackupModule mutation snapshot error:', err);
     }
+  },
+
+  async restoreSnapshot(snapshotId) {
+    if (state.currentRole !== 'Admin') {
+      showToast('❌ Only Admin can restore database snapshots.');
+      return;
+    }
+    this.loadSnapshots();
+    const snap = this.snapshots.find(s => s.id === snapshotId);
+    if (!snap || !snap.tripsData) {
+      alert('Snapshot data not found!');
+      return;
+    }
+
+    const confirmMsg = `⚠️ RESTORE DATABASE SNAPSHOT?\n\n` +
+      `Date & Time: ${snap.displayTime}\n` +
+      `Reason: ${snap.reason}\n` +
+      `User: ${snap.user} (${snap.role})\n` +
+      `Trips: ${snap.tripsCount}\n\n` +
+      `This will restore all records to this point in time and synchronize with Google Sheets. Continue?`;
+
+    if (!confirm(confirmMsg)) return;
+
+    try {
+      state.trips = JSON.parse(JSON.stringify(snap.tripsData));
+      localStorage.setItem('lorry_trips_master_v9', JSON.stringify(state.trips));
+      render();
+
+      if (state.apiUrl) {
+        showToast('🔄 Synchronizing restored data to Google Sheets...');
+        await sendCloudMutation('restoreFullDataset', {
+          trips: state.trips,
+          role: state.currentRole,
+          user: state.currentUser
+        });
+      }
+
+      showToast(`🎉 Database restored to snapshot from ${snap.displayTime}!`);
+      this.renderUI();
+    } catch (err) {
+      console.error('Restore error:', err);
+      alert('Failed to restore snapshot: ' + err.message);
+    }
+  },
+
+  deleteSnapshot(snapshotId) {
+    if (!confirm("Are you sure you want to remove this backup snapshot from history?")) return;
+    this.loadSnapshots();
+    this.snapshots = this.snapshots.filter(s => s.id !== snapshotId);
+    this.saveSnapshots();
+    this.renderUI();
+    showToast('Snapshot removed from history.');
+  },
+
+  renderUI() {
+    const container = document.getElementById('backup-snapshots-container');
+    const countEl = document.getElementById('backup-snapshot-count');
+    if (countEl) {
+      countEl.textContent = `${this.snapshots.length} snapshot${this.snapshots.length === 1 ? '' : 's'}`;
+    }
+    if (!container) return;
+
+    if (this.snapshots.length === 0) {
+      container.innerHTML = `
+        <div class="p-3 text-center text-gray-400 text-[11px]">
+          No snapshots saved yet. Any Add, Edit, Delete, or Manual Backup creates one automatically.
+        </div>`;
+      return;
+    }
+
+    container.innerHTML = this.snapshots.map(s => `
+      <div class="flex items-center justify-between p-2 bg-white rounded-lg border border-gray-100 shadow-2xs hover:border-blue-200 transition">
+        <div class="space-y-0.5 pr-2">
+          <div class="flex items-center gap-2">
+            <span class="font-bold text-gray-800 text-[11px]">${escapeHtml(s.displayTime)}</span>
+            <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-700">${s.tripsCount || 0} Trips</span>
+          </div>
+          <div class="text-[10px] text-gray-500 truncate max-w-[240px]">
+            ${escapeHtml(s.reason || 'Snapshot')} • <span class="text-gray-400">${escapeHtml(s.user || '')}</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-1.5 shrink-0">
+          <button type="button" onclick="BackupModule.restoreSnapshot('${s.id}')" title="Restore this snapshot" class="px-2 py-1 text-[11px] font-bold bg-amber-50 hover:bg-amber-100 text-amber-800 rounded-md border border-amber-200 transition cursor-pointer">
+            🔄 Restore
+          </button>
+          <button type="button" onclick="BackupModule.deleteSnapshot('${s.id}')" title="Delete snapshot" class="p-1 text-gray-400 hover:text-red-600 transition cursor-pointer">
+            ✕
+          </button>
+        </div>
+      </div>
+    `).join('');
   }
 };
+window.BackupModule = BackupModule;
 
 function loadTrips() {
   const saved = localStorage.getItem('lorry_trips_master_v9');
@@ -2358,6 +2465,7 @@ function openSettingsModal() {
   }
   if (modal) {
     modal.classList.remove('hidden');
+    BackupModule.renderUI();
   }
 }
 
