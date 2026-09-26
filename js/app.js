@@ -129,7 +129,17 @@ const INITIAL_TRIPS = [
 ];
 
 // Clean Application State (Cloud Database First)
+const CURRENT_ACTIVE_DEPLOYMENT_ID = 'AKfycbyp5fBDoLJTAMS-x7K75yST2ZP0aKRWZs9mlyT2SH5ZGnQhvqrc_rfGPNTP8yymqjdQ';
 const DEFAULT_CLOUD_API_URL = 'https://script.google.com/macros/s/AKfycbyp5fBDoLJTAMS-x7K75yST2ZP0aKRWZs9mlyT2SH5ZGnQhvqrc_rfGPNTP8yymqjdQ/exec';
+
+function getEffectiveApiUrl() {
+  const saved = localStorage.getItem('lorry_api_url');
+  if (!saved || saved.includes('AKfycbwFo4') || saved.includes('AKfycbymLz') || !saved.includes('AKfycbyp5f')) {
+    localStorage.setItem('lorry_api_url', DEFAULT_CLOUD_API_URL);
+    return DEFAULT_CLOUD_API_URL;
+  }
+  return saved.trim();
+}
 
 const state = {
   trips: [],
@@ -141,7 +151,7 @@ const state = {
   statusFilter: 'ALL',   // 'ALL' | 'NEW' | 'PROFIT' | 'LOSS' | 'PENDING' | 'PARTIAL' | 'PAID' | 'BALANCE_MISMATCH'
   searchQuery: '',
   selectedTripId: null,
-  apiUrl: localStorage.getItem('lorry_api_url') || DEFAULT_CLOUD_API_URL,
+  apiUrl: getEffectiveApiUrl(),
   pendingEditTripId: null,
   pendingDeleteTripId: null,
   currentUser: localStorage.getItem('lorry_auth_user') || null,
@@ -2261,6 +2271,13 @@ async function syncWithGoogleSheet() {
       throw new Error(json.message || 'Invalid server response format');
     }
   } catch (err) {
+    // Self-healing: if error occurred on an old or cached URL, reset immediately to DEFAULT_CLOUD_API_URL!
+    if (state.apiUrl !== DEFAULT_CLOUD_API_URL) {
+      console.warn("Resetting outdated API URL in localStorage to default active deployment...");
+      state.apiUrl = DEFAULT_CLOUD_API_URL;
+      localStorage.setItem('lorry_api_url', DEFAULT_CLOUD_API_URL);
+      return syncWithGoogleSheet();
+    }
     if (err.message && err.message.toLowerCase().includes('failed to fetch')) {
       showToast(`❌ Cloud Sync Error: Failed to fetch. Ensure Google Apps Script deployment has 'Who has access' set to 'Anyone' (not 'Only myself').`, 7000);
     } else {
@@ -2519,7 +2536,10 @@ async function autoSyncCloud(isSilent = true) {
       }
     }
   } catch (e) {
-    // Silent fail in background
+    if (state.apiUrl !== DEFAULT_CLOUD_API_URL) {
+      state.apiUrl = DEFAULT_CLOUD_API_URL;
+      localStorage.setItem('lorry_api_url', DEFAULT_CLOUD_API_URL);
+    }
   } finally {
     isSyncingInBackground = false;
   }
