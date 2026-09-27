@@ -547,11 +547,18 @@ function formatDate(val) {
   if (!val) return '';
   if (val instanceof Date) {
     var y = val.getFullYear();
-    var m = String(val.getMonth() + 1).padStart(2, '0');
-    var d = String(val.getDate()).padStart(2, '0');
+    var m = String(val.getMonth() + 1);
+    if (m.length < 2) m = '0' + m;
+    var d = String(val.getDate());
+    if (d.length < 2) d = '0' + d;
     return y + '-' + m + '-' + d;
   }
-  return String(val).trim();
+  var s = String(val).trim();
+  if (!s || s === '-') return '';
+  if (s.indexOf('T') !== -1) {
+    return s.split('T')[0];
+  }
+  return s;
 }
 
 function jsonResponse(obj) {

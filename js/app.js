@@ -701,6 +701,50 @@ function getTodayISO() {
   return `${y}-${m}-${day}`;
 }
 
+function toInputDateFormat(val) {
+  if (!val) return '';
+  try {
+    if (val instanceof Date && !isNaN(val)) {
+      const y = val.getFullYear();
+      const m = String(val.getMonth() + 1).padStart(2, '0');
+      const d = String(val.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+    const s = String(val).trim();
+    if (!s || s === '-') return '';
+    // If already YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+      return s.slice(0, 10);
+    }
+    // If DD-MM-YYYY (e.g. 09-09-2026 or 9-9-2026)
+    if (/^\d{1,2}-\d{1,2}-\d{4}$/.test(s)) {
+      const parts = s.split('-');
+      const d = String(parts[0]).padStart(2, '0');
+      const m = String(parts[1]).padStart(2, '0');
+      const y = parts[2];
+      return `${y}-${m}-${d}`;
+    }
+    // If DD/MM/YYYY
+    if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)) {
+      const parts = s.split('/');
+      const d = String(parts[0]).padStart(2, '0');
+      const m = String(parts[1]).padStart(2, '0');
+      const y = parts[2];
+      return `${y}-${m}-${d}`;
+    }
+    const parsed = new Date(s);
+    if (!isNaN(parsed.getTime())) {
+      const y = parsed.getFullYear();
+      const m = String(parsed.getMonth() + 1).padStart(2, '0');
+      const d = String(parsed.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+    return s;
+  } catch {
+    return '';
+  }
+}
+
 // ==========================================================================
 // 3. View Scope & Left Sidebar Filter Engine
 // ==========================================================================
@@ -1776,12 +1820,12 @@ async function executeSaveNewTrip() {
   const rawTrip = {
     id: newId,
     sNo: newSNo,
-    tripDate: getStr('add-trip-date') || getTodayISO(),
+    tripDate: toInputDateFormat(getStr('add-trip-date')) || getTodayISO(),
     vehicleNo: getStr('add-vehicle').toUpperCase(),
     from: getStr('add-from'),
     to: getStr('add-to'),
     freight: getNum('add-freight'),
-    advanceDate: getStr('add-advance-date'),
+    advanceDate: toInputDateFormat(getStr('add-advance-date')),
     advance: getNum('add-advance'),
     halting: getStr('add-halting'),
     trspName: getStr('add-trsp-name') || 'Direct',
@@ -1795,7 +1839,7 @@ async function executeSaveNewTrip() {
     other: getNum('add-other'),
     driverCommission: getNum('add-driver-comm'),
     status: getStr('add-status') || 'New',
-    balanceReceivedDate: getStr('add-balance-date'),
+    balanceReceivedDate: toInputDateFormat(getStr('add-balance-date')),
     deleted: false
   };
 
@@ -1855,7 +1899,7 @@ function closeModal(modalId) {
 }
 
 window.promptEditTrip = function(tripId) {
-  const trip = state.trips.find(t => String(t.tripId || t.id) === String(tripId) || Number(t.id) === Number(tripId));
+  const trip = state.trips.find(t => String(t.tripId || t.id) === String(tripId) || Number(t.id) === Number(tripId) || String(t.sNo) === String(tripId) || Number(t.sNo) === Number(tripId));
   if (!trip) return;
 
   state.pendingEditTripId = trip.tripId || trip.id;
@@ -1875,7 +1919,7 @@ window.promptDeleteTrip = function(tripId) {
     showToast('❌ You do not have permission to delete trips.');
     return;
   }
-  const trip = state.trips.find(t => String(t.tripId || t.id) === String(tripId) || Number(t.id) === Number(tripId));
+  const trip = state.trips.find(t => String(t.tripId || t.id) === String(tripId) || Number(t.id) === Number(tripId) || String(t.sNo) === String(tripId) || Number(t.sNo) === Number(tripId));
   if (!trip) return;
 
   state.pendingDeleteTripId = trip.tripId || trip.id;
@@ -1894,7 +1938,7 @@ async function executeDeleteTrip() {
   }
   if (!state.pendingDeleteTripId) return;
   const targetId = state.pendingDeleteTripId;
-  const trip = state.trips.find(t => String(t.tripId || t.id) === String(targetId) || Number(t.id) === Number(targetId));
+  const trip = state.trips.find(t => String(t.tripId || t.id) === String(targetId) || Number(t.id) === Number(targetId) || String(t.sNo) === String(targetId) || Number(t.sNo) === Number(targetId));
   if (!trip) return;
 
   pendingMutationCount++;
@@ -1946,7 +1990,7 @@ function setupSlideOverEvents() {
 }
 
 function openEditSlideOver(tripId) {
-  const trip = state.trips.find(t => String(t.tripId || t.id) === String(tripId) || Number(t.id) === Number(tripId));
+  const trip = state.trips.find(t => String(t.tripId || t.id) === String(tripId) || Number(t.id) === Number(tripId) || String(t.sNo) === String(tripId) || Number(t.sNo) === Number(tripId));
   if (!trip) return;
 
   const targetId = trip.tripId || trip.id;
@@ -1961,12 +2005,12 @@ function openEditSlideOver(tripId) {
     if (el) el.value = val !== undefined && val !== null ? val : '';
   };
 
-  setVal('edit-trip-date', trip.tripDate || '');
+  setVal('edit-trip-date', toInputDateFormat(trip.tripDate));
   setVal('edit-vehicle', trip.vehicleNo || '');
   setVal('edit-from', trip.from || '');
   setVal('edit-to', trip.to || '');
   setVal('edit-freight', trip.freight || 0);
-  setVal('edit-advance-date', trip.advanceDate || '');
+  setVal('edit-advance-date', toInputDateFormat(trip.advanceDate));
   setVal('edit-advance', trip.advance || 0);
   setVal('edit-halting', trip.halting || '');
   setVal('edit-trsp-name', trip.trspName || '');
@@ -1980,7 +2024,7 @@ function openEditSlideOver(tripId) {
   setVal('edit-other', trip.other || 0);
   setVal('edit-driver-comm', trip.driverCommission || 0);
   setVal('edit-status', trip.status || 'Pending');
-  setVal('edit-balance-date', trip.balanceReceivedDate || '');
+  setVal('edit-balance-date', toInputDateFormat(trip.balanceReceivedDate));
   setVal('edit-balance', trip.balance !== undefined && trip.balance !== null ? trip.balance : '');
 
   if (backdrop && panel) {
@@ -2003,7 +2047,7 @@ window.closeSlideOver = function() {
 async function executeSaveTripEdits() {
   const targetId = state.pendingEditTripId || state.editingTripId;
   if (!targetId) return;
-  const trip = state.trips.find(t => String(t.tripId || t.id) === String(targetId) || Number(t.id) === Number(targetId));
+  const trip = state.trips.find(t => String(t.tripId || t.id) === String(targetId) || Number(t.id) === Number(targetId) || String(t.sNo) === String(targetId) || Number(t.sNo) === Number(targetId));
   if (!trip) return;
 
   const getVal = (id, defaultVal = '') => {
@@ -2012,12 +2056,14 @@ async function executeSaveTripEdits() {
   };
   const getNum = (id) => Number(getVal(id, 0)) || 0;
 
-  trip.tripDate = getVal('edit-trip-date', trip.tripDate);
+  const editTripDate = getVal('edit-trip-date');
+  if (editTripDate) trip.tripDate = toInputDateFormat(editTripDate);
   trip.vehicleNo = getVal('edit-vehicle', trip.vehicleNo).trim().toUpperCase();
   trip.from = getVal('edit-from', trip.from).trim();
   trip.to = getVal('edit-to', trip.to).trim();
   trip.freight = getNum('edit-freight');
-  trip.advanceDate = getVal('edit-advance-date', trip.advanceDate);
+  const editAdvDate = getVal('edit-advance-date');
+  trip.advanceDate = editAdvDate ? toInputDateFormat(editAdvDate) : '';
   trip.advance = getNum('edit-advance');
   trip.halting = getVal('edit-halting', trip.halting).trim();
   trip.trspName = getVal('edit-trsp-name', trip.trspName).trim();
@@ -2031,7 +2077,8 @@ async function executeSaveTripEdits() {
   trip.other = getNum('edit-other');
   trip.driverCommission = getNum('edit-driver-comm');
   trip.status = getVal('edit-status', trip.status);
-  trip.balanceReceivedDate = getVal('edit-balance-date', trip.balanceReceivedDate || '');
+  const editBalDate = getVal('edit-balance-date');
+  trip.balanceReceivedDate = editBalDate ? toInputDateFormat(editBalDate) : '';
 
   const customBal = getVal('edit-balance');
   if (customBal !== '') {
@@ -2361,33 +2408,50 @@ async function syncWithGoogleSheet() {
       if (json.data.length > 0) {
         state.trips = json.data.map((row, idx) => {
           const sNoVal = row.sNo || idx + 1;
-          const localMatch = state.trips.find(lt => String(lt.sNo) === String(sNoVal) || (lt.vehicleNo && row.vehicleNo && lt.vehicleNo === row.vehicleNo && lt.tripDate === row.tripDate));
-          const persistentId = row.tripId || (localMatch ? localMatch.tripId : null) || ('TR-' + sNoVal);
+          const localMatch = state.trips.find(lt => 
+            (row.tripId && String(lt.tripId) === String(row.tripId)) || 
+            (String(lt.sNo) === String(sNoVal)) || 
+            (lt.vehicleNo && row.vehicleNo && lt.vehicleNo === row.vehicleNo && lt.tripDate === row.tripDate)
+          );
+          const persistentId = row.tripId || (localMatch ? (localMatch.tripId || localMatch.id) : null) || ('TR-' + sNoVal);
+          
+          const tripDateVal = (row.tripDate && String(row.tripDate).trim())
+            ? toInputDateFormat(row.tripDate)
+            : (localMatch && localMatch.tripDate ? toInputDateFormat(localMatch.tripDate) : getTodayISO());
+
+          const advDateVal = (row.advanceDate && String(row.advanceDate).trim())
+            ? toInputDateFormat(row.advanceDate)
+            : (localMatch && localMatch.advanceDate ? toInputDateFormat(localMatch.advanceDate) : '');
+
+          const balDateVal = (row.balanceReceivedDate && String(row.balanceReceivedDate).trim())
+            ? toInputDateFormat(row.balanceReceivedDate)
+            : (localMatch && localMatch.balanceReceivedDate ? toInputDateFormat(localMatch.balanceReceivedDate) : '');
+
           return calculateTrip({
-            id: idx + 1,
+            id: localMatch ? localMatch.id : (idx + 1),
             sNo: sNoVal,
-            tripDate: row.tripDate,
-            vehicleNo: row.vehicleNo,
-            from: row.from,
-            to: row.to,
-            freight: row.freight,
-            advanceDate: row.advanceDate,
-            advance: row.advance,
-            balance: row.balance,
-            halting: row.halting,
-            trspName: row.trspName,
-            trspCommission: row.trspCommission || 0,
-            diesel: row.diesel || 0,
-            toll: row.toll || 0,
-            loading: row.loading || 0,
-            unloading: row.unloading || 0,
-            police: row.police || 0,
-            rta: row.rta || 0,
-            other: row.other || 0,
-            driverCommission: row.driverCommission || 0,
-            status: row.status || 'New',
-            statusAmount: row.statusAmount !== undefined ? row.statusAmount : 0,
-            balanceReceivedDate: row.balanceReceivedDate || '',
+            tripDate: tripDateVal,
+            vehicleNo: row.vehicleNo || (localMatch ? localMatch.vehicleNo : ''),
+            from: row.from !== undefined ? row.from : (localMatch ? localMatch.from : ''),
+            to: row.to !== undefined ? row.to : (localMatch ? localMatch.to : ''),
+            freight: row.freight !== undefined && row.freight !== null ? Number(row.freight) : (localMatch ? localMatch.freight : 0),
+            advanceDate: advDateVal,
+            advance: row.advance !== undefined && row.advance !== null ? Number(row.advance) : (localMatch ? localMatch.advance : 0),
+            balance: row.balance !== undefined && row.balance !== null ? Number(row.balance) : (localMatch ? localMatch.balance : undefined),
+            halting: row.halting !== undefined ? row.halting : (localMatch ? localMatch.halting : ''),
+            trspName: row.trspName !== undefined ? row.trspName : (localMatch ? localMatch.trspName : ''),
+            trspCommission: row.trspCommission !== undefined ? Number(row.trspCommission) : (localMatch ? localMatch.trspCommission : 0),
+            diesel: row.diesel !== undefined ? Number(row.diesel) : (localMatch ? localMatch.diesel : 0),
+            toll: row.toll !== undefined ? Number(row.toll) : (localMatch ? localMatch.toll : 0),
+            loading: row.loading !== undefined ? Number(row.loading) : (localMatch ? localMatch.loading : 0),
+            unloading: row.unloading !== undefined ? Number(row.unloading) : (localMatch ? localMatch.unloading : 0),
+            police: row.police !== undefined ? Number(row.police) : (localMatch ? localMatch.police : 0),
+            rta: row.rta !== undefined ? Number(row.rta) : (localMatch ? localMatch.rta : 0),
+            other: row.other !== undefined ? Number(row.other) : (localMatch ? localMatch.other : 0),
+            driverCommission: row.driverCommission !== undefined ? Number(row.driverCommission) : (localMatch ? localMatch.driverCommission : 0),
+            status: row.status || (localMatch ? localMatch.status : 'New'),
+            statusAmount: row.statusAmount !== undefined ? row.statusAmount : (localMatch ? localMatch.statusAmount : 0),
+            balanceReceivedDate: balDateVal,
             tripId: persistentId,
             deleted: false
           });
@@ -2646,33 +2710,50 @@ async function autoSyncCloud(isSilent = true) {
         const cloudTrips = json.data;
         const newTrips = cloudTrips.map((row, idx) => {
           const sNoVal = row.sNo || idx + 1;
-          const localMatch = state.trips.find(lt => String(lt.sNo) === String(sNoVal) || (lt.vehicleNo && row.vehicleNo && lt.vehicleNo === row.vehicleNo && lt.tripDate === row.tripDate));
-          const persistentId = row.tripId || (localMatch ? localMatch.tripId : null) || ('TR-' + sNoVal);
+          const localMatch = state.trips.find(lt => 
+            (row.tripId && String(lt.tripId) === String(row.tripId)) || 
+            (String(lt.sNo) === String(sNoVal)) || 
+            (lt.vehicleNo && row.vehicleNo && lt.vehicleNo === row.vehicleNo && lt.tripDate === row.tripDate)
+          );
+          const persistentId = row.tripId || (localMatch ? (localMatch.tripId || localMatch.id) : null) || ('TR-' + sNoVal);
+          
+          const tripDateVal = (row.tripDate && String(row.tripDate).trim())
+            ? toInputDateFormat(row.tripDate)
+            : (localMatch && localMatch.tripDate ? toInputDateFormat(localMatch.tripDate) : getTodayISO());
+
+          const advDateVal = (row.advanceDate && String(row.advanceDate).trim())
+            ? toInputDateFormat(row.advanceDate)
+            : (localMatch && localMatch.advanceDate ? toInputDateFormat(localMatch.advanceDate) : '');
+
+          const balDateVal = (row.balanceReceivedDate && String(row.balanceReceivedDate).trim())
+            ? toInputDateFormat(row.balanceReceivedDate)
+            : (localMatch && localMatch.balanceReceivedDate ? toInputDateFormat(localMatch.balanceReceivedDate) : '');
+
           return calculateTrip({
-            id: idx + 1,
+            id: localMatch ? localMatch.id : (idx + 1),
             sNo: sNoVal,
-            tripDate: row.tripDate,
-            vehicleNo: row.vehicleNo,
-            from: row.from,
-            to: row.to,
-            freight: row.freight,
-            advanceDate: row.advanceDate,
-            advance: row.advance,
-            balance: row.balance,
-            halting: row.halting,
-            trspName: row.trspName,
-            trspCommission: row.trspCommission || 0,
-            diesel: row.diesel || 0,
-            toll: row.toll || 0,
-            loading: row.loading || 0,
-            unloading: row.unloading || 0,
-            police: row.police || 0,
-            rta: row.rta || 0,
-            other: row.other || 0,
-            driverCommission: row.driverCommission || 0,
-            status: row.status || 'New',
-            statusAmount: row.statusAmount !== undefined ? row.statusAmount : 0,
-            balanceReceivedDate: row.balanceReceivedDate || '',
+            tripDate: tripDateVal,
+            vehicleNo: row.vehicleNo || (localMatch ? localMatch.vehicleNo : ''),
+            from: row.from !== undefined ? row.from : (localMatch ? localMatch.from : ''),
+            to: row.to !== undefined ? row.to : (localMatch ? localMatch.to : ''),
+            freight: row.freight !== undefined && row.freight !== null ? Number(row.freight) : (localMatch ? localMatch.freight : 0),
+            advanceDate: advDateVal,
+            advance: row.advance !== undefined && row.advance !== null ? Number(row.advance) : (localMatch ? localMatch.advance : 0),
+            balance: row.balance !== undefined && row.balance !== null ? Number(row.balance) : (localMatch ? localMatch.balance : undefined),
+            halting: row.halting !== undefined ? row.halting : (localMatch ? localMatch.halting : ''),
+            trspName: row.trspName !== undefined ? row.trspName : (localMatch ? localMatch.trspName : ''),
+            trspCommission: row.trspCommission !== undefined ? Number(row.trspCommission) : (localMatch ? localMatch.trspCommission : 0),
+            diesel: row.diesel !== undefined ? Number(row.diesel) : (localMatch ? localMatch.diesel : 0),
+            toll: row.toll !== undefined ? Number(row.toll) : (localMatch ? localMatch.toll : 0),
+            loading: row.loading !== undefined ? Number(row.loading) : (localMatch ? localMatch.loading : 0),
+            unloading: row.unloading !== undefined ? Number(row.unloading) : (localMatch ? localMatch.unloading : 0),
+            police: row.police !== undefined ? Number(row.police) : (localMatch ? localMatch.police : 0),
+            rta: row.rta !== undefined ? Number(row.rta) : (localMatch ? localMatch.rta : 0),
+            other: row.other !== undefined ? Number(row.other) : (localMatch ? localMatch.other : 0),
+            driverCommission: row.driverCommission !== undefined ? Number(row.driverCommission) : (localMatch ? localMatch.driverCommission : 0),
+            status: row.status || (localMatch ? localMatch.status : 'New'),
+            statusAmount: row.statusAmount !== undefined ? row.statusAmount : (localMatch ? localMatch.statusAmount : 0),
+            balanceReceivedDate: balDateVal,
             tripId: persistentId,
             deleted: false
           });
@@ -2683,8 +2764,8 @@ async function autoSyncCloud(isSilent = true) {
         const pendingLocalTrips = state.trips.filter(t => !cloudTripIds.has(String(t.tripId || t.sNo)) && !t.deleted);
         const mergedTrips = [...newTrips, ...pendingLocalTrips];
 
-        const prevHash = JSON.stringify(state.trips.map(t => `${t.sNo}_${t.freight}_${t.advance}_${t.status}_${t.balance}_${t.vehicleNo}_${t.tripId || ''}`));
-        const newHash = JSON.stringify(mergedTrips.map(t => `${t.sNo}_${t.freight}_${t.advance}_${t.status}_${t.balance}_${t.vehicleNo}_${t.tripId || ''}`));
+        const prevHash = JSON.stringify(state.trips.map(t => `${t.sNo}_${t.tripDate}_${t.balanceReceivedDate}_${t.freight}_${t.advance}_${t.status}_${t.balance}_${t.vehicleNo}_${t.tripId || ''}`));
+        const newHash = JSON.stringify(mergedTrips.map(t => `${t.sNo}_${t.tripDate}_${t.balanceReceivedDate}_${t.freight}_${t.advance}_${t.status}_${t.balance}_${t.vehicleNo}_${t.tripId || ''}`));
 
         if (prevHash !== newHash) {
           state.trips = mergedTrips;
