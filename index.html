@@ -118,7 +118,7 @@
           <span class="text-lg">🚚</span>
           <span>Vehicle Profile Data</span>
         </button>
-        <button onclick="Router.navigate('settings')" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white transition">
+        <button id="menu-btn-settings" onclick="Router.navigate('settings')" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white transition">
           <span class="text-lg">⚙️</span>
           <span>Settings</span>
         </button>
@@ -477,18 +477,98 @@
   <!-- ========================================================================= -->
   <!-- 7. VIEW: READ-ONLY EXCEL SPREADSHEET                                      -->
   <!-- ========================================================================= -->
-  <main id="view-excel" class="hidden flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <div class="flex items-center justify-between mb-6">
+  <main id="view-excel" class="hidden flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <!-- Header -->
+    <div class="flex flex-wrap items-center justify-between gap-4">
       <div>
-        <h2 id="excel-view-title" class="text-2xl font-black text-slate-900 dark:text-white">📊 Read-Only Excel Ledger</h2>
-        <p class="text-xs text-slate-500">Spreadsheet-style view of all 25 financial and operational columns</p>
+        <h2 id="excel-view-title" class="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+          <span>📊</span>
+          <span>Excel / Data Export</span>
+        </h2>
+        <p class="text-xs text-slate-500 mt-1">Vehicle-scoped data reconciliation and true .XLSX Excel export engine</p>
       </div>
-      <button onclick="ExcelView.exportCsv()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs shadow transition flex items-center gap-2">
-        <span>📥</span>
-        <span>Download CSV</span>
-      </button>
+      <div id="excel-vehicle-badge" class="px-3 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 text-xs font-black text-blue-700 dark:text-blue-300 font-mono">
+        Vehicle: TS15UE1122
+      </div>
     </div>
 
+    <!-- Date Scope Controls Card -->
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-5 space-y-4">
+      <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-700 pb-3">
+        <div class="flex items-center gap-2">
+          <span class="text-base">📅</span>
+          <span class="text-xs font-black uppercase text-slate-700 dark:text-slate-300 tracking-wider">Export Date Scope</span>
+        </div>
+        <span id="excel-active-scope-tag" class="text-xs font-bold text-blue-600 dark:text-blue-400">ALL TRIPS</span>
+      </div>
+
+      <!-- Scope Buttons -->
+      <div class="grid grid-cols-2 sm:grid-cols-5 gap-2">
+        <button id="excel-btn-today" onclick="ExcelView.setScope('TODAY')" class="excel-scope-btn px-3 py-2 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+          ☀️ Today
+        </button>
+        <button id="excel-btn-selected-date" onclick="ExcelView.setScope('SELECTED_DATE')" class="excel-scope-btn px-3 py-2 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+          🗓️ Selected Date
+        </button>
+        <button id="excel-btn-date-range" onclick="ExcelView.setScope('DATE_RANGE')" class="excel-scope-btn px-3 py-2 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+          ↔️ Date Range
+        </button>
+        <button id="excel-btn-entire-month" onclick="ExcelView.setScope('ENTIRE_MONTH')" class="excel-scope-btn px-3 py-2 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+          📆 Entire Month
+        </button>
+        <button id="excel-btn-all-trips" onclick="ExcelView.setScope('ALL_TRIPS')" class="excel-scope-btn px-3 py-2 text-xs font-black rounded-xl bg-blue-600 text-white shadow-xs border border-blue-600">
+          🚛 All Trips
+        </button>
+      </div>
+
+      <!-- Dynamic Scope Inputs -->
+      <div id="excel-dynamic-scope-inputs" class="pt-2"></div>
+    </div>
+
+    <!-- Export Preview Card -->
+    <div id="excel-preview-card" class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-2xl p-5 shadow-lg border border-indigo-900/60 space-y-4">
+      <div class="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-3">
+        <div>
+          <span class="text-[10px] font-black uppercase text-cyan-400 tracking-wider">Export Preview Summary</span>
+          <h3 id="excel-preview-vehicle-range" class="text-base font-black text-white mt-0.5">TS15UE1122 &bull; All Time</h3>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="excel-download-btn" onclick="ExcelView.exportToExcel()" class="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black rounded-xl text-xs shadow-md transition cursor-pointer">
+            <span>⬇️</span>
+            <span id="excel-download-label">Download Excel (.XLSX)</span>
+          </button>
+          <button onclick="ExcelView.exportCsv()" class="inline-flex items-center gap-1.5 px-3 py-2.5 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl text-xs transition cursor-pointer">
+            <span>📥</span>
+            <span>CSV</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs">
+        <div class="bg-white/5 rounded-xl p-3 border border-white/10">
+          <span class="text-[10px] text-slate-400 font-bold uppercase">Trips To Export</span>
+          <div id="excel-preview-trips" class="text-xl font-black font-mono text-cyan-300 mt-1">0</div>
+        </div>
+        <div class="bg-white/5 rounded-xl p-3 border border-white/10">
+          <span class="text-[10px] text-slate-400 font-bold uppercase">Total Freight</span>
+          <div id="excel-preview-freight" class="text-lg font-black font-mono text-white mt-1">₹0</div>
+        </div>
+        <div class="bg-white/5 rounded-xl p-3 border border-white/10">
+          <span class="text-[10px] text-slate-400 font-bold uppercase">Total Expenses</span>
+          <div id="excel-preview-expenses" class="text-lg font-black font-mono text-amber-300 mt-1">₹0</div>
+        </div>
+        <div class="bg-white/5 rounded-xl p-3 border border-white/10">
+          <span class="text-[10px] text-slate-400 font-bold uppercase">Net Profit</span>
+          <div id="excel-preview-profit" class="text-lg font-black font-mono text-emerald-400 mt-1">₹0</div>
+        </div>
+        <div class="bg-white/5 rounded-xl p-3 border border-white/10">
+          <span class="text-[10px] text-slate-400 font-bold uppercase">Pending Balance</span>
+          <div id="excel-preview-balance" class="text-lg font-black font-mono text-rose-400 mt-1">₹0</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Read-Only Spreadsheet Grid -->
     <div class="bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-x-auto">
       <table class="w-full text-left border-collapse font-mono text-[11px]">
         <thead>

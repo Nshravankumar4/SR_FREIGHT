@@ -149,6 +149,16 @@ const App = {
         await Trips.loadVehicleTrips(appState.currentVehicle);
       } catch (_) {}
     }, CONFIG.POLL_INTERVAL_MS);
+  },
+
+  /**
+   * Stop background poller immediately
+   */
+  stopBackgroundPoller() {
+    if (this._pollerInterval) {
+      clearInterval(this._pollerInterval);
+      this._pollerInterval = null;
+    }
   }
 };
 

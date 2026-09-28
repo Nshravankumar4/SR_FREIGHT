@@ -18,6 +18,12 @@ const Router = {
       page = 'vehicles';
     }
 
+    // 3. Enforce Admin-only guard on Settings
+    if (page === 'settings' && !Auth.isAdmin()) {
+      Utils.showToast("Unauthorized: Settings is restricted to Administrator only.", "error");
+      page = 'dashboard';
+    }
+
     appState.currentPage = page;
 
     // Hide all view containers
@@ -91,6 +97,16 @@ const Router = {
     const uEl = document.getElementById('header-user-badge');
     if (uEl) {
       uEl.textContent = appState.currentUser ? `${appState.currentUser.name} (${appState.currentUser.role})` : 'Guest';
+    }
+
+    // Settings menu item visibility (ADMIN ONLY)
+    const settingsBtn = document.getElementById('menu-btn-settings');
+    if (settingsBtn) {
+      if (Auth.isAdmin()) {
+        settingsBtn.classList.remove('hidden');
+      } else {
+        settingsBtn.classList.add('hidden');
+      }
     }
   },
 

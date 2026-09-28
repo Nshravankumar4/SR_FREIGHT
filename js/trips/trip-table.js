@@ -35,62 +35,14 @@ const TripTable = {
    * Filter vehicle trips strictly by active time scope
    */
   getScopedTrips() {
-    const allTrips = VehicleWorkspace.getActiveTrips();
-    const viewType = appState.filters.viewType || 'ALL_TRIPS';
-
-    return allTrips.filter(t => {
-      const tripDate = t.tripDate ? Utils.toInputDateFormat(t.tripDate) : '';
-
-      if (viewType === 'TODAY') {
-        const today = this.getTodayISO();
-        return tripDate === today;
-      } else if (viewType === 'SELECTED_DATE') {
-        return appState.filters.selectedDate ? tripDate === appState.filters.selectedDate : true;
-      } else if (viewType === 'DATE_RANGE') {
-        if (appState.filters.dateFrom && tripDate < appState.filters.dateFrom) return false;
-        if (appState.filters.dateTo && tripDate > appState.filters.dateTo) return false;
-        return true;
-      } else if (viewType === 'ENTIRE_MONTH') {
-        return tripDate.startsWith(appState.filters.selectedMonth || '2026-08');
-      }
-      return true; // ALL_TRIPS
-    });
+    return VehicleWorkspace.getFilteredTrips({ includeStatus: false, includeSearch: false });
   },
 
   /**
    * Filter scoped trips by status/audit and search query
    */
   getDisplayTrips() {
-    const scopedTrips = this.getScopedTrips();
-    const statusFilter = appState.filters.status || 'ALL';
-    const searchQuery = (appState.filters.search || '').toLowerCase().trim();
-
-    return scopedTrips.filter(t => {
-      const calc = FinancialEngine.calculateTrip(t, t.balanceReceipts || []);
-      const isCleared = calc.remainingBalance === 0;
-
-      // 8 Status & Audit Filters
-      if (statusFilter === 'NEW' && (t.tripStatus !== 'New' && t.status !== 'New')) return false;
-      if (statusFilter === 'PROFIT' && calc.profitLoss < 0) return false;
-      if (statusFilter === 'LOSS' && calc.profitLoss >= 0) return false;
-      if (statusFilter === 'PENDING' && (isCleared || calc.totalReceived > 0)) return false;
-      if (statusFilter === 'PARTIAL' && (isCleared || calc.totalReceived === 0)) return false;
-      if (statusFilter === 'PAID' && !isCleared) return false;
-      if (statusFilter === 'BALANCE_MISMATCH' && !calc.hasBalanceMismatch && (calc.originalBalance === (calc.freight - calc.advance))) return false;
-
-      // Real-time Search Query
-      if (searchQuery) {
-        const match = (t.tripId && t.tripId.toLowerCase().includes(searchQuery)) ||
-                      (t.from && t.from.toLowerCase().includes(searchQuery)) ||
-                      (t.to && t.to.toLowerCase().includes(searchQuery)) ||
-                      (t.trspName && t.trspName.toLowerCase().includes(searchQuery)) ||
-                      (t.vehicleNo && t.vehicleNo.toLowerCase().includes(searchQuery)) ||
-                      String(t.sNo || '').includes(searchQuery);
-        if (!match) return false;
-      }
-
-      return true;
-    });
+    return VehicleWorkspace.getFilteredTrips({ includeStatus: true, includeSearch: true });
   },
 
   /**
@@ -429,7 +381,7 @@ const TripTable = {
           <td class="py-3 px-3 text-center font-mono text-slate-500 font-bold whitespace-nowrap">${t.sNo || (idx + 1)}</td>
 
           <!-- 2. Trip Date -->
-          <td class="py-3 px-3 whitespace-nowrap font-bold text-slate-900 dark:text-white">${Utils.formatDisplayDate(t.tripDate)}</td>
+          <td class="py-3 px-3 whitespace-nowrap font-bold text-slate-900 dark:text-white">${Utils.displayDate(t.tripDate)}</td>
 
           <!-- 3. Vehicle No -->
           <td class="py-3 px-3 whitespace-nowrap">
@@ -437,60 +389,60 @@ const TripTable = {
           </td>
 
           <!-- 4. From -->
-          <td class="py-3 px-3 whitespace-nowrap text-slate-800 dark:text-slate-200">${t.from || '-'}</td>
+          <td class="py-3 px-3 whitespace-nowrap text-slate-800 dark:text-slate-200">${Utils.displayText(t.from)}</td>
 
           <!-- 5. To -->
-          <td class="py-3 px-3 whitespace-nowrap text-slate-800 dark:text-slate-200">${t.to || '-'}</td>
+          <td class="py-3 px-3 whitespace-nowrap text-slate-800 dark:text-slate-200">${Utils.displayText(t.to)}</td>
 
           <!-- 6. Freight Amount -->
-          <td class="py-3 px-3 text-right whitespace-nowrap font-black text-slate-900 dark:text-white">${Utils.formatCurrency(calc.freight)}</td>
+          <td class="py-3 px-3 text-right whitespace-nowrap font-black text-slate-900 dark:text-white">${Utils.displayCurrency(calc.freight)}</td>
 
           <!-- 7. Advance Date -->
-          <td class="py-3 px-3 text-center whitespace-nowrap text-slate-500">${Utils.formatDisplayDate(t.advanceDate)}</td>
+          <td class="py-3 px-3 text-center whitespace-nowrap text-slate-500">${Utils.displayDate(t.advanceDate)}</td>
 
           <!-- 8. Advance Amount -->
-          <td class="py-3 px-3 text-right whitespace-nowrap font-bold text-slate-700 dark:text-slate-300">${Utils.formatCurrency(calc.advance)}</td>
+          <td class="py-3 px-3 text-right whitespace-nowrap font-bold text-slate-700 dark:text-slate-300">${Utils.displayCurrency(calc.advance)}</td>
 
           <!-- 9. Halting Details -->
-          <td class="py-3 px-3 whitespace-nowrap text-slate-500 max-w-[150px] truncate" title="${t.haltingDetails || t.halting || ''}">${t.haltingDetails || t.halting || '-'}</td>
+          <td class="py-3 px-3 whitespace-nowrap text-slate-500 max-w-[150px] truncate" title="${t.haltingDetails || t.halting || ''}">${Utils.displayText(t.haltingDetails || t.halting)}</td>
 
           <!-- 10. TRSP Name -->
           <td class="py-3 px-3 whitespace-nowrap text-center">
-            <span class="px-2 py-0.5 text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded border border-slate-200 dark:border-slate-700">${t.trspName || '-'}</span>
+            <span class="px-2 py-0.5 text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded border border-slate-200 dark:border-slate-700">${Utils.displayText(t.trspName)}</span>
           </td>
 
           <!-- 11. TRSP Comm -->
-          <td class="py-3 px-3 text-right whitespace-nowrap text-slate-600 dark:text-slate-400">${Utils.formatCurrency(calc.trspCommission)}</td>
+          <td class="py-3 px-3 text-right whitespace-nowrap text-slate-600 dark:text-slate-400">${(t.trspCommission === '' || t.trspCommission === null || t.trspCommission === undefined) ? '—' : Utils.displayCurrency(calc.trspCommission)}</td>
 
           <!-- 12. Diesel -->
-          <td class="py-3 px-3 text-right whitespace-nowrap text-slate-600 dark:text-slate-400">${Utils.formatCurrency(calc.diesel)}</td>
+          <td class="py-3 px-3 text-right whitespace-nowrap text-slate-600 dark:text-slate-400">${(t.diesel === '' || t.diesel === null || t.diesel === undefined) ? '—' : Utils.displayCurrency(calc.diesel)}</td>
 
           <!-- 13. Toll Charges -->
-          <td class="py-3 px-3 text-right whitespace-nowrap text-slate-600 dark:text-slate-400">${Utils.formatCurrency(calc.toll)}</td>
+          <td class="py-3 px-3 text-right whitespace-nowrap text-slate-600 dark:text-slate-400">${(t.tollCharges === '' || t.tollCharges === null || t.tollCharges === undefined) ? '—' : Utils.displayCurrency(calc.toll)}</td>
 
           <!-- 14. Loading Charges -->
-          <td class="py-3 px-3 text-right whitespace-nowrap text-slate-600 dark:text-slate-400">${Utils.formatCurrency(calc.loading)}</td>
+          <td class="py-3 px-3 text-right whitespace-nowrap text-slate-600 dark:text-slate-400">${(t.loadingCharges === '' || t.loadingCharges === null || t.loadingCharges === undefined) ? '—' : Utils.displayCurrency(calc.loading)}</td>
 
           <!-- 15. Unloading Charges -->
-          <td class="py-3 px-3 text-right whitespace-nowrap text-slate-600 dark:text-slate-400">${Utils.formatCurrency(calc.unloading)}</td>
+          <td class="py-3 px-3 text-right whitespace-nowrap text-slate-600 dark:text-slate-400">${(t.unloadingCharges === '' || t.unloadingCharges === null || t.unloadingCharges === undefined) ? '—' : Utils.displayCurrency(calc.unloading)}</td>
 
           <!-- 16. Police Exp -->
-          <td class="py-3 px-3 text-right whitespace-nowrap text-slate-600 dark:text-slate-400">${Utils.formatCurrency(calc.police)}</td>
+          <td class="py-3 px-3 text-right whitespace-nowrap text-slate-600 dark:text-slate-400">${(t.policeExp === '' || t.policeExp === null || t.policeExp === undefined) ? '—' : Utils.displayCurrency(calc.police)}</td>
 
           <!-- 17. RTA C/P -->
-          <td class="py-3 px-3 text-right whitespace-nowrap text-slate-600 dark:text-slate-400">${Utils.formatCurrency(calc.rta)}</td>
+          <td class="py-3 px-3 text-right whitespace-nowrap text-slate-600 dark:text-slate-400">${(t.rtaExp === '' || t.rtaExp === null || t.rtaExp === undefined) ? '—' : Utils.displayCurrency(calc.rta)}</td>
 
           <!-- 18. Other Expenses -->
-          <td class="py-3 px-3 text-right whitespace-nowrap text-slate-600 dark:text-slate-400" title="${t.otherExpenseNotes || ''}">${Utils.formatCurrency(calc.otherExpenses)}</td>
+          <td class="py-3 px-3 text-right whitespace-nowrap text-slate-600 dark:text-slate-400" title="${t.otherExpenseNotes || ''}">${(t.otherExpenses === '' || t.otherExpenses === null || t.otherExpenses === undefined) ? '—' : Utils.displayCurrency(calc.otherExpenses)}</td>
 
           <!-- 19. Driver Comm -->
-          <td class="py-3 px-3 text-right whitespace-nowrap text-slate-600 dark:text-slate-400">${Utils.formatCurrency(calc.driverExp)}</td>
+          <td class="py-3 px-3 text-right whitespace-nowrap text-slate-600 dark:text-slate-400">${(t.driverExp === '' || t.driverExp === null || t.driverExp === undefined) ? '—' : Utils.displayCurrency(calc.driverExp)}</td>
 
           <!-- 20. Sum OF Total Exp (9 expenses sum) -->
-          <td class="py-3 px-3 text-right whitespace-nowrap font-black text-indigo-600 dark:text-indigo-400 bg-indigo-50/40 dark:bg-indigo-950/20">${Utils.formatCurrency(calc.totalExpenses)}</td>
+          <td class="py-3 px-3 text-right whitespace-nowrap font-black text-indigo-600 dark:text-indigo-400 bg-indigo-50/40 dark:bg-indigo-950/20">${Utils.displayCurrency(calc.totalExpenses)}</td>
 
           <!-- 21. Total Exp Given (Advance + Total Exp) -->
-          <td class="py-3 px-3 text-right whitespace-nowrap font-black text-purple-600 dark:text-purple-400 bg-purple-50/40 dark:bg-purple-950/20">${Utils.formatCurrency(totalExpGiven)}</td>
+          <td class="py-3 px-3 text-right whitespace-nowrap font-black text-purple-600 dark:text-purple-400 bg-purple-50/40 dark:bg-purple-950/20">${Utils.displayCurrency(totalExpGiven)}</td>
 
           <!-- 22. Status -->
           <td class="py-3 px-3 text-center whitespace-nowrap">
@@ -503,7 +455,7 @@ const TripTable = {
           <td class="py-3 px-3 text-center whitespace-nowrap">${plFormatted}</td>
 
           <!-- 24. Date Balance Recd -->
-          <td class="py-3 px-3 whitespace-nowrap text-center text-slate-500">${Utils.formatDisplayDate(balanceRecdDate)}</td>
+          <td class="py-3 px-3 whitespace-nowrap text-center text-slate-500">${Utils.displayDate(balanceRecdDate)}</td>
 
           <!-- 25. Balance Amount -->
           <td class="py-3 px-3 text-right whitespace-nowrap font-black bg-amber-50/40 dark:bg-amber-950/20">${balanceDisplay}</td>

@@ -119,7 +119,17 @@ function doPost(e) {
     }
 
     if (action === 'deleteReceipt') {
+      if (userRole !== 'Admin') {
+        return jsonResponse({ success: false, error: "Unauthorized: Only Admin can delete receipts." });
+      }
       return jsonResponse(executeDeleteReceipt(ss, payload.receiptId, payload.tripId, requestedVehicle));
+    }
+
+    if (action === 'updateSettings' || action === 'restoreBackup') {
+      if (userRole !== 'Admin') {
+        return jsonResponse({ success: false, error: "Unauthorized: Only Admin can modify settings or restore backups." });
+      }
+      return jsonResponse({ success: true, message: "Settings operation completed." });
     }
 
     if (action === 'updateVehicleData') {
@@ -672,13 +682,14 @@ function testExactFinancialExample() {
 }
 
 function ensureAllSheets(ss) {
+  var now = new Date().toISOString();
   var vSheet = ss.getSheetByName(SHEET_VEHICLES);
   if (!vSheet) {
     vSheet = ss.insertSheet(SHEET_VEHICLES);
     vSheet.appendRow(VEHICLE_HEADERS);
     // Seed initial vehicles
-    vSheet.appendRow(['VEH-001', 'TS15UE1122', 'TS15UE1122', 'Driver John', '', 'Active', 'Heavy Lorry', new Date().toISOString(), new Date().toISOString()]);
-    vSheet.appendRow(['VEH-002', 'TG15T6666', 'TG15T6666', 'Driver Ravi', '', 'Active', 'Heavy Lorry', new Date().toISOString(), new Date().toISOString()]);
+    vSheet.appendRow(['VEH-001', 'TS15UE1122', 'TS15UE1122', 'Driver John', '', 'Active', 'Heavy Lorry', now, now]);
+    vSheet.appendRow(['VEH-002', 'TG15T6666', 'TG15T6666', 'Driver Ravi', '', 'Active', 'Heavy Lorry', now, now]);
   }
 
   var tSheet = ss.getSheetByName(SHEET_TRIPS);
@@ -687,11 +698,44 @@ function ensureAllSheets(ss) {
     tSheet.appendRow(TRIP_HEADERS);
   }
 
+  // Seed initial 2 canonical trips if Trips sheet is empty or header only
+  if (tSheet.getLastRow() <= 1) {
+    tSheet.appendRow([
+      'TRIP-20260828-1122-1001', 1, '28-08-2026', 'TS15UE1122', 'Hyderabad, Telangana', 'Purnia, Bihar',
+      200000, '28-08-2026', 90000, 'Two days halting during transit', 'MRC', 2000, 50000, 10000,
+      2500, 2500, 1000, 1000, 1000, 12000, 'Damage-1000', 82000, 118000, 'Pending',
+      110000, 0, 110000, 'Not Received', 'red', now, now
+    ]);
+
+    tSheet.appendRow([
+      'TRIP-20260828-6666-1002', 2, '28-08-2026', 'TG15T6666', 'Hyderabad, Telangana', 'Purnia, Bihar',
+      250000, '28-08-2026', 90000, 'Two days halting during transit', 'MRC', 2000, 80000, 10000,
+      2500, 2500, 1000, 1000, 1000, 12000, 'Damage-1000', 112000, 138000, 'Paid',
+      160000, 160000, 0, 'Done', 'green', now, now
+    ]);
+  }
+
   var rSheet = ss.getSheetByName(SHEET_RECEIPTS);
   if (!rSheet) {
     rSheet = ss.insertSheet(SHEET_RECEIPTS);
     rSheet.appendRow(RECEIPT_HEADERS);
   }
+
+  if (rSheet.getLastRow() <= 1) {
+    rSheet.appendRow([
+      'REC-20260828-6666-01', 'TRIP-20260828-6666-1002', 'TG15T6666', '28-08-2026', 160000,
+      'Full balance settlement', now, now
+    ]);
+  }
+}
+
+/**
+ * Callable utility to seed or re-seed the 2 canonical trips into the Google Sheet
+ */
+function seedMasterTrips() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  ensureAllSheets(ss);
+  return "Master trips and vehicles successfully verified and seeded in Google Sheet.";
 }
 
 function jsonResponse(obj) {

@@ -79,14 +79,39 @@ const Auth = {
   },
 
   /**
-   * Logout current user and clear session
+   * Complete Authoritative Logout
    */
   logout() {
+    // 1. Stop background poller immediately
+    if (typeof App !== 'undefined' && App.stopBackgroundPoller) {
+      App.stopBackgroundPoller();
+    }
+
+    // 2. Close any open drawers or modals
+    if (typeof Trips !== 'undefined') {
+      Trips.closeViewModal();
+      Trips.closeEditDrawer();
+    }
+    if (typeof Router !== 'undefined') {
+      Router.closeMenu();
+    }
+
+    // 3. Clear application session and data caches
     appState.resetSession();
+
+    // 4. Clear storage
     try {
       localStorage.removeItem(CONFIG.SESSION_KEY);
       localStorage.removeItem(CONFIG.VEHICLE_KEY);
+      sessionStorage.clear();
     } catch (_) {}
+
+    // 5. Navigate to login
+    if (typeof Router !== 'undefined') {
+      Router.navigate('login');
+    }
+
+    Utils.showToast("Logged out successfully.");
   },
 
   /**

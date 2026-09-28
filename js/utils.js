@@ -5,13 +5,26 @@
 
 const Utils = {
   /**
-   * Safely formats any date string (ISO, DD-MM-YYYY, YYYY-MM-DD, slash formats)
+   * Safely formats any date string (ISO, DD-MM-YYYY, YYYY-MM-DD, slash formats, or Excel serial numbers)
    * into HTML5 date input standard (YYYY-MM-DD)
    */
   toInputDateFormat(dateStr) {
-    if (!dateStr) return '';
+    if (dateStr === null || dateStr === undefined) return '';
     const s = String(dateStr).trim();
     if (!s || s === '-' || s.toLowerCase() === 'undefined' || s.toLowerCase() === 'null') return '';
+
+    // Check for Excel serial number (e.g. 46262)
+    if (/^\d{5}$/.test(s)) {
+      const serial = parseInt(s, 10);
+      const utcDays = serial - 25569;
+      const date = new Date(utcDays * 86400 * 1000);
+      if (!isNaN(date.getTime())) {
+        const y = date.getUTCFullYear();
+        const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+        const d = String(date.getUTCDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+      }
+    }
 
     // Check for DD-MM-YYYY or DD/MM/YYYY
     const dmyMatch = s.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
@@ -36,6 +49,7 @@ const Utils = {
       const parsed = new Date(s);
       if (!isNaN(parsed.getTime())) {
         const y = parsed.getFullYear();
+        if (y < 1980) return ''; // ignore 1970 epoch bugs
         const m = String(parsed.getMonth() + 1).padStart(2, '0');
         const d = String(parsed.getDate()).padStart(2, '0');
         return `${y}-${m}-${d}`;
@@ -49,17 +63,54 @@ const Utils = {
    * Formats YYYY-MM-DD or any date string to standard display format DD-MM-YYYY
    */
   formatDisplayDate(dateStr) {
-    if (!dateStr || dateStr === '-') return '-';
-    const s = String(dateStr).trim();
-    const dmyMatch = s.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
-    if (dmyMatch) {
-      return `${dmyMatch[1].padStart(2, '0')}-${dmyMatch[2].padStart(2, '0')}-${dmyMatch[3]}`;
+    if (!dateStr || dateStr === '-') return '—';
+    const iso = this.toInputDateFormat(dateStr);
+    if (!iso) return '—';
+    const parts = iso.split('-');
+    if (parts.length === 3) {
+      return `${parts[2]}-${parts[1]}-${parts[0]}`;
     }
-    const ymdMatch = s.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
-    if (ymdMatch) {
-      return `${ymdMatch[3].padStart(2, '0')}-${ymdMatch[2].padStart(2, '0')}-${ymdMatch[1]}`;
+    return dateStr;
+  },
+
+  /**
+   * Centralized Display Helpers: Distinguish Empty vs Real Zero
+   */
+  displayNumber(value) {
+    if (value === null || value === undefined || String(value).trim() === '' || String(value).trim() === '-') {
+      return '—';
     }
-    return s;
+    const n = Number(value);
+    if (!Number.isFinite(n)) {
+      return '—';
+    }
+    return n.toLocaleString('en-IN');
+  },
+
+  displayCurrency(value) {
+    if (value === null || value === undefined || String(value).trim() === '' || String(value).trim() === '-') {
+      return '—';
+    }
+    const n = Number(value);
+    if (!Number.isFinite(n)) {
+      return '—';
+    }
+    return `₹${n.toLocaleString('en-IN')}`;
+  },
+
+  displayDate(value) {
+    if (value === null || value === undefined || String(value).trim() === '' || String(value).trim() === '-') {
+      return '—';
+    }
+    const d = this.formatDisplayDate(value);
+    return (d && d !== '-' && !d.includes('1970')) ? d : '—';
+  },
+
+  displayText(value) {
+    if (value === null || value === undefined || String(value).trim() === '' || String(value).trim() === '-') {
+      return '—';
+    }
+    return String(value).trim();
   },
 
   /**

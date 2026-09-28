@@ -46,6 +46,20 @@ const appState = {
     this.currentPage = "login";
     this.selectedTrip = null;
     this.editingTripId = null;
+    this.trips = [];
+    this.receipts = [];
+    this.filters = {
+      status: 'ALL',
+      search: '',
+      viewType: 'ALL_TRIPS',
+      selectedDate: '',
+      dateFrom: '',
+      dateTo: '',
+      selectedMonth: ''
+    };
+    this.isSaving = false;
+    this.pendingMutationCount = 0;
+    this.syncStatus = "idle";
   }
 };
 

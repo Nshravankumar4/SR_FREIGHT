@@ -85,7 +85,16 @@ const Trips = {
           otherExpenses: 1000,
           driverExp: 12000,
           tripStatus: 'Paid',
-          balanceReceipts: []
+          balanceReceipts: [
+            {
+              receiptId: 'REC-20260828-6666-01',
+              tripId: 'TRIP-20260828-0002',
+              vehicleNo: 'TG15T6666',
+              amount: 160000,
+              date: '2026-08-28',
+              notes: 'Full balance settlement'
+            }
+          ]
         }
       ];
       this.persistState();
@@ -100,14 +109,27 @@ const Trips = {
     try {
       const res = await Api.getTrips(vehicleNo);
       if (res && res.data && Array.isArray(res.data)) {
-        // Non-destructive merge: preserve local records not yet synced
         const remoteTrips = res.data;
-        const otherVehicleTrips = (appState.trips || []).filter(t => t.vehicleNo !== vehicleNo);
-        appState.trips = [...otherVehicleTrips, ...remoteTrips];
-        this.persistState();
+        if (remoteTrips.length > 0) {
+          const otherVehicleTrips = (appState.trips || []).filter(t => t.vehicleNo !== vehicleNo);
+          appState.trips = [...otherVehicleTrips, ...remoteTrips];
+          this.persistState();
+        } else {
+          // If remote cloud has 0 trips, check if we have local trips for this vehicle to seed
+          const localTrips = (appState.trips || []).filter(t => t.vehicleNo === vehicleNo);
+          if (localTrips.length > 0) {
+            for (const lt of localTrips) {
+              try {
+                await Api.createTrip(lt, vehicleNo);
+              } catch (_) {}
+            }
+          }
+        }
         this.renderTable();
         if (appState.currentPage === 'dashboard') {
           Dashboard.render();
+        } else if (appState.currentPage === 'excel' && typeof ExcelView !== 'undefined') {
+          ExcelView.render();
         }
       }
     } catch (err) {
@@ -440,15 +462,15 @@ const Trips = {
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
             <div>
               <span class="text-slate-400 font-semibold">9. Halting Details:</span>
-              <div class="font-bold text-slate-800 dark:text-slate-200 mt-0.5">${trip.haltingDetails || trip.halting || 'None recorded'}</div>
+              <div class="font-bold text-slate-800 dark:text-slate-200 mt-0.5">${Utils.displayText(trip.haltingDetails || trip.halting)}</div>
             </div>
             <div>
               <span class="text-slate-400 font-semibold">10. TRSP Name:</span>
-              <div class="font-bold text-slate-800 dark:text-slate-200 mt-0.5">${trip.trspName || 'None'}</div>
+              <div class="font-bold text-slate-800 dark:text-slate-200 mt-0.5">${Utils.displayText(trip.trspName)}</div>
             </div>
             <div>
               <span class="text-slate-400 font-semibold">11. TRSP Commission:</span>
-              <div class="font-bold text-slate-800 dark:text-slate-200 mt-0.5">${Utils.formatCurrency(calc.trspCommission)}</div>
+              <div class="font-bold text-slate-800 dark:text-slate-200 mt-0.5">${(trip.trspCommission === '' || trip.trspCommission === null || trip.trspCommission === undefined) ? '—' : Utils.displayCurrency(calc.trspCommission)}</div>
             </div>
           </div>
         </div>
@@ -457,45 +479,45 @@ const Trips = {
         <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-5 space-y-3">
           <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-700 pb-2">
             <h4 class="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">Itemized En-Route Expenses Ledger (9 Categories)</h4>
-            <span class="text-xs font-black text-indigo-600 dark:text-indigo-400">Total: ${Utils.formatCurrency(calc.totalExpenses)}</span>
+            <span class="text-xs font-black text-indigo-600 dark:text-indigo-400">Total: ${Utils.displayCurrency(calc.totalExpenses)}</span>
           </div>
           <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
             <div class="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700">
               <span class="text-[10px] font-bold text-slate-400 uppercase">12. Diesel</span>
-              <div class="text-sm font-black font-mono text-slate-800 dark:text-slate-200 mt-1">${Utils.formatCurrency(calc.diesel)}</div>
+              <div class="text-sm font-black font-mono text-slate-800 dark:text-slate-200 mt-1">${(trip.diesel === '' || trip.diesel === null || trip.diesel === undefined) ? '—' : Utils.displayCurrency(calc.diesel)}</div>
             </div>
             <div class="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700">
               <span class="text-[10px] font-bold text-slate-400 uppercase">13. Toll Charges</span>
-              <div class="text-sm font-black font-mono text-slate-800 dark:text-slate-200 mt-1">${Utils.formatCurrency(calc.toll)}</div>
+              <div class="text-sm font-black font-mono text-slate-800 dark:text-slate-200 mt-1">${(trip.tollCharges === '' || trip.tollCharges === null || trip.tollCharges === undefined) ? '—' : Utils.displayCurrency(calc.toll)}</div>
             </div>
             <div class="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700">
               <span class="text-[10px] font-bold text-slate-400 uppercase">14. Loading</span>
-              <div class="text-sm font-black font-mono text-slate-800 dark:text-slate-200 mt-1">${Utils.formatCurrency(calc.loading)}</div>
+              <div class="text-sm font-black font-mono text-slate-800 dark:text-slate-200 mt-1">${(trip.loadingCharges === '' || trip.loadingCharges === null || trip.loadingCharges === undefined) ? '—' : Utils.displayCurrency(calc.loading)}</div>
             </div>
             <div class="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700">
               <span class="text-[10px] font-bold text-slate-400 uppercase">15. Unloading</span>
-              <div class="text-sm font-black font-mono text-slate-800 dark:text-slate-200 mt-1">${Utils.formatCurrency(calc.unloading)}</div>
+              <div class="text-sm font-black font-mono text-slate-800 dark:text-slate-200 mt-1">${(trip.unloadingCharges === '' || trip.unloadingCharges === null || trip.unloadingCharges === undefined) ? '—' : Utils.displayCurrency(calc.unloading)}</div>
             </div>
             <div class="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700">
               <span class="text-[10px] font-bold text-slate-400 uppercase">16. Police Exp</span>
-              <div class="text-sm font-black font-mono text-slate-800 dark:text-slate-200 mt-1">${Utils.formatCurrency(calc.police)}</div>
+              <div class="text-sm font-black font-mono text-slate-800 dark:text-slate-200 mt-1">${(trip.policeExp === '' || trip.policeExp === null || trip.policeExp === undefined) ? '—' : Utils.displayCurrency(calc.police)}</div>
             </div>
             <div class="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700">
               <span class="text-[10px] font-bold text-slate-400 uppercase">17. RTA C/P</span>
-              <div class="text-sm font-black font-mono text-slate-800 dark:text-slate-200 mt-1">${Utils.formatCurrency(calc.rta)}</div>
+              <div class="text-sm font-black font-mono text-slate-800 dark:text-slate-200 mt-1">${(trip.rtaExp === '' || trip.rtaExp === null || trip.rtaExp === undefined) ? '—' : Utils.displayCurrency(calc.rta)}</div>
             </div>
             <div class="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700">
               <span class="text-[10px] font-bold text-slate-400 uppercase">18. Other Exp</span>
-              <div class="text-sm font-black font-mono text-slate-800 dark:text-slate-200 mt-1">${Utils.formatCurrency(calc.otherExpenses)}</div>
-              <div class="text-[9px] text-slate-400 truncate mt-0.5" title="${trip.otherExpenseNotes || ''}">${trip.otherExpenseNotes || 'No notes'}</div>
+              <div class="text-sm font-black font-mono text-slate-800 dark:text-slate-200 mt-1">${(trip.otherExpenses === '' || trip.otherExpenses === null || trip.otherExpenses === undefined) ? '—' : Utils.displayCurrency(calc.otherExpenses)}</div>
+              <div class="text-[9px] text-slate-400 truncate mt-0.5" title="${trip.otherExpenseNotes || ''}">${Utils.displayText(trip.otherExpenseNotes)}</div>
             </div>
             <div class="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700">
               <span class="text-[10px] font-bold text-slate-400 uppercase">19. Driver Comm</span>
-              <div class="text-sm font-black font-mono text-slate-800 dark:text-slate-200 mt-1">${Utils.formatCurrency(calc.driverExp)}</div>
+              <div class="text-sm font-black font-mono text-slate-800 dark:text-slate-200 mt-1">${(trip.driverExp === '' || trip.driverExp === null || trip.driverExp === undefined) ? '—' : Utils.displayCurrency(calc.driverExp)}</div>
             </div>
             <div class="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700">
               <span class="text-[10px] font-bold text-slate-400 uppercase">11. TRSP Comm</span>
-              <div class="text-sm font-black font-mono text-slate-800 dark:text-slate-200 mt-1">${Utils.formatCurrency(calc.trspCommission)}</div>
+              <div class="text-sm font-black font-mono text-slate-800 dark:text-slate-200 mt-1">${(trip.trspCommission === '' || trip.trspCommission === null || trip.trspCommission === undefined) ? '—' : Utils.displayCurrency(calc.trspCommission)}</div>
             </div>
           </div>
         </div>

@@ -88,7 +88,7 @@ const TripForm = {
 
     const setVal = (id, val) => {
       const el = document.getElementById(id);
-      if (el) el.value = val !== undefined && val !== null ? val : '';
+      if (el) el.value = (val !== undefined && val !== null && val !== '') ? val : '';
     };
 
     setVal('edit-trip-id', trip.tripId || '');
@@ -96,22 +96,22 @@ const TripForm = {
     setVal('edit-vehicle', trip.vehicleNo || appState.currentVehicle);
     setVal('edit-from', trip.from || '');
     setVal('edit-to', trip.to || '');
-    setVal('edit-freight', trip.freightAmount !== undefined ? trip.freightAmount : (trip.freight || 0));
+    setVal('edit-freight', trip.freightAmount !== undefined ? trip.freightAmount : trip.freight);
     setVal('edit-advance-date', Utils.toInputDateFormat(trip.advanceDate));
-    setVal('edit-advance', trip.advanceAmount !== undefined ? trip.advanceAmount : (trip.advance || 0));
+    setVal('edit-advance', trip.advanceAmount !== undefined ? trip.advanceAmount : trip.advance);
     setVal('edit-halting', trip.haltingDetails || trip.halting || '');
     setVal('edit-trsp-name', trip.trspName || '');
 
-    // 9 Expenses
-    setVal('edit-diesel', trip.diesel || 0);
-    setVal('edit-toll', trip.tollCharges !== undefined ? trip.tollCharges : (trip.toll || 0));
-    setVal('edit-rta', trip.rtaExp !== undefined ? trip.rtaExp : (trip.rta || 0));
-    setVal('edit-police', trip.policeExp !== undefined ? trip.policeExp : (trip.police || 0));
-    setVal('edit-loading', trip.loadingCharges !== undefined ? trip.loadingCharges : (trip.loading || 0));
-    setVal('edit-unloading', trip.unloadingCharges !== undefined ? trip.unloadingCharges : (trip.unloading || 0));
-    setVal('edit-driver-comm', trip.driverExp !== undefined ? trip.driverExp : (trip.driverTripCommission || trip.driverCommission || 0));
-    setVal('edit-trsp-commission', trip.trspCommission || 0);
-    setVal('edit-other', trip.otherExpenses !== undefined ? trip.otherExpenses : (trip.other || 0));
+    // 9 Expenses: Leave blank if not entered, do not default to 0
+    setVal('edit-diesel', trip.diesel);
+    setVal('edit-toll', trip.tollCharges !== undefined ? trip.tollCharges : trip.toll);
+    setVal('edit-rta', trip.rtaExp !== undefined ? trip.rtaExp : trip.rta);
+    setVal('edit-police', trip.policeExp !== undefined ? trip.policeExp : trip.police);
+    setVal('edit-loading', trip.loadingCharges !== undefined ? trip.loadingCharges : trip.loading);
+    setVal('edit-unloading', trip.unloadingCharges !== undefined ? trip.unloadingCharges : trip.unloading);
+    setVal('edit-driver-comm', trip.driverExp !== undefined ? trip.driverExp : (trip.driverTripCommission !== undefined ? trip.driverTripCommission : trip.driverCommission));
+    setVal('edit-trsp-commission', trip.trspCommission);
+    setVal('edit-other', trip.otherExpenses !== undefined ? trip.otherExpenses : trip.other);
     setVal('edit-other-notes', trip.otherExpenseNotes || '');
 
     setVal('edit-status', trip.tripStatus || trip.status || 'In Progress');

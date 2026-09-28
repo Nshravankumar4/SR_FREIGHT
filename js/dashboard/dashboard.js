@@ -11,8 +11,9 @@ const Dashboard = {
       return;
     }
 
-    // Filter trips strictly by current vehicle
-    const vehicleTrips = VehicleWorkspace.getActiveTrips();
+    // Filter trips strictly by current vehicle and active date scope
+    const vehicleTrips = VehicleWorkspace.getFilteredTrips({ includeStatus: false, includeSearch: false });
+    const viewType = appState.filters.viewType || 'ALL_TRIPS';
 
     // Aggregations
     let totalFreight = 0;
