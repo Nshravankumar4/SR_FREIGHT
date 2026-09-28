@@ -46,7 +46,6 @@ const appState = {
     this.currentPage = "login";
     this.selectedTrip = null;
     this.editingTripId = null;
-    this.trips = [];
     this.receipts = [];
     this.filters = {
       status: 'ALL',

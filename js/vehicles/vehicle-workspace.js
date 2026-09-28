@@ -12,17 +12,25 @@ const VehicleWorkspace = {
 
     appState.currentVehicle = vehicleNo;
 
-    // Save selected vehicle to session
+    // 1. Ensure baseline data is loaded before rendering
+    if (typeof Trips !== 'undefined') {
+      Trips.loadFromLocal();
+    }
+
+    // 2. Save selected vehicle to session
     try {
       localStorage.setItem(CONFIG.VEHICLE_KEY, vehicleNo);
       Auth.saveSession();
     } catch (_) {}
 
-    // Navigate to vehicle dashboard
+    // 3. Navigate to vehicle dashboard and render immediately
     Router.navigate('dashboard');
+    if (typeof Dashboard !== 'undefined') {
+      Dashboard.render();
+    }
     Utils.showToast(`🚚 Switched to ${vehicleNo} workspace`);
 
-    // Fetch latest cloud data for this vehicle in background
+    // 4. Fetch latest cloud data for this vehicle in background
     if (typeof Trips !== 'undefined') {
       Trips.loadVehicleTrips(vehicleNo);
     }

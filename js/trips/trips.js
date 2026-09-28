@@ -22,7 +22,103 @@ const Trips = {
   },
 
   /**
-   * Load existing trips from localStorage or fallback
+   * Authoritative canonical baseline trips for both fleet vehicles
+   */
+  CANONICAL_TRIPS: [
+    {
+      tripId: 'TRIP-20260828-1122-1001',
+      sNo: 1,
+      tripDate: '2026-08-28',
+      vehicleNo: 'TS15UE1122',
+      from: 'Hyderabad, Telangana',
+      to: 'Purnia, Bihar',
+      freightAmount: 200000,
+      freight: 200000,
+      advanceDate: '2026-08-28',
+      advanceAmount: 90000,
+      advance: 90000,
+      haltingDetails: 'Two days halting during transit',
+      trspName: 'MRC',
+      trspCommission: 2000,
+      diesel: 50000,
+      tollCharges: 10000,
+      toll: 10000,
+      loadingCharges: 2500,
+      loading: 2500,
+      unloadingCharges: 2500,
+      unloading: 2500,
+      policeExp: 1000,
+      police: 1000,
+      rtaExp: 1000,
+      rta: 1000,
+      otherExpenses: 1000,
+      other: 1000,
+      otherExpenseNotes: 'Damage-1000',
+      driverExp: 12000,
+      totalExpenses: 82000,
+      profitLoss: 118000,
+      originalBalance: 110000,
+      totalReceived: 0,
+      remainingBalance: 110000,
+      balanceStatus: 'Not Received',
+      paymentIndicator: 'red',
+      tripStatus: 'Pending',
+      balanceReceipts: []
+    },
+    {
+      tripId: 'TRIP-20260828-6666-2002',
+      sNo: 2,
+      tripDate: '2026-08-28',
+      vehicleNo: 'TG15T6666',
+      from: 'Hyderabad, Telangana',
+      to: 'Purnia, Bihar',
+      freightAmount: 250000,
+      freight: 250000,
+      advanceDate: '2026-08-28',
+      advanceAmount: 90000,
+      advance: 90000,
+      haltingDetails: 'Two days halting during transit',
+      trspName: 'MRC',
+      trspCommission: 2000,
+      diesel: 80000,
+      tollCharges: 10000,
+      toll: 10000,
+      loadingCharges: 2500,
+      loading: 2500,
+      unloadingCharges: 2500,
+      unloading: 2500,
+      policeExp: 1000,
+      police: 1000,
+      rtaExp: 1000,
+      rta: 1000,
+      otherExpenses: 1000,
+      other: 1000,
+      driverExp: 12000,
+      totalExpenses: 112000,
+      profitLoss: 138000,
+      originalBalance: 160000,
+      totalReceived: 160000,
+      remainingBalance: 0,
+      balanceStatus: 'Done',
+      paymentIndicator: 'green',
+      tripStatus: 'Paid',
+      balanceReceipts: [
+        {
+          receiptId: 'REC-20260828-6666-01',
+          tripId: 'TRIP-20260828-6666-2002',
+          vehicleNo: 'TG15T6666',
+          amount: 160000,
+          receivedAmount: 160000,
+          date: '2026-08-28',
+          receivedDate: '2026-08-28',
+          notes: 'Full balance settlement'
+        }
+      ]
+    }
+  ],
+
+  /**
+   * Load existing trips from localStorage with fallback to canonical records
    */
   loadFromLocal() {
     try {
@@ -31,74 +127,25 @@ const Trips = {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed) && parsed.length > 0) {
           appState.trips = parsed;
-          return;
         }
       }
     } catch (_) {}
 
-    // Fallback: seed trips if empty
-    if (!appState.trips || appState.trips.length === 0) {
-      appState.trips = [
-        {
-          tripId: 'TRIP-20260828-0001',
-          sNo: 1,
-          tripDate: '2026-08-28',
-          vehicleNo: 'TS15UE1122',
-          from: 'Hyderabad, Telangana',
-          to: 'Purnia, Bihar',
-          freightAmount: 200000,
-          advanceDate: '2026-08-28',
-          advanceAmount: 90000,
-          haltingDetails: 'Two days halting during transit',
-          trspName: 'MRC',
-          trspCommission: 2000,
-          diesel: 50000,
-          tollCharges: 10000,
-          loadingCharges: 2500,
-          unloadingCharges: 2500,
-          policeExp: 1000,
-          rtaExp: 1000,
-          otherExpenses: 1000,
-          driverExp: 12000,
-          tripStatus: 'Pending',
-          balanceReceipts: []
-        },
-        {
-          tripId: 'TRIP-20260828-0002',
-          sNo: 2,
-          tripDate: '2026-08-28',
-          vehicleNo: 'TG15T6666',
-          from: 'Hyderabad, Telangana',
-          to: 'Purnia, Bihar',
-          freightAmount: 250000,
-          advanceDate: '2026-08-28',
-          advanceAmount: 90000,
-          haltingDetails: 'Two days halting during transit',
-          trspName: 'MRC',
-          trspCommission: 2000,
-          diesel: 80000,
-          tollCharges: 10000,
-          loadingCharges: 2500,
-          unloadingCharges: 2500,
-          policeExp: 1000,
-          rtaExp: 1000,
-          otherExpenses: 1000,
-          driverExp: 12000,
-          tripStatus: 'Paid',
-          balanceReceipts: [
-            {
-              receiptId: 'REC-20260828-6666-01',
-              tripId: 'TRIP-20260828-0002',
-              vehicleNo: 'TG15T6666',
-              amount: 160000,
-              date: '2026-08-28',
-              notes: 'Full balance settlement'
-            }
-          ]
-        }
-      ];
-      this.persistState();
+    if (!Array.isArray(appState.trips)) {
+      appState.trips = [];
     }
+
+    // Guarantee that TS15UE1122 has at least one canonical trip
+    if (!appState.trips.some(t => t.vehicleNo === 'TS15UE1122')) {
+      appState.trips.push(JSON.parse(JSON.stringify(this.CANONICAL_TRIPS[0])));
+    }
+
+    // Guarantee that TG15T6666 has at least one canonical trip
+    if (!appState.trips.some(t => t.vehicleNo === 'TG15T6666')) {
+      appState.trips.push(JSON.parse(JSON.stringify(this.CANONICAL_TRIPS[1])));
+    }
+
+    this.persistState();
   },
 
   /**
@@ -106,16 +153,26 @@ const Trips = {
    */
   async loadVehicleTrips(vehicleNo) {
     if (!vehicleNo) return;
+
+    // Ensure local trips are primed first
+    this.loadFromLocal();
+
     try {
       const res = await Api.getTrips(vehicleNo);
-      if (res && res.data && Array.isArray(res.data)) {
-        const remoteTrips = res.data;
+      if (res && res.data) {
+        let remoteTrips = [];
+        if (Array.isArray(res.data)) {
+          remoteTrips = res.data;
+        } else if (typeof res.data === 'object' && Object.keys(res.data).length > 0) {
+          remoteTrips = Object.values(res.data);
+        }
+
         if (remoteTrips.length > 0) {
           const otherVehicleTrips = (appState.trips || []).filter(t => t.vehicleNo !== vehicleNo);
           appState.trips = [...otherVehicleTrips, ...remoteTrips];
           this.persistState();
         } else {
-          // If remote cloud has 0 trips, check if we have local trips for this vehicle to seed
+          // If remote cloud has 0 trips, seed the local trips for this vehicle to the cloud
           const localTrips = (appState.trips || []).filter(t => t.vehicleNo === vehicleNo);
           if (localTrips.length > 0) {
             for (const lt of localTrips) {
@@ -125,8 +182,9 @@ const Trips = {
             }
           }
         }
+
         this.renderTable();
-        if (appState.currentPage === 'dashboard') {
+        if (appState.currentPage === 'dashboard' && typeof Dashboard !== 'undefined') {
           Dashboard.render();
         } else if (appState.currentPage === 'excel' && typeof ExcelView !== 'undefined') {
           ExcelView.render();

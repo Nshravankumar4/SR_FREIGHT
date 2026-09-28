@@ -91,10 +91,51 @@ const Dashboard = {
 
     const monthlyRows = Object.values(monthlyDataMap).sort((a, b) => b.monthKey.localeCompare(a.monthKey));
 
+    const userName = (appState.currentUser && appState.currentUser.name) ? appState.currentUser.name : 'Fleet Operator';
+    const userRole = (appState.currentUser && appState.currentUser.role) ? appState.currentUser.role : 'Authorized';
+    const now = new Date();
+    const todayFormatted = now.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+
     const container = document.getElementById('dashboard-metrics-container');
     if (!container) return;
 
     container.innerHTML = `
+      <!-- 0. High-Visibility Welcome & Active Vehicle Header Banner -->
+      <div class="mb-6 bg-white dark:bg-slate-800 rounded-3xl p-5 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div class="flex items-center gap-3.5">
+          <div class="p-3.5 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 rounded-2xl text-3xl border border-indigo-100 dark:border-indigo-800 shadow-inner">
+            🚛
+          </div>
+          <div>
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Fleet Operational Workspace</span>
+              <span class="px-2.5 py-0.5 rounded-full text-xs font-black bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-mono border border-indigo-200 dark:border-indigo-700">🚚 ${vNo}</span>
+            </div>
+            <h2 class="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight mt-0.5">
+              Welcome, ${userName}! 👋
+            </h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5 flex flex-wrap items-center gap-2">
+              <span>Active Lorry: <strong class="text-indigo-600 dark:text-indigo-400 font-mono font-black">${vNo}</strong></span>
+              <span>&bull;</span>
+              <span>Date: <strong class="text-slate-700 dark:text-slate-300">${todayFormatted}</strong></span>
+              <span>&bull;</span>
+              <span>Role: <strong class="text-slate-700 dark:text-slate-300">${userRole}</strong></span>
+            </p>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2.5 w-full sm:w-auto justify-start sm:justify-end">
+          <button onclick="VehicleWorkspace.changeVehicle()" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-white font-bold text-xs rounded-xl transition cursor-pointer flex items-center gap-1.5">
+            <span>🔄</span>
+            <span>Switch Vehicle</span>
+          </button>
+          <button onclick="TripForm.openAddModal()" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-black text-xs rounded-xl shadow-md transition cursor-pointer flex items-center gap-1.5">
+            <span class="text-sm font-bold">+</span>
+            <span>Record Shipment</span>
+          </button>
+        </div>
+      </div>
+
       <!-- 1. Top Outstanding Balance Notice Banner (if any balance is pending) -->
       ${pendingTotalCount > 0 ? `
         <div class="mb-6 bg-gradient-to-r from-rose-500/10 via-amber-500/10 to-rose-500/10 border-2 border-rose-500/40 dark:border-rose-500/30 rounded-2xl p-4 sm:p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm animate-pulse-subtle">
@@ -131,51 +172,51 @@ const Dashboard = {
         </div>
       `}
 
-      <!-- 2. Primary Financial Metrics Grid (4 KPI Cards) -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <!-- 2. Primary Financial Metrics Grid (4 KPI Cards - 2 cols on mobile, 4 on desktop) -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
         <!-- Card 1: Total Trips -->
-        <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
-          <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-2">
-            <span class="text-xs font-bold uppercase tracking-wider">Total Operations</span>
-            <span class="text-xl">🚛</span>
+        <div class="bg-white dark:bg-slate-800 p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
+          <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1.5">
+            <span class="text-[11px] font-bold uppercase tracking-wider">Total Operations</span>
+            <span class="text-lg">🚛</span>
           </div>
-          <div class="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white font-mono">${vehicleTrips.length}</div>
-          <div class="text-xs text-slate-500 mt-2 flex items-center justify-between">
-            <span>Vehicle: <strong class="text-slate-700 dark:text-slate-300 font-mono">${vNo}</strong></span>
+          <div class="text-xl sm:text-3xl font-black text-slate-900 dark:text-white font-mono">${vehicleTrips.length}</div>
+          <div class="text-[11px] text-slate-500 mt-1.5 flex items-center justify-between">
+            <span>${vNo}</span>
             <span class="text-slate-400 font-bold">${clearedCount} Paid</span>
           </div>
         </div>
 
         <!-- Card 2: Total Freight -->
-        <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
-          <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-2">
-            <span class="text-xs font-bold uppercase tracking-wider">Total Freight</span>
-            <span class="text-xl">📦</span>
+        <div class="bg-white dark:bg-slate-800 p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
+          <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1.5">
+            <span class="text-[11px] font-bold uppercase tracking-wider">Total Freight</span>
+            <span class="text-lg">📦</span>
           </div>
-          <div class="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white font-mono">${Utils.formatCurrency(totalFreight)}</div>
-          <div class="text-xs text-slate-500 mt-2">Gross Contract Value</div>
+          <div class="text-lg sm:text-2xl lg:text-3xl font-black text-slate-900 dark:text-white font-mono truncate">${Utils.formatCurrency(totalFreight)}</div>
+          <div class="text-[11px] text-slate-500 mt-1.5">Gross Billing</div>
         </div>
 
-        <!-- Card 3: Total Expenses (9 Logistical Expenses) -->
-        <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
-          <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-2">
-            <span class="text-xs font-bold uppercase tracking-wider">Total Expenses</span>
-            <span class="text-xl">⛽</span>
+        <!-- Card 3: Total Expenses -->
+        <div class="bg-white dark:bg-slate-800 p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
+          <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1.5">
+            <span class="text-[11px] font-bold uppercase tracking-wider">Total Expenses</span>
+            <span class="text-lg">⛽</span>
           </div>
-          <div class="text-2xl sm:text-3xl font-black text-amber-600 dark:text-amber-400 font-mono">${Utils.formatCurrency(totalExpenses)}</div>
-          <div class="text-xs text-slate-500 mt-2">Sum of 9 Operational Costs</div>
+          <div class="text-lg sm:text-2xl lg:text-3xl font-black text-amber-600 dark:text-amber-400 font-mono truncate">${Utils.formatCurrency(totalExpenses)}</div>
+          <div class="text-[11px] text-slate-500 mt-1.5">Sum of 9 Costs</div>
         </div>
 
         <!-- Card 4: Net Trip Profit -->
-        <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
-          <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-2">
-            <span class="text-xs font-bold uppercase tracking-wider">Net Profit (${profitMargin}%)</span>
-            <span class="text-xl">📈</span>
+        <div class="bg-white dark:bg-slate-800 p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
+          <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1.5">
+            <span class="text-[11px] font-bold uppercase tracking-wider">Net Profit (${profitMargin}%)</span>
+            <span class="text-lg">📈</span>
           </div>
-          <div class="text-2xl sm:text-3xl font-black ${totalProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'} font-mono">
+          <div class="text-lg sm:text-2xl lg:text-3xl font-black ${totalProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'} font-mono truncate">
             ${totalProfit >= 0 ? '+' : ''}${Utils.formatCurrency(totalProfit)}
           </div>
-          <div class="text-xs text-slate-500 mt-2">Freight &minus; Expenses</div>
+          <div class="text-[11px] text-slate-500 mt-1.5">Freight &minus; Expenses</div>
         </div>
       </div>
 
