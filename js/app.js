@@ -127,6 +127,98 @@ const App = {
         TripTable.render();
       });
     }
+
+    // Change Password Form submit
+    const changePwdForm = document.getElementById('form-change-password');
+    if (changePwdForm) {
+      changePwdForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const targetUser = document.getElementById('change-pwd-target-user')?.value || 'admin';
+        const newPass = document.getElementById('change-pwd-new')?.value;
+        const alertBox = document.getElementById('change-pwd-alert');
+
+        const res = Auth.updatePassword(targetUser, newPass);
+        if (alertBox) {
+          alertBox.textContent = res.message;
+          alertBox.className = res.success
+            ? 'p-3 rounded-xl text-xs font-semibold text-center bg-emerald-50 text-emerald-700 border border-emerald-200'
+            : 'p-3 rounded-xl text-xs font-semibold text-center bg-rose-50 text-rose-700 border border-rose-200';
+          alertBox.classList.remove('hidden');
+        }
+
+        if (res.success) {
+          Utils.showToast(res.message, "success");
+          setTimeout(() => {
+            this.closeChangePasswordModal();
+          }, 1000);
+        }
+      });
+    }
+  },
+
+  /**
+   * Modal controllers for password update
+   */
+  openChangePasswordModal() {
+    const modal = document.getElementById('modal-change-password');
+    if (!modal) return;
+    const alertBox = document.getElementById('change-pwd-alert');
+    if (alertBox) alertBox.classList.add('hidden');
+    const targetSelect = document.getElementById('change-pwd-target-user');
+    if (targetSelect) {
+      if (Auth.isAdmin()) {
+        targetSelect.disabled = false;
+        targetSelect.value = 'admin';
+      } else {
+        targetSelect.value = 'rudra';
+        targetSelect.disabled = true;
+      }
+    }
+    const input = document.getElementById('change-pwd-new');
+    if (input) input.value = '';
+    modal.classList.remove('hidden');
+  },
+
+  closeChangePasswordModal() {
+    const modal = document.getElementById('modal-change-password');
+    if (modal) modal.classList.add('hidden');
+  },
+
+  /**
+   * Manual Cloud Database Synchronizer
+   */
+  async manualSync() {
+    if (!appState.isLoggedIn) return;
+    Utils.showToast("🔄 Syncing with Google Cloud...", "info");
+    const syncDot = document.getElementById('cloudStatusDot');
+    const syncText = document.getElementById('cloudStatusText');
+    if (syncDot) { syncDot.className = 'status-dot syncing'; }
+    if (syncText) { syncText.textContent = 'Syncing...'; }
+
+    try {
+      if (appState.currentVehicle) {
+        await Trips.loadVehicleTrips(appState.currentVehicle);
+      }
+      Utils.showToast("✅ Cloud database synchronized!", "success");
+      if (syncDot) { syncDot.className = 'status-dot online'; }
+      if (syncText) { syncText.textContent = 'Online'; }
+    } catch (err) {
+      Utils.showToast("⚠️ Cloud notice: " + (err.message || 'Offline mode'), "warning");
+      if (syncDot) { syncDot.className = 'status-dot error'; }
+      if (syncText) { syncText.textContent = 'Offline'; }
+    }
+  },
+
+  /**
+   * Open Settings and trigger connection diagnostic test
+   */
+  async testCloudConnectionUI() {
+    Router.navigate('settings');
+    setTimeout(() => {
+      if (typeof Settings !== 'undefined' && Settings.testConnection) {
+        Settings.testConnection();
+      }
+    }, 150);
   },
 
   /**

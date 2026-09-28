@@ -99,6 +99,15 @@ const Router = {
       uEl.textContent = appState.currentUser ? `${appState.currentUser.name} (${appState.currentUser.role})` : 'Guest';
     }
 
+    const dName = document.getElementById('drawer-user-name');
+    if (dName) {
+      dName.textContent = appState.currentUser ? appState.currentUser.name : 'Administrator';
+    }
+    const dRole = document.getElementById('drawer-user-role');
+    if (dRole) {
+      dRole.textContent = appState.currentUser ? (appState.currentUser.role === 'Admin' ? 'ADMIN' : 'USER') : 'ADMIN';
+    }
+
     // Settings menu item visibility (ADMIN ONLY)
     const settingsBtn = document.getElementById('menu-btn-settings');
     if (settingsBtn) {
