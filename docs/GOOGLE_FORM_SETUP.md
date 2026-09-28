@@ -118,8 +118,10 @@ This document specifies the exact fields, question types, validation rules, and 
 
 ## Automated Business Columns
 
-The following columns are calculated automatically by the Apps Script & Web Dashboard and must **NOT** be prompted in the form:
-- **20. Sum OF Total Exp:** Sum of the 9 operating expenses (TRSP Comm + Diesel + Toll + Loading + Unloading + Police + RTA + Other + Driver Comm)
-- **21. Total Exp Given:** `Advance Amount + Sum OF Total Exp`
-- **23. P/L:** Net profit or loss calculated as `Freight Amount - Total Exp Given`
-- **25. Balance Amount:** Net pending freight calculated as `Freight Amount - Total Exp Given`
+- **20. Total Expenses:** Sum of the 9 operating expenses (TRSP Comm + Diesel + Toll + Loading + Unloading + Police + RTA + Other + Driver Comm)
+- **21. Total Exp Given:** `Advance Amount + Total Expenses`
+- **22. Trip Status:** Operational lifecycle status (`New`, `In Progress`, `Completed`, `Cancelled`)
+- **23. Profit / Loss:** Net business margin calculated as `Freight Amount - Total Expenses`
+- **24. Total Balance Received:** Sum of all recorded balance receipt installments
+- **25. Original Customer Balance:** Net receivable calculated as `Freight Amount - Advance Amount`
+- **26. Remaining Customer Balance:** `Original Balance - Total Balance Received` (Down to ₹0 with 🔴/🟢 indicator)

@@ -1,109 +1,132 @@
-# 🚚 SR_T LORRY FREIGHT & BROKER MANAGEMENT SYSTEM - FINAL ARCHITECTURE & REPORT
+# 🚚 SR_T LORRY FREIGHT & FLEET MANAGEMENT SYSTEM
+## PRODUCTION MASTER SPECIFICATION & FINAL IMPLEMENTATION BLUEPRINT
 
-## 🌟 Executive Overview
-The **SR_T Lorry Freight Management System** has been fully upgraded, debugged, and verified as a 100% cloud-first, enterprise-grade transport operations platform. It mirrors the proven multi-user architecture of the reference project (`D:\Repo\SR_T`), ensuring real-time bidirectional synchronization between **Admin (Shravan)** and **Employee (Rudra)** with automated Google Drive backups and zero data loss.
-
----
-
-## 🔗 Live Connected Endpoints & Deployments
-
-| Component | Target URL / Reference | Status |
-| :--- | :--- | :---: |
-| **Cloudflare Pages / Workers** | [https://y.srtransport.workers.dev/](https://y.srtransport.workers.dev/) | 🟢 Active |
-| **Vercel Edge Cloud** | [https://ytransport.vercel.app/](https://ytransport.vercel.app/) | 🟢 Active |
-| **Google Cloud Spreadsheet** | [Open Connected Google Sheet](https://docs.google.com/spreadsheets/d/1X-whiMGT3BxgdMjayuXHw-d8fZeaX1dKjLeEEiIPQf0/edit) | 🟢 Active & Pristine (4 Canonical Trips) |
-| **Google Apps Script Web App** | `https://script.google.com/macros/s/AKfycbyp5fBDoLJTAMS-x7K75yST2ZP0aKRWZs9mlyT2SH5ZGnQhvqrc_rfGPNTP8yymqjdQ/exec` | 🟢 Verified & Live |
-| **Active Deployment ID** | `AKfycbyp5fBDoLJTAMS-x7K75yST2ZP0aKRWZs9mlyT2SH5ZGnQhvqrc_rfGPNTP8yymqjdQ` | 🟢 Version 1 |
+**Target Workspace:** `D:\Repo\Lorry`  
+**Document Version:** 3.2.0 (Authoritative Production Master Release)  
+**Updated Date:** 2026-09-28  
+**Repository Branch:** `Upgrade`  
 
 ---
 
-## 🛠️ Root Cause Diagnosis & Architectural Solutions
+## 1. 🔗 Live Connected Endpoints & Deployments
 
-### 1. The "Immediate Reset on Edit/Add" Bug (Resolved)
-- **Root Cause:**
-  When a user saved or edited a trip, the local UI state changed, but the background poller (`autoSyncCloud`) running every 4 seconds immediately retrieved data from Google Sheets before Google Sheets had processed the POST mutation. The poller overwrote local state with old data, causing newly entered data to vanish. Furthermore, `executeSaveNewTrip`, `executeDeleteTrip`, and `executeSaveTripEdits` used `await sendCloudMutation(...)` inside regular synchronous functions, causing an unhandled parse error on launch.
-- **Architectural Fix:**
-  1. **Mutation Lock & Mutex Guards:** Added `isSaving`, `pendingMutationCount`, and `lastSuccessfulMutation`.
-  2. **Poller Lockout:** `autoSyncCloud()` immediately aborts if `isSaving || pendingMutationCount > 0` or if less than 4 seconds have passed since `lastSuccessfulMutation`.
-  3. **Non-Destructive Merge:** Pending mutations are identified with unique `tripId` (`crypto.randomUUID()`) and never overwritten by background polls.
-  4. **Async Handlers:** Made `executeSaveNewTrip`, `executeDeleteTrip`, and `executeSaveTripEdits` proper `async` functions with try-finally blocks that reliably decrement `pendingMutationCount` and release `isSaving`.
-
-### 2. Login Page Not Displaying / Dead Buttons (Resolved)
-- **Root Cause:**
-  1. `#login-overlay` had the Tailwind class `hidden` hardcoded in `index.html`.
-  2. Syntax errors in `app.js` (unhandled `await` in sync functions, duplicate `prevHash` declaration) prevented script execution on page load, so `setupAuth()` never ran to remove `hidden`.
-  3. `#modal-confirm-add` had duplicate event triggers (inline HTML `onclick="executeSaveNewTrip()"` and an `addEventListener` in `setupModals()`).
-- **Architectural Fix:**
-  1. Removed `hidden` class from `#login-overlay` in `index.html` so the login screen renders by default immediately.
-  2. Default header badges set to "Not Signed In" / "Guest".
-  3. Fixed all syntax errors in `app.js` and removed duplicate inline `onclick` handlers.
-  4. Table redesigned with sticky `⚡ ACTIONS` column on the left containing `👁️ View`, `✏️ Edit`, and `🗑️ Delete` (Admin only).
+| Component | Target URL / Reference | Status | Notes |
+| :--- | :--- | :---: | :--- |
+| **Cloudflare Pages / Workers** | [https://y.srtransport.workers.dev/](https://y.srtransport.workers.dev/) | 🟢 Active | Edge-cached production client |
+| **Vercel Edge Cloud** | [https://ytransport.vercel.app/](https://ytransport.vercel.app/) | 🟢 Active | High-availability global deployment |
+| **Google Cloud Spreadsheet** | [Open Connected Google Sheet](https://docs.google.com/spreadsheets/d/1X-whiMGT3BxgdMjayuXHw-d8fZeaX1dKjLeEEiIPQf0/edit) | 🟢 Active | Authoritative Database (Trips, Vehicles, BalanceReceipts) |
+| **Google Apps Script Web App** | `https://script.google.com/macros/s/AKfycbxXNUcEvcCbjL1fxtSPz1CVUSLOHKzSzYgasOGgUJ111r7i77MVVBkocCJd15v5lP1S/exec` | 🟢 Live (v3/v4) | Backend API with Concurrency Locks & Role Verification |
+| **Active Deployment ID** | `AKfycbxXNUcEvcCbjL1fxtSPz1CVUSLOHKzSzYgasOGgUJ111r7i77MVVBkocCJd15v5lP1S` | 🟢 Production | Google Apps Script Active Web App |
 
 ---
 
-## ⚡ Multi-User Real-Time Synchronization Engine
+## 2. Core Architectural Upgrades & Bug Fixes
 
-1. **Bidirectional Instant Sync:**
-   - When **Admin** edits or adds a trip, it updates the Google Sheet immediately.
-   - When **Rudra** adds or edits a trip from any device/mobile, it updates the Google Sheet immediately.
-   - Within seconds, both screens reflect the exact same state without manual refreshes.
+### 2.1 Resolution of the "00" Display Bug
+- **Problem:** `Number(val) || 0` and unentered trip properties defaulted to numeric `0`, causing empty dates, notes, and unentered expenses to display as `00` or `0` across cards, tables, and drawers.
+- **Solution:** Integrated centralized display formatters in `js/utils.js`:
+  - `Utils.displayNumber(val)`: Returns `—` for blank/null/undefined; formats numbers with Indian grouping.
+  - `Utils.displayCurrency(val)`: Returns `—` for blank/null/undefined; returns `₹0` only for explicit zero; formats positive amounts as `₹X,XX,XXX`.
+  - `Utils.displayDate(val)`: Normalizes `dd-mm-yyyy`, `yyyy-mm-dd`, and Excel serial dates (`46262`) with strict protection against Unix epoch `1970` fallbacks.
+  - `Utils.displayText(val)`: Returns `—` when unentered.
 
-2. **Automated Background Poller & Focus Detection:**
-   - Background poller checks the Google Sheet every 4 seconds (`setInterval`).
-   - Immediate re-sync triggers as soon as the user returns to the tab (`window.focus` and `visibilitychange`).
-   - `BroadcastChannel ('lorry_sync_channel')` coordinates instant tab-to-tab sync.
+### 2.2 Complete & Authoritative Logout Flow
+- **Problem:** Logging out previously left poller intervals running, retained active vehicle tokens, and reopened cached data on page refresh.
+- **Solution:** Updated `Auth.logout()` in `js/auth.js` and `js/app.js`:
+  1. Halts the cloud polling interval immediately (`App.stopBackgroundPoller()`).
+  2. Closes any active modals or drawers.
+  3. Wipes credentials and tokens from both `localStorage` and `sessionStorage`.
+  4. Resets app state (`currentVehicle`, `trips`, `receipts`, `filters`, `pendingMutationCount`).
+  5. Navigates cleanly back to `#view-login`.
+  6. High-contrast **Red Logout Button** with icon and text placed prominently in the header and menu drawer.
 
-3. **Zero Data Loss & 3-Layer Backup Guarantee (Ref: `D:\Repo\SR_T`):**
-   - **Layer 1: LocalStorage Point-in-Time Snapshots (`lorry_backup_snapshots_v1`):** Keeps a rolling ring buffer of up to 25 full snapshots. Every Add, Edit, Delete, or Manual Backup records the snapshot with timestamp, reason, row counts, user, and complete trip payload.
-   - **Layer 2: Google Drive Automated File Cloning (`DriveApp`):** Apps Script automatically clones the master Google Spreadsheet into the `Lorry_Backups` folder in Google Drive (with automatic fallback to an internal `SNAP_` sheet tab if Drive permissions are restricted).
-   - **Layer 3: 1-Click Point-in-Time Restore (Admin Only):** Admin can open Cloud Settings, view the history of snapshots, and restore the entire database state back to any moment. The restore updates the UI, local storage, and syncs the entire dataset back to Google Sheets via `restoreFullDataset`.
+### 2.3 Instant Balance Payment Update Path
+- **Required Flow:**
+  $$\text{Receipt Saved} \longrightarrow \text{Cloud Confirms} \longrightarrow \text{Fetch Latest Receipts} \longrightarrow \text{Recalculate} \longrightarrow \text{Update State} \longrightarrow \text{Multi-view Render} \longrightarrow \text{Broadcast}$$
+- **Components Immediately Updated on Payment Add/Delete:**
+  1. Transaction Table Row & Balance Pill
+  2. Read-Only View Modal (if open)
+  3. Edit Drawer Balance Settlement Card & Installments History Table
+  4. Dashboard KPI Cards (Total Received, Remaining Receivable)
+  5. Outstanding Balance Notice Banner & Recovery Modal
+  6. Real-time Cross-Tab Broadcast via `BroadcastChannel: lorry_sync_channel`
+  7. Client Storage Persistence (`Trips.persistState()`)
+
+### 2.4 Outstanding Balance Recovery System
+- **Dashboard Notice Banner:** When `remainingBalance > 0`, an executive alert banner appears on the dashboard displaying total pending amount and pending trips count.
+- **Outstanding Balance Modal (`#modal-outstanding-balances`):**
+  - Displays all unpaid trips for the active vehicle.
+  - Shows S.No, Date, Route, Freight, Advance, Original Balance, Received, and Remaining Receivable.
+  - Includes direct action button `[ 💳 Settle Payment ]` to instantly open the settlement drawer.
+
+### 2.5 Monthly Profit & Loss Breakdown Table
+- Aggregates all trips of the selected vehicle by operational month (e.g. September 2026, August 2026).
+- Displays:
+  - Operational Month
+  - Total Trips Count
+  - Gross Freight
+  - Sum of 9 Operational Expenses
+  - Net Profit / Loss with margin % and green/red badge
+  - Original Balance
+  - Total Received
+  - Outstanding Balance with semantic status indicator (🟢 / 🔴)
+  - Quick Filter button to jump to that month in the main ledger.
+
+### 2.6 Strictly Read-Only View Trip Modal with Excel & PDF/Print
+- **Strict Read-Only:** All editable form elements and accidental edit inputs removed.
+- **Excel Voucher Export (`Trips.exportTripExcel`):** Uses ExcelJS to generate an executive-styled `.xlsx` voucher containing shipment info, 9 operational expenses, net margin, and customer balance installment history.
+- **Official SR Transport PDF / Print Receipt (`Trips.printTripReceipt`):**
+  - Generates an official consignment voucher with SR Transport branding, vehicle details, driver signature line, customer stamp box, and complete payment installment ledger.
+  - Triggers standard print / PDF save dialog (`window.print()`).
+
+### 2.7 Role-Based Access Control (Admin vs. Employee)
+- **Admin (`admin` / `Shravan`):** Full access to Add, Edit, Delete trips, Delete payment receipts, Settings, and System Exports.
+- **Employee (`rudra` / `RudraSarika@2505`):** Access to Add/Edit trips and Record payment installments.
+  - `🗑️ Delete Trip` and `🗑️ Delete Receipt` buttons are completely hidden.
+  - `⚙️ Settings` button is hidden; unauthorized navigation triggers a warning toast.
+  - Backend `Code.gs` rejects any delete or settings mutation attempted with non-admin credentials.
 
 ---
 
-## 🔐 Dual-Layer Security & Roles Matrix
+## 3. Authoritative Financial Mathematics
 
-| Feature | Admin (`Shravan` / `Admin`) | Employee (`Rudra`) |
-| :--- | :---: | :---: |
-| **Username** | `admin` or `shravan` | `rudra` |
-| **Password** | `Shravan` | `RudraSarika@2505` |
-| **View Trips & Reports** | ✅ Full Access | ✅ Full Access |
-| **Excel Export (.xlsx)** | ✅ Full Access | ✅ Full Access |
-| **Filter by Status & Scope** | ✅ Full Access | ✅ Full Access |
-| **Add New Trip** | ✅ Full Access | ✅ Full Access |
-| **Edit Trip Details** | ✅ Full Access | ✅ Full Access |
-| **Delete Trip** | ✅ Full Access | ❌ Blocked (UI Hidden + Backend Rejection) |
-| **Cloud Settings & Backups**| ✅ Full Access | ❌ Blocked (UI Hidden + Backend Rejection) |
+The single source of truth across `js/calculations/financial.js` and `google-apps-script/Code.gs`:
+
+$$\text{1. Total Expenses} = \text{Diesel} + \text{Toll} + \text{RTA} + \text{Police} + \text{Loading} + \text{Unloading} + \text{Driver Exp} + \text{TRSP Comm} + \text{Other Exp}$$
+
+$$\text{2. Profit / Loss (Internal Business Metric)} = \text{Freight Amount} - \text{Total Expenses}$$
+
+$$\text{3. Original Customer Balance (External Receivable)} = \text{Freight Amount} - \text{Advance Amount}$$
+
+$$\text{4. Total Balance Received} = \sum_{\text{Trip Receipts}} \text{Received Amount}$$
+
+$$\text{5. Remaining Customer Balance} = \text{Original Balance} - \text{Total Balance Received}$$
+
+$$\text{6. Total Exp Given} = \text{Advance Amount} + \text{Total Expenses}$$
+
+### Golden Example (Mathematical Verification)
+- **Freight:** ₹1,30,000
+- **Advance:** ₹1,20,000
+- **Expenses (9 Sum):** ₹1,19,200
+- **Profit / Loss:** $\text{₹}1,30,000 - \text{₹}1,19,200 = \mathbf{\text{₹}10,800}$ (Profit)
+- **Original Customer Balance:** $\text{₹}1,30,000 - \text{₹}1,20,000 = \mathbf{\text{₹}10,000}$
+- **After Receipt #1 (+₹9,000):** Total Received = ₹9,000; Remaining Balance = ₹1,000 (🔴 Partially Received)
+- **After Receipt #2 (+₹1,000):** Total Received = ₹10,000; Remaining Balance = ₹0 (🟢 Cleared / Done)
+- *Strict Rule:* Never confuse the ₹10,800 profit with the ₹10,000 customer balance.
 
 ---
 
-## 📊 25-Column Business Math Verification
+## 4. Multi-Vehicle Fleet Workspace Isolation
 
-* `20. Sum OF Total Exp` = TRSP Comm + Diesel + Toll + Loading + Unloading + Police + RTA + Other + Driver Comm
-* `21. Total Exp Given` = Advance Amount + Sum OF Total Exp
-* `23. P/L` = Freight Amount - Total Exp Given
-* `25. Balance Amount` = Freight Amount - Advance Amount
+The application operates as isolated workspaces for each registered vehicle:
+1. **`TS15UE1122`**
+2. **`TG15T6666`**
+
+Switching vehicles via the header badge or slide-over drawer resets all active queries, date filters, monthly aggregations, and outstanding balances to strictly that vehicle's domain.
 
 ---
 
-## 🧪 Comprehensive Automated Test Results (100% Passed)
+## 5. Universal Professional Footer & Branding
+Every view features the standardized copyright and developer signature:
+> `© 2026 SR Transport • Enterprise Freight & Fleet Management System • Developed for Fleet Operations • All Rights Reserved`
 
-Automated end-to-end testing was conducted using Headless Chrome CDP (`scratch/test_e2e_full.py`):
-
-| Test Suite | Scenario | Result |
-| :--- | :--- | :---: |
-| **TC-01** | Initial Load: Login screen is visible by default with no console errors | ✅ PASSED |
-| **TC-02** | Rudra Login: Authenticates as Employee, Delete & Settings buttons blocked | ✅ PASSED |
-| **TC-03** | Logout Flow: Clears session and returns to login modal immediately | ✅ PASSED |
-| **TC-04** | Admin Login: Authenticates as Admin, Delete & Settings buttons enabled | ✅ PASSED |
-| **TC-05** | Add Trip Flow: Modal opens, inputs validated, trip added, table & counters update | ✅ PASSED |
-| **TC-06** | View Details Flow: Clicking `👁️ View` opens down-sheet audit panel with ledger | ✅ PASSED |
-| **TC-07** | Edit Trip Flow: Slide-over opens, values update, save persists, row updates | ✅ PASSED |
-| **TC-08** | Delete Trip Flow: Confirm modal opens, trip removed, counters decrement | ✅ PASSED |
-| **TC-09** | Backup Engine: Snapshot recorded for every mutation in `lorry_backup_snapshots_v1` | ✅ PASSED |
-
-**Live Google Sheet Database Status:**
-All 4 canonical business trips are intact:
-1. `TS15UE1122` (Hyderabad ➔ Purnia, Freight ₹2,00,000)
-2. `TG15T6666` (Hyderabad ➔ Purnia, Freight ₹2,50,000)
-3. `TS15UE1122` (Hyderabad ➔ Kedch, Freight ₹2,00,000)
-4. `AP39UP9666` (Medchal ➔ Raipur, Freight ₹1,50,000)

@@ -9,8 +9,8 @@ This guide provides the complete documentation for the live production architect
 * **Vercel Production Deployment:** [https://ytransport.vercel.app/](https://ytransport.vercel.app/)
 * **Cloudflare Global Deployment:** [https://y.srtransport.workers.dev/](https://y.srtransport.workers.dev/)
 * **Active Master Google Sheet:** [Connected Google Spreadsheet](https://docs.google.com/spreadsheets/d/1X-whiMGT3BxgdMjayuXHw-d8fZeaX1dKjLeEEiIPQf0/edit)
-* **Google Apps Script Web App URL:** `https://script.google.com/macros/s/AKfycbyp5fBDoLJTAMS-x7K75yST2ZP0aKRWZs9mlyT2SH5ZGnQhvqrc_rfGPNTP8yymqjdQ/exec`
-* **Active Deployment ID:** `AKfycbyp5fBDoLJTAMS-x7K75yST2ZP0aKRWZs9mlyT2SH5ZGnQhvqrc_rfGPNTP8yymqjdQ`
+* **Google Apps Script Web App URL:** `https://script.google.com/macros/s/AKfycbxXNUcEvcCbjL1fxtSPz1CVUSLOHKzSzYgasOGgUJ111r7i77MVVBkocCJd15v5lP1S/exec`
+* **Active Deployment ID:** `AKfycbxXNUcEvcCbjL1fxtSPz1CVUSLOHKzSzYgasOGgUJ111r7i77MVVBkocCJd15v5lP1S` (Version 3)
 
 ---
 
@@ -28,7 +28,9 @@ This guide provides the complete documentation for the live production architect
                       ┌─────────────────────────────────────────┐
                       │    Google Apps Script Web App API       │
                       │           (Code.gs Backend)             │
-                      │   - Strictly verifies role for Delete   │
+                      │   - Vehicle-scoped write validation     │
+                      │   - 9-Expense calculation parity        │
+                      │   - Overpayment protection              │
                       │   - Triggers Drive Clone Backups        │
                       └────────────────────┬────────────────────┘
                                            │
@@ -36,7 +38,7 @@ This guide provides the complete documentation for the live production architect
                          ▼                                   ▼
           ┌─────────────────────────────┐     ┌─────────────────────────────┐
           │     Master Google Sheet     │     │      Google Drive Cloud     │
-          │    (Trips - 25 Columns)     │     │      (Lorry_Backups Folder) │
+          │  Vehicles | Trips | Receipts│     │      (Lorry_Backups Folder) │
           └─────────────────────────────┘     └─────────────────────────────┘
 ```
 

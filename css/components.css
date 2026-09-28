@@ -1,0 +1,38 @@
+/**
+ * LORRY FREIGHT MANAGEMENT SYSTEM - COMPONENTS CSS
+ * Version: 2.4.2
+ */
+
+/* Semantic Payment Status Badges */
+.payment-pending, .pod-red {
+  color: #dc2626;
+  background-color: rgba(220, 38, 38, 0.1);
+  border-color: rgba(220, 38, 38, 0.2);
+}
+
+.payment-cleared, .pod-green {
+  color: #16a34a;
+  background-color: rgba(22, 163, 74, 0.1);
+  border-color: rgba(22, 163, 74, 0.2);
+}
+
+/* Vehicle Selection Cards */
+.vehicle-card {
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s;
+}
+.vehicle-card:hover {
+  transform: translateY(-4px);
+}
+
+/* Modals & Drawers Transition */
+.transition-transform {
+  transition-property: transform;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 300ms;
+}
+
+/* Sticky Action Column Shadows */
+.sticky-action-shadow {
+  box-shadow: 2px 0 6px -2px rgba(0, 0, 0, 0.15);
+}
+

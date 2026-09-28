@@ -1,285 +1,253 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full bg-gray-50">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SR_T Lorry Freight Management | Fleet Operations Dashboard</title>
-  <!-- Tailwind CSS CDN -->
+  <title>SR_T Lorry Freight Management System</title>
+  
+  <!-- Tailwind CSS CDN for Executive Styling -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- ExcelJS CDN for True .XLSX Exports with Colors & Auto-Widths -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
   <script>
     tailwind.config = {
+      darkMode: 'class',
       theme: {
         extend: {
-          fontFamily: {
-            sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
-          },
           colors: {
             brand: {
-              50: '#eff6ff',
-              100: '#dbeafe',
-              500: '#3b82f6',
-              600: '#2563eb',
-              700: '#1d4ed8',
-              800: '#1e40af',
-              900: '#1e3a8a',
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+              900: '#312e81'
             }
           }
         }
       }
     }
   </script>
-  <!-- Inter Font -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <style>
-    /* Custom scrollbar for data tables */
-    .custom-scrollbar::-webkit-scrollbar {
-      height: 9px;
-      width: 9px;
-    }
-    .custom-scrollbar::-webkit-scrollbar-track {
-      background: #f1f5f9;
-      border-radius: 4px;
-    }
-    .custom-scrollbar::-webkit-scrollbar-thumb {
-      background: #cbd5e1;
-      border-radius: 4px;
-    }
-    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-      background: #94a3b8;
-    }
-    /* Toast animation */
-    @keyframes toastSlide {
-      from { transform: translateY(-100%); opacity: 0; }
-      to { transform: translateY(0); opacity: 1; }
-    }
-    .animate-toast {
-      animation: toastSlide 0.25s ease-out forwards;
-    }
-    /* Modal animation */
-    @keyframes modalFade {
-      from { opacity: 0; transform: scale(0.97); }
-      to { opacity: 1; transform: scale(1); }
-    }
-    .animate-modal {
-      animation: modalFade 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    }
-    /* Shake animation for errors */
-    @keyframes shake {
-      0%, 100% { transform: translateX(0); }
-      20%, 60% { transform: translateX(-6px); }
-      40%, 80% { transform: translateX(6px); }
-    }
-    .animate-shake {
-      animation: shake 0.3s ease-in-out;
-    }
-  </style>
+
+  <!-- ExcelJS CDN for True .XLSX Exports with Colors & Auto-Widths -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+
+  <!-- Modular Stylesheets -->
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/components.css">
 </head>
-<body class="h-full font-sans antialiased text-gray-900 bg-gray-50 flex flex-col">
+<body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 min-h-screen flex flex-col font-sans">
 
   <!-- ========================================================================= -->
-  <!-- Toast Notification Container                                              -->
+  <!-- 1. APPLICATION HEADER (Visible inside vehicle workspaces)                 -->
   <!-- ========================================================================= -->
-  <div id="toast-container" class="fixed top-5 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 pointer-events-none w-full max-w-md px-4"></div>
-
-  <!-- ========================================================================= -->
-  <!-- ========================================================================= -->
-  <!-- Login Screen (Real Enterprise Design with Account Switcher & Credits)    -->
-  <!-- ========================================================================= -->
-  <div id="login-overlay" class="fixed inset-0 z-50 flex flex-col items-center justify-center min-h-screen bg-[#132238] p-4 sm:p-6 overflow-y-auto" style="background: radial-gradient(circle at 50% 20%, #1e3a8a 0%, #0f172a 100%);">
-    
-    <!-- Centered Modal Card -->
-    <div class="bg-white rounded-3xl shadow-2xl border border-white/20 max-w-[460px] w-full p-7 sm:p-9 space-y-6 animate-modal my-auto">
-      
-      <!-- Header: Title & Subtitle -->
-      <div class="text-center space-y-1.5">
-        <div class="text-3xl sm:text-4xl leading-none select-none">🚛</div>
-        <h2 class="text-xl sm:text-2xl font-black text-[#1e3a8a] tracking-tight uppercase leading-snug">
-          SR_T LORRY FREIGHT MANAGEMENT
-        </h2>
-        <p class="text-sm font-medium text-slate-500">Sign in with your secure account</p>
-      </div>
-
-      <!-- Login Form -->
-      <form id="login-form" class="space-y-5">
-        
-        <!-- SELECT USER ACCOUNT -->
-        <div>
-          <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2.5">
-            SELECT USER ACCOUNT
-          </label>
-          <div class="grid grid-cols-2 gap-3" id="account-selector-grid">
-            <!-- ADMIN Tile -->
-            <button type="button" id="account-card-admin" class="account-card flex items-center gap-3 p-3.5 rounded-2xl border-2 transition-all duration-150 text-left cursor-pointer border-slate-200 bg-white hover:border-slate-300">
-              <span class="text-2xl leading-none select-none">👑</span>
-              <div>
-                <div class="account-name text-sm font-extrabold text-slate-800 leading-tight">ADMIN</div>
-                <div class="text-[11px] text-slate-500 font-medium">Administrator</div>
-              </div>
-            </button>
-
-            <!-- RUDRA Tile (default selected as in screenshot) -->
-            <button type="button" id="account-card-rudra" class="account-card flex items-center gap-3 p-3.5 rounded-2xl border-2 transition-all duration-150 text-left cursor-pointer border-[#1e3a8a] bg-blue-50/60 shadow-xs">
-              <span class="text-2xl leading-none select-none">👤</span>
-              <div>
-                <div class="account-name text-sm font-extrabold text-[#1e3a8a] leading-tight">RUDRA</div>
-                <div class="text-[11px] text-slate-500 font-medium">User</div>
-              </div>
-            </button>
-          </div>
-
-          <!-- Synced input for User ID -->
-          <input type="text" id="login-username" class="hidden" placeholder="Enter User ID" value="Rudra" autocomplete="username">
-        </div>
-
-        <!-- PASSWORD INPUT -->
-        <div>
-          <div class="flex items-center justify-between mb-1.5">
-            <label class="block text-xs font-bold text-slate-700 tracking-wide flex items-center gap-1.5">
-              <span>🔑</span> <span>Password</span>
-            </label>
-          </div>
-          <div class="relative">
-            <input type="password" id="login-password" class="w-full pl-4 pr-11 py-3 rounded-xl border border-slate-300 text-sm font-medium focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a] outline-none transition placeholder:text-slate-400 bg-white text-slate-900" placeholder="Enter Password for Rudra" required autocomplete="current-password">
-            <button type="button" id="btn-toggle-password" class="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 transition p-1 cursor-pointer select-none text-base" title="Toggle password visibility">
-              <span id="eye-icon">👁️</span>
-              <span id="eye-text" class="sr-only">Show Password</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- ERROR MESSAGE -->
-        <div id="login-error" class="hidden text-xs font-bold text-rose-600 bg-rose-50 p-3 rounded-xl border border-rose-200 text-center animate-shake">
-          Invalid password for selected account. Please try again.
-        </div>
-
-        <!-- SUBMIT BUTTON -->
-        <button type="submit" id="btn-login-submit" class="w-full py-3.5 px-4 bg-[#1e3a8a] hover:bg-[#172554] active:scale-[0.99] text-white font-bold text-sm tracking-wide rounded-xl transition shadow-lg shadow-blue-900/25 flex items-center justify-center gap-2 cursor-pointer">
-          <span class="text-base">🚀</span>
-          <span>Secure Login</span>
+  <header id="app-header" class="hidden bg-slate-900 text-white shadow-md border-b border-slate-800 sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <!-- Menu Drawer Toggle Button -->
+        <button 
+          onclick="Router.openMenu()" 
+          class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          <span class="text-xl">☰</span>
         </button>
-      </form>
 
-      <!-- CARD FOOTER: Copyrights, Design & Development, and Metadata -->
-      <div class="pt-4 border-t border-slate-100 flex flex-col items-center gap-1.5 text-center">
-        <div class="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500">
-          <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
-          <span>Role-Based Access Control • 256-Bit SSL Secure</span>
-        </div>
-        <p class="text-xs text-slate-500 font-medium">
-          &copy; 2026 <strong class="text-slate-700 font-semibold">SR_T Freight Operations</strong>. All Rights Reserved.
-        </p>
-        <p class="text-[11px] text-slate-400 font-medium">
-          Designed &amp; Developed by <strong class="text-slate-600 font-semibold">Shravan Kumar</strong>
-        </p>
-        <div class="mt-1">
-          <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
-            v2.4.0 &bull; Enterprise Production
-          </span>
+        <div class="flex items-center gap-3">
+          <span class="text-2xl">🚛</span>
+          <div>
+            <h1 class="text-base font-black tracking-tight text-white leading-tight">SR_T FREIGHT</h1>
+            <p class="text-[10px] text-slate-400 font-medium">Enterprise Transport Ledger</p>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- Outer Screen Footer (matching real SaaS portals) -->
-    <div class="mt-4 text-center text-xs text-white/50 font-medium pb-2">
-      SR_T Lorry Freight Management System &bull; All Rights Reserved &copy; 2026
-    </div>
-  </div>
-
-  <!-- ========================================================================= -->
-  <!-- Top Navigation Header                                                     -->
-  <!-- ========================================================================= -->
-  <header class="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-xs">
-    <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="flex items-center justify-between h-16 gap-3">
-        
-        <!-- Left: Brand Logo & Title -->
-        <div class="flex items-center gap-3 shrink-0">
-          <div class="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-sm shadow-blue-500/30">
-            <span class="text-xl">🚛</span>
-          </div>
-          <div>
-            <div class="flex items-center gap-2">
-              <span class="text-base font-extrabold tracking-tight text-gray-900">SR_T FREIGHT</span>
-              <span class="px-2 py-0.5 text-[11px] font-bold bg-blue-50 text-blue-700 rounded-full border border-blue-200">Fleet Operations</span>
-            </div>
-            <p class="text-xs text-gray-500 font-medium hidden sm:block">Monthly Freight Operations, En-Route Expenses & Reconciliation</p>
-          </div>
+      <!-- Center: Active Vehicle Badge -->
+      <div class="flex items-center gap-3">
+        <div id="header-vehicle-badge" class="px-3.5 py-1.5 bg-indigo-600/30 text-indigo-400 border border-indigo-500/40 rounded-full font-mono font-black text-xs tracking-wider">
+          🚚 TS15UE1122
         </div>
+        <button 
+          onclick="VehicleWorkspace.changeVehicle()" 
+          class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white px-3 py-1.5 rounded-lg border border-slate-700 transition flex items-center gap-1.5">
+          <span>🔄</span>
+          <span class="hidden sm:inline">Switch Vehicle</span>
+        </button>
+      </div>
 
-        <!-- Right: Primary Actions & User Info -->
-        <div class="flex items-center gap-2.5">
-          <!-- Add Trip Primary Button -->
-          <button onclick="openAddTripModal()" class="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-black text-white bg-blue-600 hover:bg-blue-700 active:scale-95 transition shadow-sm rounded-xl cursor-pointer">
-            <span class="text-base leading-none font-bold">+</span>
-            <span>ADD TRIP</span>
-          </button>
-
-          <!-- Download Excel Button -->
-          <button id="btn-download-excel" class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:scale-95 transition shadow-sm rounded-xl cursor-pointer">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-            <span class="hidden sm:inline">DOWNLOAD EXCEL</span>
-            <span class="sm:hidden">EXCEL</span>
-          </button>
-
-          <!-- Sync with Google Sheets -->
-          <button id="btn-sync" class="hidden md:inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 active:scale-95 transition shadow-xs cursor-pointer" title="Sync with Google Sheets">
-            <svg class="w-3.5 h-3.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-            <span>Sync</span>
-          </button>
-
-          <!-- Settings (Visible ONLY for Admin, Hidden for Rudra) -->
-          <button id="btn-settings" class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 active:scale-95 transition cursor-pointer" title="Application Settings">
-            <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-            <span class="hidden sm:inline">Settings</span>
-          </button>
-
-          <!-- User Profile & Role Badge -->
-          <div id="user-profile-badge" class="flex items-center gap-2 px-3 py-1.5 bg-slate-100 border border-slate-200 rounded-xl select-none">
-            <span class="text-sm">👤</span>
-            <div class="flex flex-col text-left leading-tight">
-              <span id="nav-user-label" class="text-xs font-black text-slate-800">Not Signed In</span>
-              <span id="nav-role-label" class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Guest</span>
-            </div>
-          </div>
-
-          <!-- Logout Button -->
-          <button id="btn-logout" class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 rounded-xl hover:bg-rose-100 active:scale-95 transition cursor-pointer">
-            <span>Logout</span>
-          </button>
-        </div>
-
+      <!-- Right: User Profile & Quick Actions -->
+      <div class="flex items-center gap-3">
+        <span id="header-user-badge" class="text-xs font-semibold text-slate-300 hidden md:inline">Shravan (Admin)</span>
+        <button 
+          id="btn-header-logout"
+          onclick="Auth.logout(); Router.navigate('login');" 
+          class="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white rounded-xl text-xs font-black shadow-sm hover:shadow-md transition flex items-center gap-1.5 cursor-pointer border border-rose-500" 
+          title="Logout from System">
+          <span class="text-sm">🚪</span>
+          <span>Logout</span>
+        </button>
       </div>
     </div>
   </header>
 
   <!-- ========================================================================= -->
+  <!-- 2. SLIDE-OVER MENU DRAWER                                                 -->
   <!-- ========================================================================= -->
-  <!-- Main Operational Layout (Full Width Top Controls + Table + Details Card)  -->
-  <!-- ========================================================================= -->
-  <main class="flex-1 max-w-[1700px] w-full mx-auto px-3 sm:px-6 lg:px-8 py-5 space-y-5">
-    
-    <!-- ======================================================================= -->
-    <!-- TOP ROW 1: VIEW TRIPS (TIME SCOPE SELECTOR)                             -->
-    <!-- ======================================================================= -->
-    <section class="bg-white rounded-2xl border border-gray-200/80 shadow-xs p-4 sm:p-5 space-y-3.5">
-      <div class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 pb-3">
-        <div class="flex items-center gap-2.5">
-          <span class="text-xl">📅</span>
+  <div id="menu-backdrop" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 transition-opacity" onclick="Router.closeMenu()"></div>
+  <aside id="menu-drawer" class="fixed top-0 left-0 bottom-0 w-72 bg-slate-900 text-white z-50 shadow-2xl border-r border-slate-800 transform -translate-x-full transition-transform duration-300 flex flex-col justify-between">
+    <div>
+      <div class="p-6 border-b border-slate-800 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <span class="text-2xl">🚛</span>
           <div>
-            <h2 class="text-xs sm:text-sm font-black text-gray-900 uppercase tracking-wider flex items-center gap-2">
-              VIEW TRIPS
-              <span class="text-gray-400 font-normal">|</span>
-              <span class="text-xs font-semibold text-gray-500 normal-case">Select operational time scope</span>
+            <h2 class="font-black text-white text-base">NAVIGATION</h2>
+            <p class="text-[10px] text-slate-400">Workspace Menu</p>
+          </div>
+        </div>
+        <button onclick="Router.closeMenu()" class="text-slate-400 hover:text-white p-1">&times;</button>
+      </div>
+
+      <nav class="p-4 space-y-1.5 text-sm font-semibold">
+        <button onclick="Router.navigate('dashboard')" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white transition">
+          <span class="text-lg">🏠</span>
+          <span>Dashboard</span>
+        </button>
+        <button onclick="Router.navigate('trips')" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white transition">
+          <span class="text-lg">📋</span>
+          <span>Trips / Transactions</span>
+        </button>
+        <button onclick="Router.navigate('excel')" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white transition">
+          <span class="text-lg">📊</span>
+          <span>View Excel (Read-Only)</span>
+        </button>
+        <button onclick="Router.navigate('vehicle-data')" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white transition">
+          <span class="text-lg">🚚</span>
+          <span>Vehicle Profile Data</span>
+        </button>
+        <button id="menu-btn-settings" onclick="Router.navigate('settings')" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white transition">
+          <span class="text-lg">⚙️</span>
+          <span>Settings</span>
+        </button>
+      </nav>
+    </div>
+
+    <div class="p-4 border-t border-slate-800 space-y-2">
+      <button onclick="VehicleWorkspace.changeVehicle()" class="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-bold transition">
+        <span>🔄</span>
+        <span>Change Vehicle</span>
+      </button>
+      <button onclick="Auth.logout(); Router.navigate('login');" class="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white rounded-xl text-xs font-black shadow-sm transition cursor-pointer">
+        <span class="text-sm">🚪</span>
+        <span>Logout from System</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ========================================================================= -->
+  <!-- 3. VIEW: LOGIN SCREEN                                                     -->
+  <!-- ========================================================================= -->
+  <main id="view-login" class="flex-1 flex items-center justify-center p-4">
+    <div class="max-w-md w-full bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-8 border border-slate-200 dark:border-slate-700">
+      <div class="text-center mb-8">
+        <div class="inline-flex p-4 bg-indigo-50 dark:bg-indigo-900/30 rounded-2xl mb-4 text-4xl shadow-inner">🚛</div>
+        <h2 class="text-2xl font-black text-slate-900 dark:text-white tracking-tight">SR_T Lorry Freight</h2>
+        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Multi-Vehicle Operations Management Platform</p>
+      </div>
+
+      <div id="login-error-msg" class="hidden mb-4 p-3 bg-rose-50 dark:bg-rose-900/30 border border-rose-200 dark:border-rose-800 rounded-lg text-xs font-semibold text-rose-600 dark:text-rose-400"></div>
+
+      <form id="form-login" class="space-y-5">
+        <div>
+          <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-2">User ID</label>
+          <input type="text" id="login-username" required placeholder="admin / rudra" class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-4 py-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 text-sm">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-2">Password</label>
+          <input type="password" id="login-password" required placeholder="••••••••" class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-4 py-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 text-sm">
+        </div>
+
+        <button type="submit" class="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-lg shadow-lg hover:shadow-indigo-500/25 transition duration-150 flex items-center justify-center gap-2">
+          <span>Sign In to Fleet</span>
+          <span>&rarr;</span>
+        </button>
+      </form>
+    </div>
+  </main>
+
+  <!-- ========================================================================= -->
+  <!-- 4. VIEW: DYNAMIC VEHICLE SELECTION                                        -->
+  <!-- ========================================================================= -->
+  <main id="view-vehicles" class="hidden flex-1 max-w-5xl w-full mx-auto p-6 md:p-12 flex flex-col justify-center">
+    <div class="text-center mb-10">
+      <span class="inline-flex p-3 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 rounded-xl text-3xl mb-3">🚚</span>
+      <h2 class="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Select Vehicle Workspace</h2>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mt-2 max-w-md mx-auto">Choose a vehicle to access its isolated ledger, dashboard, and payment receipts.</p>
+    </div>
+
+    <!-- Dynamic Grid populated by VehicleList.render() -->
+    <div id="vehicle-cards-container" class="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-3xl mx-auto w-full"></div>
+  </main>
+
+  <!-- ========================================================================= -->
+  <!-- 5. VIEW: VEHICLE DASHBOARD                                                -->
+  <!-- ========================================================================= -->
+  <main id="view-dashboard" class="hidden flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div id="dashboard-metrics-container"></div>
+  </main>
+
+  <!-- ========================================================================= -->
+  <!-- 6. VIEW: VEHICLE TRIPS LEDGER                                             -->
+  <!-- ========================================================================= -->
+  <!-- ========================================================================= -->
+  <!-- 6. VIEW: VEHICLE TRIPS LEDGER                                             -->
+  <!-- ========================================================================= -->
+  <main id="view-trips" class="hidden flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    
+    <!-- Top Action & Navigation Bar -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs">
+      <div>
+        <div class="flex items-center gap-2.5">
+          <span class="text-2xl">🚚</span>
+          <div>
+            <h2 class="text-xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+              <span id="trips-view-vehicle-title">TRIPS RECONCILIATION</span>
+              <span class="text-slate-400 font-normal">|</span>
+              <span class="text-xs font-semibold text-slate-500 normal-case">Fleet Operations & Accounting</span>
             </h2>
           </div>
         </div>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2.5">
+        <!-- Download Styled Excel Button -->
+        <button id="btn-download-excel" onclick="ExcelView.exportToExcel ? ExcelView.exportToExcel() : null" class="inline-flex items-center gap-1.5 px-4 py-2.5 text-xs font-black text-white bg-emerald-600 hover:bg-emerald-700 active:scale-95 transition shadow-sm rounded-xl cursor-pointer">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          <span>DOWNLOAD EXCEL</span>
+        </button>
+
+        <!-- Add Trip Record Button -->
+        <button onclick="TripForm.openAddModal()" class="inline-flex items-center gap-1.5 px-4 py-2.5 text-xs font-black text-white bg-indigo-600 hover:bg-indigo-700 active:scale-95 transition shadow-sm rounded-xl cursor-pointer">
+          <span>+</span>
+          <span>ADD TRIP</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- ======================================================================= -->
+    <!-- TOP ROW 1: VIEW TRIPS (TIME SCOPE SELECTOR)                             -->
+    <!-- ======================================================================= -->
+    <section class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs p-4 sm:p-5 space-y-3.5">
+      <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-700 pb-3">
+        <div class="flex items-center gap-2.5">
+          <span class="text-xl">📅</span>
+          <div>
+            <h3 class="text-xs sm:text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+              DATE FILTERS & SCOPE SELECTOR
+              <span class="text-slate-400 font-normal">|</span>
+              <span class="text-xs font-semibold text-slate-500 normal-case">Filter operations by dispatch timeframe</span>
+            </h3>
+          </div>
+        </div>
         <div class="flex items-center gap-2">
-          <span class="text-[11px] font-bold text-gray-400 uppercase">Active Scope:</span>
-          <span id="active-view-tag" class="px-3 py-1 text-xs font-black rounded-xl bg-blue-50 text-blue-700 border border-blue-200 shadow-2xs">
+          <span class="text-[11px] font-bold text-slate-400 uppercase">Active Scope:</span>
+          <span id="active-view-tag" class="px-3 py-1 text-xs font-black rounded-xl bg-blue-50 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300 border border-blue-200 dark:border-blue-700 shadow-2xs">
             ALL TRIPS
           </span>
         </div>
@@ -287,61 +255,58 @@
 
       <!-- Scope Buttons: 5 across left-to-right -->
       <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
-        <button onclick="setViewType('TODAY')" id="btn-view-today" class="view-type-btn px-4 py-2.5 text-xs font-bold rounded-xl transition cursor-pointer select-none text-left flex items-center justify-between bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200 active:scale-98">
+        <button onclick="TripTable.setViewType('TODAY')" id="btn-view-today" class="view-type-btn px-4 py-2.5 text-xs font-bold rounded-xl transition cursor-pointer select-none text-left flex items-center justify-between bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 active:scale-98">
           <span class="flex items-center gap-2"><span>📌</span> TODAY</span>
-          <span class="text-[10px] text-gray-400 font-medium">Daily</span>
+          <span class="text-[10px] text-slate-400 font-medium">Daily</span>
         </button>
 
-        <button onclick="setViewType('SELECTED_DATE')" id="btn-view-selected-date" class="view-type-btn px-4 py-2.5 text-xs font-bold rounded-xl transition cursor-pointer select-none text-left flex items-center justify-between bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200 active:scale-98">
+        <button onclick="TripTable.setViewType('SELECTED_DATE')" id="btn-view-selected-date" class="view-type-btn px-4 py-2.5 text-xs font-bold rounded-xl transition cursor-pointer select-none text-left flex items-center justify-between bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 active:scale-98">
           <span class="flex items-center gap-2"><span>🗓️</span> SELECTED DATE</span>
-          <span class="text-[10px] text-gray-400 font-medium">Single Day</span>
+          <span class="text-[10px] text-slate-400 font-medium">Single Day</span>
         </button>
 
-        <button onclick="setViewType('DATE_RANGE')" id="btn-view-date-range" class="view-type-btn px-4 py-2.5 text-xs font-bold rounded-xl transition cursor-pointer select-none text-left flex items-center justify-between bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200 active:scale-98">
+        <button onclick="TripTable.setViewType('DATE_RANGE')" id="btn-view-date-range" class="view-type-btn px-4 py-2.5 text-xs font-bold rounded-xl transition cursor-pointer select-none text-left flex items-center justify-between bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 active:scale-98">
           <span class="flex items-center gap-2"><span>↔️</span> DATE RANGE</span>
-          <span class="text-[10px] text-gray-400 font-medium">From ➔ To</span>
+          <span class="text-[10px] text-slate-400 font-medium">From ➔ To</span>
         </button>
 
-        <button onclick="setViewType('ENTIRE_MONTH')" id="btn-view-entire-month" class="view-type-btn px-4 py-2.5 text-xs font-bold rounded-xl transition cursor-pointer select-none text-left flex items-center justify-between bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200 active:scale-98">
+        <button onclick="TripTable.setViewType('ENTIRE_MONTH')" id="btn-view-entire-month" class="view-type-btn px-4 py-2.5 text-xs font-bold rounded-xl transition cursor-pointer select-none text-left flex items-center justify-between bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 active:scale-98">
           <span class="flex items-center gap-2"><span>📆</span> ENTIRE MONTH</span>
-          <span class="text-[10px] text-gray-400 font-medium">Month View</span>
+          <span class="text-[10px] text-slate-400 font-medium">Month View</span>
         </button>
 
-        <button onclick="setViewType('ALL_TRIPS')" id="btn-view-all-trips" class="view-type-btn px-4 py-2.5 text-xs font-black rounded-xl transition cursor-pointer select-none text-left flex items-center justify-between bg-blue-600 text-white shadow-xs border border-blue-600 active:scale-98">
+        <button onclick="TripTable.setViewType('ALL_TRIPS')" id="btn-view-all-trips" class="view-type-btn px-4 py-2.5 text-xs font-black rounded-xl transition cursor-pointer select-none text-left flex items-center justify-between bg-blue-600 text-white shadow-xs border border-blue-600 active:scale-98">
           <span class="flex items-center gap-2"><span>📋</span> ALL TRIPS</span>
           <span class="text-[10px] text-white/80 font-bold">All Records</span>
         </button>
       </div>
 
       <!-- Dynamic Input Controls for Active Scope -->
-      <div id="dynamic-scope-inputs" class="pt-2 border-t border-gray-100">
-        <!-- Injected dynamically by app.js -->
-      </div>
+      <div id="dynamic-scope-inputs" class="pt-2 border-t border-slate-100 dark:border-slate-700"></div>
     </section>
 
     <!-- ======================================================================= -->
-    <!-- TOP ROW 2: STATUS & AUDIT FILTERS (BIG VIBRANT COLORFUL BUTTONS)        -->
+    <!-- TOP ROW 2: STATUS & AUDIT FILTERS (8 BIG VIBRANT COLORFUL BUTTONS)        -->
     <!-- ======================================================================= -->
-    <section class="bg-white rounded-2xl border border-gray-200/80 shadow-xs p-4 sm:p-5 space-y-3.5">
-      <div class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 pb-2.5">
+    <section class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs p-4 sm:p-5 space-y-3.5">
+      <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-700 pb-2.5">
         <div class="flex items-center gap-2">
           <span class="text-xl">🔍</span>
           <div>
-            <h2 class="text-xs sm:text-sm font-black text-gray-900 uppercase tracking-wider flex items-center gap-2">
+            <h3 class="text-xs sm:text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
               STATUS & AUDIT FILTERS
-              <span class="text-gray-400 font-normal">|</span>
-              <span class="text-xs font-semibold text-gray-500 normal-case">Filter matching trips in active scope</span>
-            </h2>
+              <span class="text-slate-400 font-normal">|</span>
+              <span class="text-xs font-semibold text-slate-500 normal-case">Filter matching trips in active scope</span>
+            </h3>
           </div>
         </div>
-        <span class="text-[11px] font-bold text-gray-500 hidden sm:inline">Click any card to isolate trips</span>
+        <span class="text-[11px] font-bold text-slate-500 hidden sm:inline">Click any card to isolate trips</span>
       </div>
 
-      <!-- 8 BIG BEAUTIFUL VIBRANT FILTER BUTTONS (Left to Right responsive grid) -->
+      <!-- 8 BIG BEAUTIFUL VIBRANT FILTER BUTTONS -->
       <div class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3">
-        
         <!-- 1. All Trips in Scope -->
-        <button onclick="setStatusFilter('ALL')" id="filter-btn-all" class="big-status-btn active p-3.5 sm:p-4 rounded-2xl border-2 border-slate-900 bg-slate-900 text-white transition cursor-pointer select-none flex flex-col justify-between shadow-md active:scale-98">
+        <button onclick="TripTable.setStatusFilter('ALL')" id="filter-btn-all" class="big-status-btn active p-3.5 sm:p-4 rounded-2xl border-2 border-slate-900 bg-slate-900 text-white transition cursor-pointer select-none flex flex-col justify-between shadow-md active:scale-98">
           <div class="flex items-center justify-between w-full mb-2">
             <span class="text-xl">📋</span>
             <span id="badge-all" class="text-base font-black px-2.5 py-0.5 rounded-lg bg-white/20 text-white shadow-2xs">0</span>
@@ -353,89 +318,88 @@
         </button>
 
         <!-- 2. New Dispatch -->
-        <button onclick="setStatusFilter('NEW')" id="filter-btn-new" class="big-status-btn p-3.5 sm:p-4 rounded-2xl border-2 border-indigo-200 bg-indigo-50/70 hover:bg-indigo-100 hover:border-indigo-400 text-indigo-950 transition cursor-pointer select-none flex flex-col justify-between shadow-xs active:scale-98">
+        <button onclick="TripTable.setStatusFilter('NEW')" id="filter-btn-new" class="big-status-btn p-3.5 sm:p-4 rounded-2xl border-2 border-indigo-200 bg-indigo-50/70 hover:bg-indigo-100 text-indigo-950 dark:bg-indigo-950/40 dark:border-indigo-800 dark:text-indigo-200 transition cursor-pointer select-none flex flex-col justify-between shadow-xs active:scale-98">
           <div class="flex items-center justify-between w-full mb-2">
             <span class="text-xl">🆕</span>
             <span id="badge-new" class="text-base font-black px-2.5 py-0.5 rounded-lg bg-indigo-100 text-indigo-800 border border-indigo-200">0</span>
           </div>
           <div>
-            <div class="text-xs font-black tracking-tight leading-tight text-indigo-950">NEW DISPATCH</div>
-            <div class="text-[10px] text-indigo-600 font-semibold truncate mt-0.5">Fresh entries</div>
+            <div class="text-xs font-black tracking-tight leading-tight">NEW DISPATCH</div>
+            <div class="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold truncate mt-0.5">Fresh entries</div>
           </div>
         </button>
 
         <!-- 3. Profit Trips -->
-        <button onclick="setStatusFilter('PROFIT')" id="filter-btn-profit" class="big-status-btn p-3.5 sm:p-4 rounded-2xl border-2 border-emerald-200 bg-emerald-50/70 hover:bg-emerald-100 hover:border-emerald-500 text-emerald-950 transition cursor-pointer select-none flex flex-col justify-between shadow-xs active:scale-98">
+        <button onclick="TripTable.setStatusFilter('PROFIT')" id="filter-btn-profit" class="big-status-btn p-3.5 sm:p-4 rounded-2xl border-2 border-emerald-200 bg-emerald-50/70 hover:bg-emerald-100 text-emerald-950 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-200 transition cursor-pointer select-none flex flex-col justify-between shadow-xs active:scale-98">
           <div class="flex items-center justify-between w-full mb-2">
             <span class="text-xl">🟢</span>
             <span id="badge-profit" class="text-base font-black px-2.5 py-0.5 rounded-lg bg-emerald-100 text-emerald-800 border border-emerald-200">0</span>
           </div>
           <div>
-            <div class="text-xs font-black tracking-tight leading-tight text-emerald-950">PROFIT TRIPS</div>
-            <div class="text-[10px] text-emerald-700 font-semibold truncate mt-0.5">Net P/L &ge; ₹0</div>
+            <div class="text-xs font-black tracking-tight leading-tight">PROFIT TRIPS</div>
+            <div class="text-[10px] text-emerald-700 dark:text-emerald-400 font-semibold truncate mt-0.5">Net P/L &ge; ₹0</div>
           </div>
         </button>
 
         <!-- 4. Loss Trips -->
-        <button onclick="setStatusFilter('LOSS')" id="filter-btn-loss" class="big-status-btn p-3.5 sm:p-4 rounded-2xl border-2 border-rose-200 bg-rose-50/70 hover:bg-rose-100 hover:border-rose-500 text-rose-950 transition cursor-pointer select-none flex flex-col justify-between shadow-xs active:scale-98">
+        <button onclick="TripTable.setStatusFilter('LOSS')" id="filter-btn-loss" class="big-status-btn p-3.5 sm:p-4 rounded-2xl border-2 border-rose-200 bg-rose-50/70 hover:bg-rose-100 text-rose-950 dark:bg-rose-950/40 dark:border-rose-800 dark:text-rose-200 transition cursor-pointer select-none flex flex-col justify-between shadow-xs active:scale-98">
           <div class="flex items-center justify-between w-full mb-2">
             <span class="text-xl">🔴</span>
             <span id="badge-loss" class="text-base font-black px-2.5 py-0.5 rounded-lg bg-rose-100 text-rose-800 border border-rose-200">0</span>
           </div>
           <div>
-            <div class="text-xs font-black tracking-tight leading-tight text-rose-950">LOSS TRIPS</div>
-            <div class="text-[10px] text-rose-700 font-semibold truncate mt-0.5">Net P/L &lt; ₹0</div>
+            <div class="text-xs font-black tracking-tight leading-tight">LOSS TRIPS</div>
+            <div class="text-[10px] text-rose-700 dark:text-rose-400 font-semibold truncate mt-0.5">Net P/L &lt; ₹0</div>
           </div>
         </button>
 
         <!-- 5. Pending Balance -->
-        <button onclick="setStatusFilter('PENDING')" id="filter-btn-pending" class="big-status-btn p-3.5 sm:p-4 rounded-2xl border-2 border-amber-200 bg-amber-50/70 hover:bg-amber-100 hover:border-amber-500 text-amber-950 transition cursor-pointer select-none flex flex-col justify-between shadow-xs active:scale-98">
+        <button onclick="TripTable.setStatusFilter('PENDING')" id="filter-btn-pending" class="big-status-btn p-3.5 sm:p-4 rounded-2xl border-2 border-amber-200 bg-amber-50/70 hover:bg-amber-100 text-amber-950 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-200 transition cursor-pointer select-none flex flex-col justify-between shadow-xs active:scale-98">
           <div class="flex items-center justify-between w-full mb-2">
             <span class="text-xl">🟠</span>
             <span id="badge-pending" class="text-base font-black px-2.5 py-0.5 rounded-lg bg-amber-100 text-amber-900 border border-amber-200">0</span>
           </div>
           <div>
-            <div class="text-xs font-black tracking-tight leading-tight text-amber-950">PENDING BALANCE</div>
-            <div class="text-[10px] text-amber-700 font-semibold truncate mt-0.5">Awaiting balance</div>
+            <div class="text-xs font-black tracking-tight leading-tight">PENDING BALANCE</div>
+            <div class="text-[10px] text-amber-700 dark:text-amber-400 font-semibold truncate mt-0.5">Awaiting balance</div>
           </div>
         </button>
 
         <!-- 6. Partially Paid -->
-        <button onclick="setStatusFilter('PARTIAL')" id="filter-btn-partial" class="big-status-btn p-3.5 sm:p-4 rounded-2xl border-2 border-orange-200 bg-orange-50/70 hover:bg-orange-100 hover:border-orange-500 text-orange-950 transition cursor-pointer select-none flex flex-col justify-between shadow-xs active:scale-98">
+        <button onclick="TripTable.setStatusFilter('PARTIAL')" id="filter-btn-partial" class="big-status-btn p-3.5 sm:p-4 rounded-2xl border-2 border-orange-200 bg-orange-50/70 hover:bg-orange-100 text-orange-950 dark:bg-orange-950/40 dark:border-orange-800 dark:text-orange-200 transition cursor-pointer select-none flex flex-col justify-between shadow-xs active:scale-98">
           <div class="flex items-center justify-between w-full mb-2">
             <span class="text-xl">🟡</span>
             <span id="badge-partial" class="text-base font-black px-2.5 py-0.5 rounded-lg bg-orange-100 text-orange-900 border border-orange-200">0</span>
           </div>
           <div>
-            <div class="text-xs font-black tracking-tight leading-tight text-orange-950">PARTIALLY PAID</div>
-            <div class="text-[10px] text-orange-700 font-semibold truncate mt-0.5">Partial balance</div>
+            <div class="text-xs font-black tracking-tight leading-tight">PARTIALLY PAID</div>
+            <div class="text-[10px] text-orange-700 dark:text-orange-400 font-semibold truncate mt-0.5">Partial balance</div>
           </div>
         </button>
 
         <!-- 7. Paid & Settled -->
-        <button onclick="setStatusFilter('PAID')" id="filter-btn-paid" class="big-status-btn p-3.5 sm:p-4 rounded-2xl border-2 border-teal-200 bg-teal-50/70 hover:bg-teal-100 hover:border-teal-500 text-teal-950 transition cursor-pointer select-none flex flex-col justify-between shadow-xs active:scale-98">
+        <button onclick="TripTable.setStatusFilter('PAID')" id="filter-btn-paid" class="big-status-btn p-3.5 sm:p-4 rounded-2xl border-2 border-teal-200 bg-teal-50/70 hover:bg-teal-100 text-teal-950 dark:bg-teal-950/40 dark:border-teal-800 dark:text-teal-200 transition cursor-pointer select-none flex flex-col justify-between shadow-xs active:scale-98">
           <div class="flex items-center justify-between w-full mb-2">
             <span class="text-xl">✔️</span>
             <span id="badge-paid" class="text-base font-black px-2.5 py-0.5 rounded-lg bg-teal-100 text-teal-900 border border-teal-200">0</span>
           </div>
           <div>
-            <div class="text-xs font-black tracking-tight leading-tight text-teal-950">PAID & SETTLED</div>
-            <div class="text-[10px] text-teal-700 font-semibold truncate mt-0.5">Fully cleared</div>
+            <div class="text-xs font-black tracking-tight leading-tight">PAID & SETTLED</div>
+            <div class="text-[10px] text-teal-700 dark:text-teal-400 font-semibold truncate mt-0.5">Fully cleared</div>
           </div>
         </button>
 
         <!-- 8. Balance Mismatch Audit -->
-        <button onclick="setStatusFilter('BALANCE_MISMATCH')" id="filter-btn-mismatch" class="big-status-btn p-3.5 sm:p-4 rounded-2xl border-2 border-red-300 bg-red-50 hover:bg-red-100 hover:border-red-500 text-red-950 transition cursor-pointer select-none flex flex-col justify-between shadow-xs active:scale-98">
+        <button onclick="TripTable.setStatusFilter('BALANCE_MISMATCH')" id="filter-btn-mismatch" class="big-status-btn p-3.5 sm:p-4 rounded-2xl border-2 border-red-300 bg-red-50 hover:bg-red-100 text-red-950 dark:bg-red-950/40 dark:border-red-800 dark:text-red-200 transition cursor-pointer select-none flex flex-col justify-between shadow-xs active:scale-98">
           <div class="flex items-center justify-between w-full mb-2">
             <span class="text-xl">⚠️</span>
             <span id="badge-mismatch" class="text-base font-black px-2.5 py-0.5 rounded-lg bg-white text-red-700 border border-red-300">0</span>
           </div>
           <div>
-            <div class="text-xs font-black tracking-tight leading-tight text-red-950">BALANCE MISMATCH</div>
-            <div class="text-[10px] text-red-700 font-bold truncate mt-0.5">Freight - Adv &ne; Bal</div>
+            <div class="text-xs font-black tracking-tight leading-tight">BALANCE MISMATCH</div>
+            <div class="text-[10px] text-red-700 dark:text-red-400 font-bold truncate mt-0.5">Audit Alert</div>
           </div>
         </button>
-
       </div>
     </section>
 
@@ -445,596 +409,597 @@
     <section class="space-y-4">
       
       <!-- Search & Scope Indicator Header -->
-      <div class="bg-white rounded-2xl border border-gray-200 shadow-xs p-4 flex flex-wrap items-center justify-between gap-3">
+      <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs p-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <div class="flex items-center gap-2">
-            <h2 class="text-base font-black text-gray-900 tracking-tight">TRIPS RECONCILIATION</h2>
-            <span id="table-view-scope-text" class="text-xs font-bold text-blue-700 bg-blue-50 px-3 py-1 rounded-xl border border-blue-200 shadow-2xs">
+            <h3 class="text-base font-black text-slate-900 dark:text-white tracking-tight">TRIPS RECONCILIATION</h3>
+            <span id="table-view-scope-text" class="text-xs font-bold text-blue-700 bg-blue-50 dark:bg-blue-900/40 dark:text-blue-300 px-3 py-1 rounded-xl border border-blue-200 dark:border-blue-700 shadow-2xs">
               All Trips &bull; All
             </span>
           </div>
-          <p class="text-xs text-gray-500 font-medium mt-0.5">
-            Showing <strong id="visible-count-label" class="text-gray-900">0</strong> matching fleet operations
+          <p class="text-xs text-slate-500 font-medium mt-0.5">
+            Showing <strong id="visible-count-label" class="text-slate-900 dark:text-white">0</strong> matching fleet operations
           </p>
         </div>
 
         <!-- Realtime Search Input -->
         <div class="relative w-full sm:w-80">
-          <svg class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-          <input type="text" id="input-search" class="w-full pl-9 pr-3 py-2.5 text-xs font-medium rounded-xl bg-gray-50 border border-gray-300 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition placeholder-gray-400" placeholder="Search vehicle, route, broker, S.No...">
+          <svg class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          <input type="text" id="input-search" class="w-full pl-9 pr-3 py-2.5 text-xs font-medium rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-blue-500 outline-none transition placeholder-slate-400" placeholder="Search vehicle, route, broker, S.No...">
         </div>
       </div>
 
-      <!-- Master Data Table Card -->
-      <div class="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden">
-        <div class="overflow-x-auto custom-scrollbar">
-          <table class="min-w-full divide-y divide-gray-200 text-left text-sm">
-            <thead class="bg-gray-100/90 sticky top-0 backdrop-blur-xs text-gray-700 font-black uppercase tracking-wider select-none text-xs">
+      <!-- Master Data Table Card with exact 25 canonical columns -->
+      <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-700 text-left text-sm">
+            <thead class="bg-slate-900 text-white font-black uppercase tracking-wider select-none text-[11px]">
               <tr>
-                <!-- Dedicated ACTIONS column (View / Edit / Delete) BEFORE S.No -->
-                <th scope="col" class="py-4 px-3 text-center whitespace-nowrap bg-blue-50 text-blue-950 font-black border-r border-blue-200 sticky left-0 z-20 shadow-xs">
+                <!-- Sticky Left ACTIONS column (View, Edit, Delete) -->
+                <th scope="col" class="py-3.5 px-3 text-center whitespace-nowrap bg-slate-900 text-white font-black border-r border-slate-700 sticky left-0 z-30 shadow-xs">
                   ⚡ ACTIONS
                 </th>
-                <!-- Exact 25 Business Columns (From and To independent columns) -->
-                <th scope="col" class="py-4 px-3.5 text-center whitespace-nowrap">1. S.No</th>
-                <th scope="col" class="py-4 px-3.5 whitespace-nowrap">2. Trip Date</th>
-                <th scope="col" class="py-4 px-3.5 whitespace-nowrap">3. Vehicle No</th>
-                <th scope="col" class="py-4 px-3.5 whitespace-nowrap">4. From</th>
-                <th scope="col" class="py-4 px-3.5 whitespace-nowrap">5. To</th>
-                <th scope="col" class="py-4 px-3.5 text-right whitespace-nowrap font-black text-gray-900">6. Freight Amount</th>
-                <th scope="col" class="py-4 px-3.5 whitespace-nowrap">7. Advance Date</th>
-                <th scope="col" class="py-4 px-3.5 text-right whitespace-nowrap font-bold">8. Advance Amount</th>
-                <th scope="col" class="py-4 px-3.5 whitespace-nowrap">9. Halting Details</th>
-                <th scope="col" class="py-4 px-3.5 whitespace-nowrap">10. TRSP Name</th>
-                <th scope="col" class="py-4 px-3.5 text-right whitespace-nowrap">11. TRSP Comm</th>
-                <th scope="col" class="py-4 px-3.5 text-right whitespace-nowrap">12. Diesel</th>
-                <th scope="col" class="py-4 px-3.5 text-right whitespace-nowrap">13. Toll Charges</th>
-                <th scope="col" class="py-4 px-3.5 text-right whitespace-nowrap">14. Loading Charges</th>
-                <th scope="col" class="py-4 px-3.5 text-right whitespace-nowrap">15. Unloading Charges</th>
-                <th scope="col" class="py-4 px-3.5 text-right whitespace-nowrap">16. Police Exp</th>
-                <th scope="col" class="py-4 px-3.5 text-right whitespace-nowrap">17. RTA C/P</th>
-                <th scope="col" class="py-4 px-3.5 text-right whitespace-nowrap">18. Other Expenses</th>
-                <th scope="col" class="py-4 px-3.5 text-right whitespace-nowrap">19. Driver Comm</th>
-                <th scope="col" class="py-4 px-3.5 text-right whitespace-nowrap font-black text-indigo-700 bg-indigo-50/50">20. Sum OF Total Exp</th>
-                <th scope="col" class="py-4 px-3.5 text-right whitespace-nowrap font-black text-purple-700 bg-purple-50/50">21. Total Exp Given</th>
-                <th scope="col" class="py-4 px-3.5 whitespace-nowrap font-black text-center">22. Status</th>
-                <th scope="col" class="py-4 px-3.5 whitespace-nowrap font-black text-center">23. P/L</th>
-                <th scope="col" class="py-4 px-3.5 whitespace-nowrap">24. Date Balance Recd</th>
-                <th scope="col" class="py-4 px-3.5 text-right whitespace-nowrap font-black text-amber-700 bg-amber-50/50">25. Balance Amount</th>
+                <!-- Exact 25 Canonical Business Columns -->
+                <th scope="col" class="py-3.5 px-3 text-center whitespace-nowrap">1. S.No</th>
+                <th scope="col" class="py-3.5 px-3 whitespace-nowrap">2. Trip Date</th>
+                <th scope="col" class="py-3.5 px-3 whitespace-nowrap">3. Vehicle No</th>
+                <th scope="col" class="py-3.5 px-3 whitespace-nowrap">4. From</th>
+                <th scope="col" class="py-3.5 px-3 whitespace-nowrap">5. To</th>
+                <th scope="col" class="py-3.5 px-3 text-right whitespace-nowrap font-black">6. Freight Amount</th>
+                <th scope="col" class="py-3.5 px-3 whitespace-nowrap">7. Advance Date</th>
+                <th scope="col" class="py-3.5 px-3 text-right whitespace-nowrap font-bold">8. Advance Amount</th>
+                <th scope="col" class="py-3.5 px-3 whitespace-nowrap">9. Halting Details</th>
+                <th scope="col" class="py-3.5 px-3 whitespace-nowrap">10. TRSP Name</th>
+                <th scope="col" class="py-3.5 px-3 text-right whitespace-nowrap">11. TRSP Comm</th>
+                <th scope="col" class="py-3.5 px-3 text-right whitespace-nowrap">12. Diesel</th>
+                <th scope="col" class="py-3.5 px-3 text-right whitespace-nowrap">13. Toll Charges</th>
+                <th scope="col" class="py-3.5 px-3 text-right whitespace-nowrap">14. Loading Charges</th>
+                <th scope="col" class="py-3.5 px-3 text-right whitespace-nowrap">15. Unloading Charges</th>
+                <th scope="col" class="py-3.5 px-3 text-right whitespace-nowrap">16. Police Exp</th>
+                <th scope="col" class="py-3.5 px-3 text-right whitespace-nowrap">17. RTA C/P</th>
+                <th scope="col" class="py-3.5 px-3 text-right whitespace-nowrap">18. Other Expenses</th>
+                <th scope="col" class="py-3.5 px-3 text-right whitespace-nowrap">19. Driver Comm</th>
+                <th scope="col" class="py-3.5 px-3 text-right whitespace-nowrap font-black text-indigo-400 bg-slate-800">20. Sum OF Total Exp</th>
+                <th scope="col" class="py-3.5 px-3 text-right whitespace-nowrap font-black text-purple-400 bg-slate-800">21. Total Exp Given</th>
+                <th scope="col" class="py-3.5 px-3 whitespace-nowrap font-black text-center">22. Status</th>
+                <th scope="col" class="py-3.5 px-3 whitespace-nowrap font-black text-center">23. P/L</th>
+                <th scope="col" class="py-3.5 px-3 whitespace-nowrap">24. Date Balance Recd</th>
+                <th scope="col" class="py-3.5 px-3 text-right whitespace-nowrap font-black text-amber-400 bg-slate-800">25. Balance Amount</th>
               </tr>
             </thead>
-            <tbody id="trips-tbody" class="divide-y divide-gray-100 bg-white">
-              <!-- Injected dynamically by app.js -->
+            <tbody id="trips-table-body" class="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
+              <!-- Rendered dynamically by TripTable.render() -->
             </tbody>
           </table>
         </div>
       </div>
     </section>
-
-    <!-- ======================================================================= -->
-    <!-- SECTION 4: TRIP DETAILS & AUDIT BREAKDOWN PANEL (DOWN BELOW THE SHEET)   -->
-    <!-- ======================================================================= -->
-    <section id="trip-details-panel" class="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 sm:p-6 space-y-4">
-      <div id="trip-details-content">
-        <!-- Rendered dynamically by viewTripDetails() in app.js -->
-      </div>
-    </section>
-
   </main>
 
   <!-- ========================================================================= -->
-  <!-- ADD TRIP DETAILS MODAL                                                    -->
+  <!-- 7. VIEW: READ-ONLY EXCEL SPREADSHEET                                      -->
   <!-- ========================================================================= -->
-  <div id="modal-add-trip" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 backdrop-blur-xs p-4 hidden">
-    <div class="bg-white rounded-3xl shadow-2xl border border-gray-100 max-w-3xl w-full max-h-[92vh] flex flex-col animate-modal overflow-hidden">
-      
-      <!-- Modal Header -->
-      <div class="px-6 py-4 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center text-lg font-bold">
-            🚛
-          </div>
-          <div>
-            <h3 class="text-base font-black text-gray-900">ADD TRIP DETAILS</h3>
-            <p class="text-xs text-gray-500 font-medium">Log new freight dispatch, en-route expenses & reconciliation</p>
-          </div>
+  <main id="view-excel" class="hidden flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <!-- Header -->
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <div>
+        <h2 id="excel-view-title" class="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+          <span>📊</span>
+          <span>Excel / Data Export</span>
+        </h2>
+        <p class="text-xs text-slate-500 mt-1">Vehicle-scoped data reconciliation and true .XLSX Excel export engine</p>
+      </div>
+      <div id="excel-vehicle-badge" class="px-3 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 text-xs font-black text-blue-700 dark:text-blue-300 font-mono">
+        Vehicle: TS15UE1122
+      </div>
+    </div>
+
+    <!-- Date Scope Controls Card -->
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-5 space-y-4">
+      <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-700 pb-3">
+        <div class="flex items-center gap-2">
+          <span class="text-base">📅</span>
+          <span class="text-xs font-black uppercase text-slate-700 dark:text-slate-300 tracking-wider">Export Date Scope</span>
         </div>
-        <button onclick="closeAddTripModal()" class="p-2 text-gray-400 hover:text-gray-700 rounded-xl hover:bg-gray-100 transition cursor-pointer">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        <span id="excel-active-scope-tag" class="text-xs font-bold text-blue-600 dark:text-blue-400">ALL TRIPS</span>
+      </div>
+
+      <!-- Scope Buttons -->
+      <div class="grid grid-cols-2 sm:grid-cols-5 gap-2">
+        <button id="excel-btn-today" onclick="ExcelView.setScope('TODAY')" class="excel-scope-btn px-3 py-2 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+          ☀️ Today
+        </button>
+        <button id="excel-btn-selected-date" onclick="ExcelView.setScope('SELECTED_DATE')" class="excel-scope-btn px-3 py-2 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+          🗓️ Selected Date
+        </button>
+        <button id="excel-btn-date-range" onclick="ExcelView.setScope('DATE_RANGE')" class="excel-scope-btn px-3 py-2 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+          ↔️ Date Range
+        </button>
+        <button id="excel-btn-entire-month" onclick="ExcelView.setScope('ENTIRE_MONTH')" class="excel-scope-btn px-3 py-2 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+          📆 Entire Month
+        </button>
+        <button id="excel-btn-all-trips" onclick="ExcelView.setScope('ALL_TRIPS')" class="excel-scope-btn px-3 py-2 text-xs font-black rounded-xl bg-blue-600 text-white shadow-xs border border-blue-600">
+          🚛 All Trips
         </button>
       </div>
 
-      <!-- Modal Body (Divided into 4 Logical Sections) -->
-      <div class="flex-1 overflow-y-auto px-6 py-5 space-y-6 text-xs custom-scrollbar">
-        
-        <!-- SECTION 1: TRIP DETAILS -->
-        <div class="space-y-3">
-          <h4 class="text-xs font-black text-blue-700 uppercase tracking-wider flex items-center gap-2">
-            <span>📋</span> 1. TRIP DETAILS
-          </h4>
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            <div>
-              <label class="block font-bold text-gray-700 mb-1">Trip Date *</label>
-              <input type="date" id="add-trip-date" class="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 font-medium" required>
-            </div>
-            <div>
-              <label class="block font-bold text-gray-700 mb-1">Vehicle No *</label>
-              <input type="text" id="add-vehicle" class="w-full px-3 py-2 border border-gray-300 rounded-xl uppercase font-mono font-bold focus:ring-2 focus:ring-blue-500" placeholder="TS15UE1122" required>
-            </div>
-            <div>
-              <label class="block font-bold text-gray-700 mb-1">From (Origin) *</label>
-              <input type="text" id="add-from" class="w-full px-3 py-2 border border-gray-300 rounded-xl font-medium" placeholder="Hyderabad, Telangana" required>
-            </div>
-            <div>
-              <label class="block font-bold text-gray-700 mb-1">To (Destination) *</label>
-              <input type="text" id="add-to" class="w-full px-3 py-2 border border-gray-300 rounded-xl font-medium" placeholder="Purnia, Bihar" required>
-            </div>
-            <div>
-              <label class="block font-bold text-gray-700 mb-1">Freight Amount (₹) *</label>
-              <input type="number" id="add-freight" oninput="updateAddTripCalculations()" class="w-full px-3 py-2 border border-gray-300 rounded-xl font-black text-gray-900 focus:ring-2 focus:ring-blue-500" placeholder="100000" required>
-            </div>
-            <div>
-              <label class="block font-bold text-gray-700 mb-1">Advance Date</label>
-              <input type="date" id="add-advance-date" class="w-full px-3 py-2 border border-gray-300 rounded-xl font-medium">
-            </div>
-            <div>
-              <label class="block font-bold text-gray-700 mb-1">Advance Amount (₹)</label>
-              <input type="number" id="add-advance" oninput="updateAddTripCalculations()" class="w-full px-3 py-2 border border-gray-300 rounded-xl font-bold text-gray-900 focus:ring-2 focus:ring-blue-500" placeholder="0">
-            </div>
-            <div>
-              <label class="block font-bold text-gray-700 mb-1">Halting Details</label>
-              <input type="text" id="add-halting" class="w-full px-3 py-2 border border-gray-300 rounded-xl font-medium" placeholder="e.g. 2 days delay">
-            </div>
-          </div>
-        </div>
+      <!-- Dynamic Scope Inputs -->
+      <div id="excel-dynamic-scope-inputs" class="pt-2"></div>
+    </div>
 
-        <!-- SECTION 2: EXPENSE DETAILS -->
-        <div class="space-y-3 pt-3 border-t border-gray-100">
-          <h4 class="text-xs font-black text-gray-700 uppercase tracking-wider flex items-center gap-2">
-            <span>💸</span> 2. EXPENSE DETAILS
-          </h4>
-          <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-            <div>
-              <label class="block font-semibold text-gray-600 mb-1">TRSP Name</label>
-              <input type="text" id="add-trsp-name" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg font-medium" placeholder="MRC">
-            </div>
-            <div>
-              <label class="block font-semibold text-gray-600 mb-1">TRSP Comm (₹)</label>
-              <input type="number" id="add-trsp-comm" oninput="updateAddTripCalculations()" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg font-medium" placeholder="0">
-            </div>
-            <div>
-              <label class="block font-semibold text-gray-600 mb-1">Diesel (₹)</label>
-              <input type="number" id="add-diesel" oninput="updateAddTripCalculations()" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg font-medium" placeholder="0">
-            </div>
-            <div>
-              <label class="block font-semibold text-gray-600 mb-1">Toll Charges (₹)</label>
-              <input type="number" id="add-toll" oninput="updateAddTripCalculations()" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg font-medium" placeholder="0">
-            </div>
-            <div>
-              <label class="block font-semibold text-gray-600 mb-1">Loading (₹)</label>
-              <input type="number" id="add-loading" oninput="updateAddTripCalculations()" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg font-medium" placeholder="0">
-            </div>
-            <div>
-              <label class="block font-semibold text-gray-600 mb-1">Unloading (₹)</label>
-              <input type="number" id="add-unloading" oninput="updateAddTripCalculations()" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg font-medium" placeholder="0">
-            </div>
-            <div>
-              <label class="block font-semibold text-gray-600 mb-1">Police Exp (₹)</label>
-              <input type="number" id="add-police" oninput="updateAddTripCalculations()" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg font-medium" placeholder="0">
-            </div>
-            <div>
-              <label class="block font-semibold text-gray-600 mb-1">RTA C/P (₹)</label>
-              <input type="number" id="add-rta" oninput="updateAddTripCalculations()" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg font-medium" placeholder="0">
-            </div>
-            <div>
-              <label class="block font-semibold text-gray-600 mb-1">Other Exp (₹)</label>
-              <input type="number" id="add-other" oninput="updateAddTripCalculations()" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg font-medium" placeholder="0">
-            </div>
-            <div>
-              <label class="block font-semibold text-gray-600 mb-1">Driver Comm (₹)</label>
-              <input type="number" id="add-driver-comm" oninput="updateAddTripCalculations()" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg font-bold text-gray-900" placeholder="0">
-            </div>
-          </div>
+    <!-- Export Preview Card -->
+    <div id="excel-preview-card" class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-2xl p-5 shadow-lg border border-indigo-900/60 space-y-4">
+      <div class="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-3">
+        <div>
+          <span class="text-[10px] font-black uppercase text-cyan-400 tracking-wider">Export Preview Summary</span>
+          <h3 id="excel-preview-vehicle-range" class="text-base font-black text-white mt-0.5">TS15UE1122 &bull; All Time</h3>
+          <p id="excel-generated-time" class="text-[11px] text-slate-300 font-mono mt-0.5">Generated: Today • By Authorized Operator</p>
         </div>
-
-        <!-- SECTION 3: PAYMENT STATUS & RECONCILIATION -->
-        <div class="space-y-3 pt-3 border-t border-gray-100">
-          <h4 class="text-xs font-black text-amber-700 uppercase tracking-wider flex items-center gap-2">
-            <span>💳</span> 3. PAYMENT STATUS & RECONCILIATION
-          </h4>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label class="block font-bold text-gray-700 mb-1">Payment Status</label>
-              <select id="add-status" class="w-full px-3 py-2 border border-gray-300 rounded-xl font-bold bg-white focus:ring-2 focus:ring-blue-500">
-                <option value="New">New (Fresh Dispatch)</option>
-                <option value="Pending" selected>Pending</option>
-                <option value="Partially Paid">Partially Paid</option>
-                <option value="Paid">Paid</option>
-              </select>
-            </div>
-            <div>
-              <label class="block font-bold text-gray-700 mb-1">Date of Balance Received</label>
-              <input type="date" id="add-balance-date" class="w-full px-3 py-2 border border-gray-300 rounded-xl font-medium">
-            </div>
-          </div>
+        <div class="flex items-center gap-2">
+          <button id="excel-download-btn" onclick="ExcelView.exportToExcel()" class="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black rounded-xl text-xs shadow-md transition cursor-pointer">
+            <span>⬇️</span>
+            <span id="excel-download-label">Download Excel (.XLSX)</span>
+          </button>
+          <button onclick="ExcelView.exportCsv()" class="inline-flex items-center gap-1.5 px-3 py-2.5 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl text-xs transition cursor-pointer">
+            <span>📥</span>
+            <span>CSV</span>
+          </button>
         </div>
-
-        <!-- SECTION 4: CALCULATED DETAILS (READ ONLY) -->
-        <div class="space-y-2 pt-3 border-t border-gray-100">
-          <h4 class="text-xs font-black text-gray-500 uppercase tracking-wider flex items-center gap-2">
-            <span>⚡</span> 4. CALCULATED DETAILS (AUTOMATIC)
-          </h4>
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-gray-50 p-4 rounded-2xl border border-gray-200">
-            <div>
-              <div class="text-[11px] font-bold text-gray-500 uppercase">20. Sum OF Total Exp</div>
-              <div id="calc-preview-expenses" class="text-base font-black text-indigo-700 font-mono">₹0</div>
-            </div>
-            <div>
-              <div class="text-[11px] font-bold text-gray-500 uppercase">21. Total Exp Given</div>
-              <div id="calc-preview-exp-given" class="text-base font-black text-purple-700 font-mono">₹0</div>
-            </div>
-            <div>
-              <div class="text-[11px] font-bold text-gray-500 uppercase">23. Net P/L</div>
-              <div id="calc-preview-pl" class="text-base font-black text-emerald-600 font-mono">P +₹0</div>
-            </div>
-            <div>
-              <div class="text-[11px] font-bold text-gray-500 uppercase">25. Balance Amount</div>
-              <div id="calc-preview-balance" class="text-base font-black text-amber-600 font-mono">₹0</div>
-            </div>
-          </div>
-        </div>
-
       </div>
 
-      <!-- Modal Footer Actions -->
-      <div class="px-6 py-4 border-t border-gray-100 bg-gray-50 flex items-center justify-end gap-3">
-        <button onclick="closeAddTripModal()" class="px-4 py-2 text-xs font-bold text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-100 transition cursor-pointer">
-          CANCEL
-        </button>
-        <button onclick="promptSaveNewTrip()" class="px-5 py-2 text-xs font-black text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition shadow-md shadow-blue-500/25 cursor-pointer">
-          SAVE TRIP
-        </button>
+      <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs">
+        <div class="bg-white/5 rounded-xl p-3 border border-white/10">
+          <span class="text-[10px] text-slate-400 font-bold uppercase">Trips To Export</span>
+          <div id="excel-preview-trips" class="text-xl font-black font-mono text-cyan-300 mt-1">0</div>
+        </div>
+        <div class="bg-white/5 rounded-xl p-3 border border-white/10">
+          <span class="text-[10px] text-slate-400 font-bold uppercase">Total Freight</span>
+          <div id="excel-preview-freight" class="text-lg font-black font-mono text-white mt-1">₹0</div>
+        </div>
+        <div class="bg-white/5 rounded-xl p-3 border border-white/10">
+          <span class="text-[10px] text-slate-400 font-bold uppercase">Total Expenses</span>
+          <div id="excel-preview-expenses" class="text-lg font-black font-mono text-amber-300 mt-1">₹0</div>
+        </div>
+        <div class="bg-white/5 rounded-xl p-3 border border-white/10">
+          <span class="text-[10px] text-slate-400 font-bold uppercase">Net Profit</span>
+          <div id="excel-preview-profit" class="text-lg font-black font-mono text-emerald-400 mt-1">₹0</div>
+        </div>
+        <div class="bg-white/5 rounded-xl p-3 border border-white/10">
+          <span class="text-[10px] text-slate-400 font-bold uppercase">Pending Balance</span>
+          <div id="excel-preview-balance" class="text-lg font-black font-mono text-rose-400 mt-1">₹0</div>
+        </div>
       </div>
+    </div>
 
+    <!-- Read-Only Spreadsheet Grid -->
+    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-x-auto">
+      <table class="w-full text-left border-collapse font-mono text-[11px]">
+        <thead>
+          <tr class="bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-700 uppercase">
+            <th class="py-2.5 px-2.5 text-center">#</th>
+            <th class="py-2.5 px-2.5">Date</th>
+            <th class="py-2.5 px-2.5">Vehicle</th>
+            <th class="py-2.5 px-2.5">From</th>
+            <th class="py-2.5 px-2.5">To</th>
+            <th class="py-2.5 px-2.5 text-right">Freight</th>
+            <th class="py-2.5 px-2.5 text-right">Advance</th>
+            <th class="py-2.5 px-2.5 text-right">Diesel</th>
+            <th class="py-2.5 px-2.5 text-right">Toll</th>
+            <th class="py-2.5 px-2.5 text-right">RTA</th>
+            <th class="py-2.5 px-2.5 text-right">Police</th>
+            <th class="py-2.5 px-2.5 text-right">Load</th>
+            <th class="py-2.5 px-2.5 text-right">Unload</th>
+            <th class="py-2.5 px-2.5 text-right">Driver</th>
+            <th class="py-2.5 px-2.5 text-right">TRSP</th>
+            <th class="py-2.5 px-2.5 text-right">Other</th>
+            <th class="py-2.5 px-2.5 text-right font-bold text-amber-600">Total Exp</th>
+            <th class="py-2.5 px-2.5 text-right font-bold">Net P/L</th>
+            <th class="py-2.5 px-2.5 text-right">Balance</th>
+            <th class="py-2.5 px-2.5 text-right">Received</th>
+            <th class="py-2.5 px-2.5 text-right font-bold">Remaining</th>
+            <th class="py-2.5 px-2.5 text-center">Payment</th>
+            <th class="py-2.5 px-2.5 text-center">Trip Status</th>
+          </tr>
+        </thead>
+        <tbody id="excel-table-body" class="divide-y divide-slate-200 dark:divide-slate-700"></tbody>
+      </table>
+    </div>
+  </main>
+
+  <!-- ========================================================================= -->
+  <!-- 8. VIEW: VEHICLE PROFILE DATA                                             -->
+  <!-- ========================================================================= -->
+  <main id="view-vehicle-data" class="hidden flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div id="vehicle-data-content"></div>
+  </main>
+
+  <!-- ========================================================================= -->
+  <!-- 9. VIEW: GLOBAL SETTINGS                                                  -->
+  <!-- ========================================================================= -->
+  <main id="view-settings" class="hidden flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div id="settings-content"></div>
+  </main>
+
+  <!-- ========================================================================= -->
+  <!-- 9b. MODAL: VIEW TRIP DETAILS (READ-ONLY VIEW)                             -->
+  <!-- ========================================================================= -->
+  <div id="modal-view-trip" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 max-w-4xl w-full max-h-[92vh] overflow-y-auto p-6 md:p-8 animate-fade-in">
+      <div id="view-trip-modal-content">
+        <!-- Rendered dynamically by Trips.openViewModal() -->
+      </div>
     </div>
   </div>
 
   <!-- ========================================================================= -->
-  <!-- Slide-Over Drawer (Right Panel for Editing)                               -->
+  <!-- 10. MODAL: ADD NEW TRIP                                                   -->
   <!-- ========================================================================= -->
-  <div id="drawer-backdrop" class="hidden fixed inset-0 bg-gray-900/50 backdrop-blur-xs z-50 transition-opacity"></div>
-  <aside id="drawer-panel" class="fixed inset-y-0 right-0 max-w-full w-full sm:w-[500px] bg-white shadow-2xl z-50 transform translate-x-full transition-transform duration-300 ease-in-out flex flex-col">
-    
-    <!-- Drawer Header -->
-    <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50">
-      <div>
-        <h3 class="text-base font-extrabold text-gray-900">Edit Trip Details</h3>
-        <p class="text-xs text-gray-500 font-medium">Update logistics revenue & en-route expenses</p>
+  <div id="modal-add-trip" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6 md:p-8">
+      <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-4 mb-6">
+        <div>
+          <h3 class="text-xl font-black text-slate-900 dark:text-white">Record New Shipment</h3>
+          <p class="text-xs text-slate-500">Trip will be locked strictly to active vehicle</p>
+        </div>
+        <button onclick="TripForm.closeAddModal()" class="text-slate-400 hover:text-white text-2xl font-bold">&times;</button>
       </div>
-      <button onclick="closeSlideOver()" class="p-2 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition cursor-pointer">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-      </button>
+
+      <form id="form-add-trip" class="space-y-6">
+        <!-- Section 1: Trip & Route Details -->
+        <div>
+          <h4 class="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 mb-3">1. Trip & Route Information</h4>
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Trip Date *</label>
+              <input type="date" id="add-trip-date" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Vehicle No [LOCKED]</label>
+              <input type="text" id="add-vehicle" disabled class="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-xs font-mono font-bold text-slate-600 dark:text-slate-300 cursor-not-allowed">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">From (Origin) *</label>
+              <input type="text" id="add-from" required placeholder="Hyderabad, Telangana" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">To (Destination) *</label>
+              <input type="text" id="add-to" required placeholder="Purnia, Bihar" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Halting Details</label>
+              <input type="text" id="add-halting" placeholder="Two days halting during transit" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">TRSP Name</label>
+              <input type="text" id="add-trsp-name" placeholder="MRC" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs">
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 2: Billing & Advance -->
+        <div>
+          <h4 class="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 mb-3">2. Customer Billing & Advance</h4>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Freight Amount (₹) *</label>
+              <input type="number" id="add-freight" min="0" required placeholder="130000" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs font-bold">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Advance Amount (₹)</label>
+              <input type="number" id="add-advance" min="0" placeholder="120000" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs font-bold">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Advance Date</label>
+              <input type="date" id="add-advance-date" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs">
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 3: The 9 Operational Expenses -->
+        <div>
+          <h4 class="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 mb-3">3. The 9 Operational Expenses</h4>
+          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">Diesel (₹)</label>
+              <input type="number" id="add-diesel" min="0" placeholder="70000" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-xs">
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">Toll Charges (₹)</label>
+              <input type="number" id="add-toll" min="0" placeholder="20000" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-xs">
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">EXP RTA (₹)</label>
+              <input type="number" id="add-rta" min="0" placeholder="8000" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-xs">
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">Police Exp (₹)</label>
+              <input type="number" id="add-police" min="0" placeholder="2000" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-xs">
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">Loading (₹)</label>
+              <input type="number" id="add-loading" min="0" placeholder="2400" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-xs">
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">Unloading (₹)</label>
+              <input type="number" id="add-unloading" min="0" placeholder="1200" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-xs">
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">Driver Exp (₹)</label>
+              <input type="number" id="add-driver-comm" min="0" placeholder="13600" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-xs">
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">TRSP Comm (₹)</label>
+              <input type="number" id="add-trsp-commission" min="0" placeholder="0" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-xs">
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">Other Exp (₹)</label>
+              <input type="number" id="add-other" min="0" placeholder="2000" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-xs">
+            </div>
+          </div>
+
+          <div class="mt-3">
+            <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">Other Expense Notes (Itemized breakdown)</label>
+            <input type="text" id="add-other-notes" placeholder="e.g. Damage-1000,greac-800" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs">
+          </div>
+        </div>
+
+        <!-- Section 4: Live Math Preview Strip -->
+        <div class="p-4 bg-slate-100 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
+          <div>Total Expenses: <span id="add-preview-total-exp" class="font-bold text-amber-600">₹0</span></div>
+          <div>Profit/Loss: <span id="add-preview-profit" class="font-bold text-emerald-600">₹0</span></div>
+          <div>Pending Balance: <span id="add-preview-balance" class="font-bold text-slate-800 dark:text-white">₹0</span></div>
+        </div>
+
+        <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-700">
+          <button type="button" onclick="TripForm.closeAddModal()" class="px-5 py-2.5 border border-slate-300 dark:border-slate-600 font-semibold text-xs rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition">Cancel</button>
+          <button type="submit" class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-lg shadow-md transition">Create Shipment Record</button>
+        </div>
+      </form>
     </div>
+  </div>
 
-    <!-- Drawer Form Body -->
-    <div class="flex-1 overflow-y-auto px-6 py-4 space-y-4 text-xs custom-scrollbar">
-      <div class="grid grid-cols-2 gap-3">
+  <!-- ========================================================================= -->
+  <!-- 11. SLIDE-OVER DRAWER: EDIT TRIP & INSTALLMENT RECEIPTS                   -->
+  <!-- ========================================================================= -->
+  <div id="drawer-backdrop" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 transition-opacity" onclick="TripForm.closeEditDrawer()"></div>
+  <aside id="drawer-panel" class="fixed top-0 right-0 bottom-0 w-full max-w-2xl bg-white dark:bg-slate-800 z-50 shadow-2xl border-l border-slate-200 dark:border-slate-700 transform translate-x-full transition-transform duration-300 flex flex-col justify-between overflow-y-auto">
+    <div class="p-6 md:p-8">
+      <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-4 mb-6">
         <div>
-          <label class="block font-bold text-gray-700 mb-1">Trip Date</label>
-          <input type="date" id="edit-trip-date" class="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 font-medium">
+          <h3 class="text-xl font-black text-slate-900 dark:text-white">Trip Management & Settlement</h3>
+          <p class="text-xs text-slate-500">Edit trip expenses and record balance receipt installments</p>
         </div>
-        <div>
-          <label class="block font-bold text-gray-700 mb-1">Vehicle No</label>
-          <input type="text" id="edit-vehicle" class="w-full px-3 py-2 border border-gray-300 rounded-xl uppercase font-mono font-bold focus:ring-2 focus:ring-blue-500">
+        <button onclick="TripForm.closeEditDrawer()" class="text-slate-400 hover:text-white text-2xl font-bold">&times;</button>
+      </div>
+
+      <!-- Live Settlement Strip -->
+      <div class="p-4 bg-slate-900 text-white rounded-xl mb-6 shadow-md border border-slate-800">
+        <div class="flex items-center justify-between mb-3 border-b border-slate-800 pb-2">
+          <span class="text-xs font-bold text-slate-400">PAYMENT STATUS</span>
+          <span id="drawer-payment-badge" class="px-3 py-1 rounded-full text-xs font-black bg-rose-100 text-rose-800">🔴 PAYMENT PENDING</span>
+        </div>
+        <div class="grid grid-cols-3 gap-3 text-center text-xs">
+          <div>
+            <div class="text-slate-400 text-[10px] uppercase font-bold">Original Balance</div>
+            <div id="drawer-orig-balance" class="text-sm font-black text-white">₹0</div>
+          </div>
+          <div>
+            <div class="text-slate-400 text-[10px] uppercase font-bold">Total Received</div>
+            <div id="drawer-total-received" class="text-sm font-black text-emerald-400">₹0</div>
+          </div>
+          <div>
+            <div class="text-slate-400 text-[10px] uppercase font-bold">Remaining</div>
+            <div id="drawer-remaining-balance" class="text-sm font-black text-rose-400">₹0</div>
+          </div>
         </div>
       </div>
 
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label class="block font-bold text-gray-700 mb-1">From (Origin)</label>
-          <input type="text" id="edit-from" class="w-full px-3 py-2 border border-gray-300 rounded-xl font-medium">
-        </div>
-        <div>
-          <label class="block font-bold text-gray-700 mb-1">To (Destination)</label>
-          <input type="text" id="edit-to" class="w-full px-3 py-2 border border-gray-300 rounded-xl font-medium">
-        </div>
+      <!-- Quick Add Balance Receipt Form -->
+      <div class="bg-indigo-50/50 dark:bg-slate-900/50 p-4 rounded-xl border border-indigo-100 dark:border-slate-700 mb-6">
+        <h4 class="text-xs font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider mb-2">+ Record Balance Payment Installment</h4>
+        <form id="form-add-receipt" class="grid grid-cols-1 sm:grid-cols-4 gap-2">
+          <div>
+            <input type="date" id="receipt-date" required class="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-xs">
+          </div>
+          <div>
+            <input type="number" id="receipt-amount" min="1" required placeholder="Amount (₹)" class="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-bold">
+          </div>
+          <div>
+            <input type="text" id="receipt-notes" placeholder="Notes (e.g. UPI/Cheque)" class="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-xs">
+          </div>
+          <div>
+            <button type="submit" class="w-full py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs shadow transition">Add Payment</button>
+          </div>
+        </form>
+
+        <!-- Receipt History Table Container -->
+        <div id="drawer-receipts-table-container" class="mt-4"></div>
       </div>
 
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label class="block font-bold text-gray-700 mb-1">Freight Amount (₹)</label>
-          <input type="number" id="edit-freight" class="w-full px-3 py-2 border border-gray-300 rounded-xl font-black text-gray-900">
-        </div>
-        <div>
-          <label class="block font-bold text-gray-700 mb-1">Advance Amount (₹)</label>
-          <input type="number" id="edit-advance" class="w-full px-3 py-2 border border-gray-300 rounded-xl font-bold text-gray-900">
-        </div>
-      </div>
+      <!-- Edit Trip Details Form -->
+      <form id="form-edit-trip" class="space-y-4">
+        <input type="hidden" id="edit-trip-id">
 
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label class="block font-bold text-gray-700 mb-1">Advance Date</label>
-          <input type="date" id="edit-advance-date" class="w-full px-3 py-2 border border-gray-300 rounded-xl font-medium">
+        <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider pt-2 border-t border-slate-200 dark:border-slate-700">Trip & Financials</h4>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">Trip Date</label>
+            <input type="date" id="edit-trip-date" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs">
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">Vehicle No [LOCKED]</label>
+            <input type="text" id="edit-vehicle" disabled class="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-xs font-mono font-bold cursor-not-allowed">
+          </div>
         </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">From</label>
+            <input type="text" id="edit-from" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs">
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">To</label>
+            <input type="text" id="edit-to" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">Halting Details</label>
+            <input type="text" id="edit-halting" placeholder="e.g. 2 days halting during transit" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs">
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">TRSP Name</label>
+            <input type="text" id="edit-trsp-name" placeholder="e.g. MRC" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-3">
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">Freight (₹)</label>
+            <input type="number" id="edit-freight" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs font-bold">
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">Advance (₹)</label>
+            <input type="number" id="edit-advance" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs font-bold">
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">Advance Date</label>
+            <input type="date" id="edit-advance-date" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs">
+          </div>
+        </div>
+
+        <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider pt-2">Expenses</h4>
+        <div class="grid grid-cols-3 gap-2">
+          <div>
+            <label class="block text-[10px] font-semibold text-slate-500 mb-0.5">Diesel</label>
+            <input type="number" id="edit-diesel" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-2 py-1 text-xs">
+          </div>
+          <div>
+            <label class="block text-[10px] font-semibold text-slate-500 mb-0.5">Toll</label>
+            <input type="number" id="edit-toll" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-2 py-1 text-xs">
+          </div>
+          <div>
+            <label class="block text-[10px] font-semibold text-slate-500 mb-0.5">RTA</label>
+            <input type="number" id="edit-rta" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-2 py-1 text-xs">
+          </div>
+          <div>
+            <label class="block text-[10px] font-semibold text-slate-500 mb-0.5">Police</label>
+            <input type="number" id="edit-police" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-2 py-1 text-xs">
+          </div>
+          <div>
+            <label class="block text-[10px] font-semibold text-slate-500 mb-0.5">Loading</label>
+            <input type="number" id="edit-loading" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-2 py-1 text-xs">
+          </div>
+          <div>
+            <label class="block text-[10px] font-semibold text-slate-500 mb-0.5">Unloading</label>
+            <input type="number" id="edit-unloading" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-2 py-1 text-xs">
+          </div>
+          <div>
+            <label class="block text-[10px] font-semibold text-slate-500 mb-0.5">Driver Exp</label>
+            <input type="number" id="edit-driver-comm" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-2 py-1 text-xs">
+          </div>
+          <div>
+            <label class="block text-[10px] font-semibold text-slate-500 mb-0.5">TRSP Comm</label>
+            <input type="number" id="edit-trsp-commission" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-2 py-1 text-xs">
+          </div>
+          <div>
+            <label class="block text-[10px] font-semibold text-slate-500 mb-0.5">Other Exp</label>
+            <input type="number" id="edit-other" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-2 py-1 text-xs">
+          </div>
+        </div>
+
         <div>
-          <label class="block font-bold text-gray-700 mb-1">Payment Status</label>
-          <select id="edit-status" class="w-full px-3 py-2 border border-gray-300 rounded-xl font-bold bg-white">
-            <option value="New">New</option>
+          <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">Other Expense Notes</label>
+          <input type="text" id="edit-other-notes" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs">
+        </div>
+
+        <div>
+          <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">Trip Status</label>
+          <select id="edit-status" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs font-semibold">
+            <option value="In Progress">In Progress</option>
+            <option value="Completed">Completed</option>
             <option value="Pending">Pending</option>
-            <option value="Partially Paid">Partially Paid</option>
             <option value="Paid">Paid</option>
           </select>
         </div>
-      </div>
 
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label class="block font-bold text-gray-700 mb-1">Date of Balance Received</label>
-          <input type="date" id="edit-balance-date" class="w-full px-3 py-2 border border-gray-300 rounded-xl font-medium">
+        <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-700">
+          <button type="button" onclick="TripForm.closeEditDrawer()" class="px-5 py-2.5 border border-slate-300 dark:border-slate-600 font-semibold text-xs rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition">Cancel</button>
+          <button type="submit" class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-lg shadow-md transition">Save Changes</button>
         </div>
-        <div>
-          <label class="block font-bold text-gray-700 mb-1">Balance Amount (₹)</label>
-          <input type="number" id="edit-balance" class="w-full px-3 py-2 border border-gray-300 rounded-xl font-bold text-amber-700">
-        </div>
-      </div>
-
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label class="block font-bold text-gray-700 mb-1">TRSP Name (Broker)</label>
-          <input type="text" id="edit-trsp-name" class="w-full px-3 py-2 border border-gray-300 rounded-xl font-medium" placeholder="e.g. MRC">
-        </div>
-        <div>
-          <label class="block font-bold text-gray-700 mb-1">Halting Details</label>
-          <input type="text" id="edit-halting" class="w-full px-3 py-2 border border-gray-300 rounded-xl font-medium" placeholder="e.g. 2 days delay">
-        </div>
-      </div>
-
-      <div class="pt-3 border-t border-gray-200">
-        <h4 class="font-extrabold text-gray-900 mb-2 uppercase text-[11px] tracking-wider text-gray-500">En-route Expenses Breakdown</h4>
-        <div class="grid grid-cols-2 gap-2.5">
-          <div>
-            <label class="block font-semibold text-gray-600 mb-0.5">TRSP Commission (₹)</label>
-            <input type="number" id="edit-trsp-commission" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg font-medium">
-          </div>
-          <div>
-            <label class="block font-semibold text-gray-600 mb-0.5">Diesel (₹)</label>
-            <input type="number" id="edit-diesel" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg font-medium">
-          </div>
-          <div>
-            <label class="block font-semibold text-gray-600 mb-0.5">Toll Charges (₹)</label>
-            <input type="number" id="edit-toll" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg font-medium">
-          </div>
-          <div>
-            <label class="block font-semibold text-gray-600 mb-0.5">Loading (₹)</label>
-            <input type="number" id="edit-loading" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg font-medium">
-          </div>
-          <div>
-            <label class="block font-semibold text-gray-600 mb-0.5">Unloading (₹)</label>
-            <input type="number" id="edit-unloading" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg font-medium">
-          </div>
-          <div>
-            <label class="block font-semibold text-gray-600 mb-0.5">Police Exp (₹)</label>
-            <input type="number" id="edit-police" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg font-medium">
-          </div>
-          <div>
-            <label class="block font-semibold text-gray-600 mb-0.5">RTA C/P (₹)</label>
-            <input type="number" id="edit-rta" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg font-medium">
-          </div>
-          <div>
-            <label class="block font-semibold text-gray-600 mb-0.5">Other Expenses (₹)</label>
-            <input type="number" id="edit-other" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg font-medium">
-          </div>
-          <div class="col-span-2">
-            <label class="block font-semibold text-gray-600 mb-0.5">Driver Trip Commission (₹)</label>
-            <input type="number" id="edit-driver-comm" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg font-bold text-gray-900">
-          </div>
-        </div>
-      </div>
-
+      </form>
     </div>
-
-    <!-- Drawer Footer Actions -->
-    <div class="px-6 py-4 border-t border-gray-100 bg-gray-50 flex items-center justify-end gap-3">
-      <button onclick="closeSlideOver()" class="px-4 py-2 text-xs font-bold text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-100 transition cursor-pointer">Cancel</button>
-      <button onclick="promptSaveTripEdits()" class="px-4 py-2 text-xs font-extrabold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition shadow-sm cursor-pointer">Save & Recalculate</button>
-    </div>
-
   </aside>
 
   <!-- ========================================================================= -->
-  <!-- Confirmation Modals System                                                -->
+  <!-- 11b. MODAL: OUTSTANDING BALANCE RECOVERY ALERT                            -->
   <!-- ========================================================================= -->
-
-  <!-- 1. Edit Confirmation Modal -->
-  <div id="modal-confirm-edit" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 backdrop-blur-xs p-4 hidden">
-    <div class="bg-white rounded-2xl shadow-2xl border border-gray-100 max-w-md w-full p-6 space-y-4 animate-modal">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center text-lg font-bold">
-          ✏️
-        </div>
-        <div>
-          <h3 class="text-base font-extrabold text-gray-900">Confirm Edit</h3>
-          <p class="text-xs text-gray-500 font-medium">Fleet operational record modification</p>
-        </div>
-      </div>
-      <p id="modal-edit-message" class="text-sm font-semibold text-gray-800 bg-gray-50 p-3.5 rounded-xl border border-gray-200">
-        Are you sure you want to edit Trip #1 (TS15UE1122)?
-      </p>
-      <div class="flex items-center justify-end gap-2.5 pt-2">
-        <button id="modal-edit-cancel" onclick="closeModal('modal-confirm-edit'); state.pendingEditTripId=null;" class="px-4 py-2 text-xs font-bold text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition cursor-pointer">
-          CANCEL
-        </button>
-        <button id="modal-edit-confirm" onclick="closeModal('modal-confirm-edit'); if(state.pendingEditTripId) openEditSlideOver(state.pendingEditTripId);" class="px-4 py-2 text-xs font-extrabold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition shadow-sm cursor-pointer">
-          YES, EDIT
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 2. Save & Recalculate Confirmation Modal (For Edit) -->
-  <div id="modal-confirm-save" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 backdrop-blur-xs p-4 hidden">
-    <div class="bg-white rounded-2xl shadow-2xl border border-gray-100 max-w-md w-full p-6 space-y-4 animate-modal">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center text-lg font-bold">
-          💾
-        </div>
-        <div>
-          <h3 class="text-base font-extrabold text-gray-900">Confirm Save & Recalculate</h3>
-          <p class="text-xs text-gray-500 font-medium">Recalculate balance, total expenses and P/L</p>
-        </div>
-      </div>
-      <p class="text-sm font-semibold text-gray-800 bg-gray-50 p-3.5 rounded-xl border border-gray-200">
-        Are you sure you want to save these changes and recalculate this trip?
-      </p>
-      <div class="flex items-center justify-end gap-2.5 pt-2">
-        <button id="modal-save-cancel" onclick="closeModal('modal-confirm-save')" class="px-4 py-2 text-xs font-bold text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition cursor-pointer">
-          CANCEL
-        </button>
-        <button id="modal-save-confirm" onclick="closeModal('modal-confirm-save'); executeSaveTripEdits();" class="px-4 py-2 text-xs font-extrabold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition shadow-sm cursor-pointer">
-          SAVE & RECALCULATE
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 3. Add Trip Confirmation Modal -->
-  <div id="modal-confirm-add" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 backdrop-blur-xs p-4 hidden">
-    <div class="bg-white rounded-2xl shadow-2xl border border-gray-100 max-w-md w-full p-6 space-y-4 animate-modal">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center text-lg font-bold">
-          ➕
-        </div>
-        <div>
-          <h3 class="text-base font-extrabold text-gray-900">SAVE TRIP</h3>
-          <p class="text-xs text-gray-500 font-medium">Confirm new trip creation</p>
-        </div>
-      </div>
-      <p class="text-sm font-semibold text-gray-800 bg-gray-50 p-3.5 rounded-xl border border-gray-200">
-        Are you sure you want to save this trip?
-      </p>
-      <div class="flex items-center justify-end gap-2.5 pt-2">
-        <button id="modal-add-cancel" onclick="closeModal('modal-confirm-add')" class="px-4 py-2 text-xs font-bold text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition cursor-pointer">
-          CANCEL
-        </button>
-        <button id="modal-add-confirm" onclick="executeSaveNewTrip()" class="px-4 py-2 text-xs font-extrabold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition shadow-sm cursor-pointer">
-          SAVE TRIP
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 4. Delete Confirmation Modal -->
-  <div id="modal-confirm-delete" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 backdrop-blur-xs p-4 hidden">
-    <div class="bg-white rounded-2xl shadow-2xl border border-gray-100 max-w-md w-full p-6 space-y-4 animate-modal">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center text-lg font-bold">
-          🗑️
-        </div>
-        <div>
-          <h3 class="text-base font-extrabold text-gray-900">Confirm Deletion</h3>
-          <p class="text-xs text-gray-500 font-medium">Remove record from active fleet view</p>
-        </div>
-      </div>
-      <p id="modal-delete-message" class="text-sm font-semibold text-gray-800 bg-rose-50/70 p-3.5 rounded-xl border border-rose-200">
-        Are you sure you want to delete Trip #1 (TS15UE1122)? This action cannot be undone.
-      </p>
-      <div class="flex items-center justify-end gap-2.5 pt-2">
-        <button id="modal-delete-cancel" onclick="closeModal('modal-confirm-delete'); state.pendingDeleteTripId=null;" class="px-4 py-2 text-xs font-bold text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition cursor-pointer">
-          CANCEL
-        </button>
-        <button id="modal-delete-confirm" onclick="closeModal('modal-confirm-delete'); executeDeleteTrip();" class="px-4 py-2 text-xs font-extrabold text-white bg-rose-600 hover:bg-rose-700 rounded-xl transition shadow-sm cursor-pointer">
-          DELETE
-        </button>
-      </div>
-    </div>
-  </div>
-  <!-- 5. Cloud Database & Backup Settings Modal (Admin Only) -->
-  <div id="modal-settings" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 backdrop-blur-xs p-4 hidden">
-    <div class="bg-white rounded-3xl shadow-2xl border border-gray-100 max-w-lg w-full p-6 sm:p-7 space-y-5 animate-modal">
-      <div class="flex items-center justify-between border-b border-gray-100 pb-3">
+  <div id="modal-outstanding-balances" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 max-w-3xl w-full max-h-[85vh] overflow-y-auto p-6 md:p-8 animate-fade-in space-y-5">
+      <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-4">
         <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-2xl bg-blue-50 border border-blue-200/60 text-blue-700 flex items-center justify-center text-xl font-bold">
-            ⚙️
-          </div>
+          <div class="p-3 bg-rose-50 dark:bg-rose-950/60 text-rose-600 rounded-2xl text-2xl border border-rose-200 dark:border-rose-800">⚠️</div>
           <div>
-            <h3 class="text-base font-extrabold text-gray-900">Cloud Database &amp; Backup Settings</h3>
-            <p class="text-xs text-gray-500 font-medium">Google Apps Script Web App Integration</p>
+            <h3 class="text-lg font-black text-slate-900 dark:text-white">Outstanding Customer Balances</h3>
+            <p id="outstanding-modal-subtitle" class="text-xs text-slate-500">Unsettled receivables requiring collection</p>
           </div>
         </div>
-        <button onclick="closeModal('modal-settings')" class="p-1.5 text-gray-400 hover:text-gray-700 rounded-xl hover:bg-gray-100 transition cursor-pointer">
-          ✕
-        </button>
+        <button onclick="Dashboard.closeOutstandingModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white text-2xl font-bold p-1 cursor-pointer">&times;</button>
       </div>
 
-      <div class="space-y-4 text-xs">
-        <!-- Web App URL Input -->
-        <div>
-          <label class="block font-bold text-gray-700 uppercase tracking-wider mb-1">
-            Google Apps Script Web App URL
-          </label>
-          <input type="url" id="settings-api-url" class="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 font-mono text-xs focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none" placeholder="https://script.google.com/macros/s/.../exec">
-          <p class="text-[11px] text-gray-400 mt-1">Must end in <code class="bg-gray-100 px-1 py-0.5 rounded font-mono text-gray-700">/exec</code></p>
-        </div>
-
-        <!-- Deployment ID Input (Reference) -->
-        <div>
-          <label class="block font-bold text-gray-700 uppercase tracking-wider mb-1">
-            Active Deployment ID
-          </label>
-          <input type="text" id="settings-deployment-id" class="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 bg-gray-50 font-mono text-xs text-gray-700" value="AKfycbyp5fBDoLJTAMS-x7K75yST2ZP0aKRWZs9mlyT2SH5ZGnQhvqrc_rfGPNTP8yymqjdQ" readonly>
-        </div>
-
-        <!-- Connected Live Web Domains -->
-        <div class="bg-slate-50 p-3 rounded-2xl border border-slate-200/70">
-          <span class="block font-bold text-slate-700 mb-1">🌐 Connected Live Cloud Frontends:</span>
-          <div class="flex flex-col gap-1 text-[11px] font-mono text-blue-700">
-            <a href="https://y.srtransport.workers.dev/" target="_blank" class="hover:underline flex items-center gap-1.5">
-              <span>●</span> https://y.srtransport.workers.dev/
-            </a>
-            <a href="https://ytransport.vercel.app/" target="_blank" class="hover:underline flex items-center gap-1.5">
-              <span>●</span> https://ytransport.vercel.app/
-            </a>
-          </div>
-        </div>
-
-        <!-- Live Connection Test Result Box -->
-        <div id="settings-test-result" class="hidden p-3 rounded-2xl text-xs font-semibold"></div>
-
-        <!-- Actions -->
-        <div class="flex items-center gap-2 pt-1">
-          <button type="button" id="btn-test-connection" class="flex-1 py-2.5 px-3 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl transition cursor-pointer text-center">
-            🧪 Test Connection
-          </button>
-          <button type="button" id="btn-manual-cloud-backup" class="flex-1 py-2.5 px-3 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200/80 font-bold rounded-xl transition cursor-pointer text-center">
-            📦 Create Cloud Backup
-          </button>
-        </div>
-
-        <!-- Point-in-Time Backup Snapshots History -->
-        <div class="border-t border-gray-100 pt-3 space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="block font-bold text-gray-700">💾 Point-in-Time Snapshots (History)</span>
-            <span id="backup-snapshot-count" class="text-[11px] text-gray-500 font-medium">0 snapshots</span>
-          </div>
-          <p class="text-[11px] text-gray-400">Every Add, Edit, Delete, or Manual Backup automatically captures a snapshot. Admin can restore any past state with 1 click.</p>
-          <div id="backup-snapshots-container" class="max-h-48 overflow-y-auto space-y-1.5 border border-gray-200 rounded-xl p-2 bg-slate-50/50">
-            <!-- Populated dynamically by BackupModule.renderUI() -->
-          </div>
-        </div>
+      <div id="outstanding-balances-list" class="space-y-3">
+        <!-- Rendered dynamically by Dashboard.renderOutstandingModal() -->
       </div>
 
-      <div class="flex items-center justify-end gap-2.5 pt-3 border-t border-gray-100">
-        <button onclick="closeModal('modal-settings')" class="px-4 py-2 text-xs font-bold text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition cursor-pointer">
-          CANCEL
-        </button>
-        <button id="btn-save-settings" class="px-4 py-2 text-xs font-extrabold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition shadow-sm cursor-pointer">
-          SAVE &amp; SYNC NOW
+      <div class="flex items-center justify-end pt-3 border-t border-slate-200 dark:border-slate-700">
+        <button onclick="Dashboard.closeOutstandingModal()" class="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-white font-bold text-xs rounded-xl transition cursor-pointer">
+          Close
         </button>
       </div>
     </div>
   </div>
 
-  <!-- Application Logic -->
+  <!-- Universal Professional Branding & Copyright Footer -->
+  <footer id="app-footer" class="mt-auto py-5 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
+      <div class="flex items-center gap-2">
+        <span class="text-base">🚛</span>
+        <span class="font-black text-slate-800 dark:text-slate-200 tracking-tight">SR TRANSPORT</span>
+        <span class="text-[11px] text-slate-400">&bull; Enterprise Freight & Fleet Management System</span>
+      </div>
+      <div class="text-[11px]">
+        <span>&copy; 2026 SR Transport &bull; Developed for Fleet Operations &bull; All Rights Reserved</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ========================================================================= -->
+  <!-- 12. SCRIPT DEPENDENCIES (Modular Hierarchy)                               -->
+  <!-- ========================================================================= -->
+  <script src="js/config.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/calculations/financial.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/router.js"></script>
+  <script src="js/vehicles/vehicle-list.js"></script>
+  <script src="js/vehicles/vehicle-workspace.js"></script>
+  <script src="js/vehicles/vehicle-data.js"></script>
+  <script src="js/dashboard/dashboard.js"></script>
+  <script src="js/receipts/receipt-form.js"></script>
+  <script src="js/receipts/receipt-table.js"></script>
+  <script src="js/receipts/receipts.js"></script>
+  <script src="js/trips/trip-validation.js"></script>
+  <script src="js/trips/trip-table.js"></script>
+  <script src="js/trips/trip-form.js"></script>
+  <script src="js/trips/trips.js"></script>
+  <script src="js/excel/excel-view.js"></script>
+  <script src="js/settings/settings.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

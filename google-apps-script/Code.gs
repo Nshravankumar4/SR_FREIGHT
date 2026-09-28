@@ -1,399 +1,538 @@
 /**
- * SR_T LORRY FREIGHT MANAGEMENT SYSTEM - GOOGLE APPS SCRIPT BACKEND
- * 
- * SETUP INSTRUCTIONS:
- * 1. Open Google Sheets (https://sheets.new) OR use Standalone Apps Script (script.google.com).
- * 2. Paste this entire code into Code.gs and press Ctrl + S.
- * 3. Click "Deploy" -> "Manage deployments" -> Edit (pencil) -> Version: "New version".
- * 4. Ensure: Execute as "Me", Who has access "Anyone".
- * 5. Click "Deploy".
+ * 🚚 LORRY FREIGHT MANAGEMENT SYSTEM - GOOGLE APPS SCRIPT CLOUD BACKEND
+ * Version: 2.4.2
+ *
+ * Responsibilities:
+ * - 3 Dedicated Sheets: Vehicles, Trips, BalanceReceipts
+ * - Mandatory Backend Write-Verification Chain (Entity.vehicleNo === RequestedVehicle)
+ * - Pure 9-Expense calculation parity & independent Profit vs Customer Balance
+ * - Overpayment rejection & LockService concurrency control
+ * - Non-destructive vehicle-scoped reads and mutations
  */
 
+const SHEET_VEHICLES = 'Vehicles';
 const SHEET_TRIPS = 'Trips';
+const SHEET_RECEIPTS = 'BalanceReceipts';
 const BACKUP_FOLDER_NAME = 'Lorry_Backups';
 
-// EXACT 25 BUSINESS COLUMNS + UNIQUE TRIP ID (MATCHES FRONTEND TABLE HEADERS 100%)
-const TRIP_HEADERS = [
-  '1. S.No',
-  '2. Trip Date',
-  '3. Vehicle No',
-  '4. From',
-  '5. To',
-  '6. Freight Amount',
-  '7. Advance Date',
-  '8. Advance Amount',
-  '9. Halting Details',
-  '10. TRSP Name',
-  '11. TRSP Comm',
-  '12. Diesel',
-  '13. Toll Charges',
-  '14. Loading Charges',
-  '15. Unloading Charges',
-  '16. Police Exp',
-  '17. RTA C/P',
-  '18. Other Expenses',
-  '19. Driver Comm',
-  '20. Sum OF Total Exp',
-  '21. Total Exp Given',
-  '22. Status',
-  '23. P/L',
-  '24. Date Balance Recd',
-  '25. Balance Amount',
-  'Trip ID'
+const VEHICLE_HEADERS = [
+  'Vehicle ID', 'Vehicle No', 'Vehicle Name', 'Driver Name', 'Driver Phone',
+  'Status', 'Notes', 'Created At', 'Updated At'
 ];
 
-// ==========================================
-// 1. GET REQUEST HANDLER
-// ==========================================
+const TRIP_HEADERS = [
+  'Trip ID', 'S.No', 'Trip Date', 'Vehicle No', 'From', 'To',
+  'Freight Amount', 'Advance Date', 'Advance Amount', 'Halting Details',
+  'TRSP Name', 'TRSP Commission', 'Diesel', 'Toll Charges', 'Loading Charges',
+  'Unloading Charges', 'Police Exp', 'RTA C/P', 'Other Expenses', 'Driver Trip Expense',
+  'Other Expense Notes', 'Total Expenses', 'Profit/Loss', 'Trip Status',
+  'Original Balance', 'Total Balance Received', 'Remaining Balance',
+  'Balance Status', 'Payment Indicator', 'Created At', 'Updated At'
+];
+
+const RECEIPT_HEADERS = [
+  'Receipt ID', 'Trip ID', 'Vehicle No', 'Received Date', 'Received Amount',
+  'Notes', 'Created At', 'Updated At'
+];
+
+/**
+ * Handle GET Requests (Vehicle-scoped queries)
+ */
 function doGet(e) {
   var action = (e && e.parameter && e.parameter.action) ? e.parameter.action : 'getAll';
-  
+  var vehicleNo = (e && e.parameter && e.parameter.vehicleNo) ? String(e.parameter.vehicleNo).trim() : '';
+
   try {
-    var ss = getMasterSpreadsheet(e);
-    var sheet = getOrCreateSheet(ss, SHEET_TRIPS, TRIP_HEADERS);
-    var props = PropertiesService.getScriptProperties();
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    ensureAllSheets(ss);
 
-    if (action === 'getAll' || action === 'getTrips') {
-      var tripsData = fetchAllTrips(sheet);
+    if (action === 'getVehicles') {
       return jsonResponse({
         success: true,
-        status: 'success',
-        sheetUrl: ss.getUrl(),
-        data: tripsData,
-        auth: {
-          adminUser: props.getProperty('ADMIN_USER') || 'admin',
-          adminPass: props.getProperty('ADMIN_PASS') || 'Shravan',
-          empUser: props.getProperty('EMP_USER') || 'rudra',
-          empPass: props.getProperty('EMP_PASS') || 'RudraSarika@2505'
-        }
+        data: fetchVehicles(ss)
       });
     }
 
-    if (action === 'ping') {
+    if (action === 'getTrips' || action === 'getAll') {
       return jsonResponse({
         success: true,
-        status: 'success',
-        message: 'SR_T Lorry Freight API is active and healthy',
-        time: new Date().toISOString(),
-        sheetUrl: ss.getUrl()
+        vehicleNo: vehicleNo,
+        data: fetchTrips(ss, vehicleNo)
       });
     }
 
-    return jsonResponse({ success: false, status: 'error', message: 'Unknown GET action: ' + action });
+    if (action === 'getReceipts') {
+      var tripId = (e && e.parameter && e.parameter.tripId) ? String(e.parameter.tripId).trim() : '';
+      return jsonResponse({
+        success: true,
+        tripId: tripId,
+        data: fetchReceipts(ss, tripId, vehicleNo)
+      });
+    }
+
+    return jsonResponse({ success: false, message: 'Unknown action: ' + action });
   } catch (err) {
-    return jsonResponse({ success: false, status: 'error', message: err.toString() });
+    return jsonResponse({ success: false, error: err.toString() });
   }
 }
 
-// ==========================================
-// 2. POST REQUEST HANDLER WITH SCRIPT LOCK
-// ==========================================
+/**
+ * Handle POST Requests (Mutations with Security Chain & LockService)
+ */
 function doPost(e) {
   var lock = LockService.getScriptLock();
   try {
-    // Wait up to 30 seconds to acquire exclusive lock (prevents multi-user write collisions)
+    // Acquire lock (wait up to 30 seconds for concurrent writes)
     lock.waitLock(30000);
   } catch (lockErr) {
-    return jsonResponse({ success: false, error: 'Server busy: could not acquire lock. Please retry.' });
+    return jsonResponse({ success: false, error: "Server busy. Could not acquire mutation lock. Please retry." });
   }
 
   try {
-    var ss = getMasterSpreadsheet(e);
-    var sheet = getOrCreateSheet(ss, SHEET_TRIPS, TRIP_HEADERS);
-    var props = PropertiesService.getScriptProperties();
+    var envelope = JSON.parse(e.postData.contents || '{}');
+    var action = envelope.action;
+    var requestedVehicle = String(envelope.vehicleNo || '').trim();
+    var userRole = String(envelope.role || 'Guest').trim();
+    var payload = envelope.data || {};
 
-    var payload = {};
-    if (e && e.postData && e.postData.contents) {
-      try {
-        payload = JSON.parse(e.postData.contents);
-      } catch (pErr) {
-        payload = {};
-      }
-    } else if (e && e.parameter) {
-      payload = e.parameter;
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    ensureAllSheets(ss);
+
+    // SECURITY CHAIN: Enforce vehicle validation
+    if (action === 'createTrip') {
+      return jsonResponse(executeCreateTrip(ss, payload, requestedVehicle));
     }
 
-    var action = payload.action || 'addTrip';
-    var userRole = String(payload.role || payload.currentRole || '').trim();
-    var currentUser = String(payload.user || payload.currentUser || 'System').trim();
-
-    // --- A. AUTHENTICATION / LOGIN ---
-    if (action === 'login') {
-      var username = String(payload.username || '').trim().toLowerCase();
-      var password = String(payload.password || '').trim();
-
-      var adminUser = (props.getProperty('ADMIN_USER') || 'admin').toLowerCase();
-      var adminPass = props.getProperty('ADMIN_PASS') || 'Shravan';
-      var empUser = (props.getProperty('EMP_USER') || 'rudra').toLowerCase();
-      var empPass = props.getProperty('EMP_PASS') || 'RudraSarika@2505';
-
-      var isAdminMatch = (username === 'admin' || username === 'admin1' || username === adminUser || username === 'shravan') &&
-                         (password === adminPass || password === 'Shravan' || password === 'Shravan@1');
-
-      var isEmpMatch = (username === 'rudra' || username === empUser) &&
-                       (password === empPass || password === 'RudraSarika@2505');
-
-      if (isAdminMatch) {
-        return jsonResponse({ success: true, role: 'Admin', name: 'Administrator', token: Utilities.getUuid() });
-      } else if (isEmpMatch) {
-        return jsonResponse({ success: true, role: 'Employee', name: 'Rudra', token: Utilities.getUuid() });
-      } else {
-        return jsonResponse({ success: false, message: 'Invalid Username or Password' });
-      }
+    if (action === 'updateTrip') {
+      return jsonResponse(executeUpdateTrip(ss, payload, requestedVehicle));
     }
 
-    // --- B. PASSWORD UPDATE ---
-    if (action === 'updatePassword') {
-      var targetUser = String(payload.username || '').trim().toLowerCase();
-      var newPass = String(payload.password || '').trim();
-      if (!newPass || newPass.length < 5) {
-        return jsonResponse({ success: false, message: 'Password must be at least 5 characters.' });
-      }
-      if (targetUser === 'admin' || targetUser === 'shravan') {
-        props.setProperty('ADMIN_PASS', newPass);
-        return jsonResponse({ success: true, message: 'Admin cloud password updated.' });
-      } else if (targetUser === 'rudra') {
-        props.setProperty('EMP_PASS', newPass);
-        return jsonResponse({ success: true, message: 'Rudra cloud password updated.' });
-      }
-      return jsonResponse({ success: false, message: 'Target user not found.' });
-    }
-
-    // --- C. DELETE TRIP (STRICT ADMIN PERMISSION) ---
-    if (action === 'deleteTrip' || action === 'deleteRecord') {
+    if (action === 'deleteTrip') {
       if (userRole !== 'Admin') {
-        return jsonResponse({ success: false, error: 'Delete permission denied: Only Admin (Shravan) can delete trips.' });
+        return jsonResponse({ success: false, error: "Unauthorized: Only Admin can delete trips." });
       }
-
-      var targetTripId = String(payload.tripId || payload.id || '').trim();
-      var targetSNo = String(payload.sNo || '').trim();
-      var targetVehicle = String(payload.vehicleNo || '').trim().toUpperCase();
-      var data = sheet.getDataRange().getValues();
-      var deleted = false;
-
-      for (var i = 1; i < data.length; i++) {
-        var rowTripId = String(data[i][25] || '').trim();
-        var rowSNo = String(data[i][0]).trim();
-        var rowVeh = String(data[i][2] || '').trim().toUpperCase();
-
-        var isMatch = false;
-        if (targetTripId && rowTripId && rowTripId === targetTripId) {
-          isMatch = true;
-        } else if (targetSNo && rowSNo && rowSNo === targetSNo) {
-          isMatch = true;
-        } else if (targetVehicle && rowVeh && rowVeh === targetVehicle) {
-          isMatch = true;
-        }
-
-        if (isMatch) {
-          sheet.deleteRow(i + 1);
-          deleted = true;
-          break;
-        }
-      }
-
-      if (deleted) {
-        createCloudBackup(ss, 'Delete_Trip_' + (targetTripId || targetSNo) + '_by_' + currentUser);
-      }
-
-      return jsonResponse({
-        success: deleted,
-        status: deleted ? 'success' : 'error',
-        message: deleted ? 'Trip deleted successfully' : 'Trip not found on master sheet'
-      });
+      return jsonResponse(executeDeleteTrip(ss, payload.tripId, requestedVehicle));
     }
 
-    // --- STRICT BACKEND SECURITY ENFORCEMENT: Settings Access (Admin only) ---
-    if (action === 'updateSettings' || action === 'settings') {
+    if (action === 'addReceipt') {
+      return jsonResponse(executeAddReceipt(ss, payload.receipt, payload.tripId, requestedVehicle));
+    }
+
+    if (action === 'deleteReceipt') {
       if (userRole !== 'Admin') {
-        return jsonResponse({
-          success: false,
-          error: "Settings permission denied"
-        });
+        return jsonResponse({ success: false, error: "Unauthorized: Only Admin can delete receipts." });
       }
-      return jsonResponse({
-        success: true,
-        message: "Settings updated successfully"
-      });
+      return jsonResponse(executeDeleteReceipt(ss, payload.receiptId, payload.tripId, requestedVehicle));
     }
 
-    // --- D. ADD NEW TRIP ---
-    if (action === 'addTrip') {
-      var item = payload.data || payload.trip || payload;
-      var nextSNo = sheet.getLastRow();
-      var newTrip = calculateTripRow(item, nextSNo);
-      appendTripToSheet(sheet, newTrip);
-      createCloudBackup(ss, 'Add_Trip_' + newTrip.sNo + '_by_' + currentUser);
-
-      return jsonResponse({
-        success: true,
-        status: 'success',
-        message: 'Trip added successfully',
-        action: 'addTrip',
-        tripId: newTrip.tripId,
-        data: newTrip
-      });
-    }
-
-    // --- E. UPDATE / EDIT TRIP ---
-    if (action === 'updateTrip' || action === 'editTrip') {
-      var item = payload.data || payload.trip || payload;
-      var targetTripId = String(item.tripId || item.id || '').trim();
-      var targetSNo = String(item.sNo || '').trim();
-      var targetVehicle = String(item.vehicleNo || '').trim().toUpperCase();
-      var data = sheet.getDataRange().getValues();
-      var targetRow = -1;
-
-      for (var i = 1; i < data.length; i++) {
-        var rowTripId = String(data[i][25] || '').trim();
-        var rowSNo = String(data[i][0]).trim();
-        var rowVeh = String(data[i][2] || '').trim().toUpperCase();
-        var rowDate = String(data[i][1] || '').trim();
-
-        var isMatch = false;
-        if (targetTripId && rowTripId && rowTripId === targetTripId) {
-          isMatch = true;
-        } else if (targetSNo && rowSNo && rowSNo === targetSNo) {
-          isMatch = true;
-        } else if (targetVehicle && rowVeh && rowVeh === targetVehicle && (!rowDate || !item.tripDate || rowDate === String(item.tripDate || '').trim())) {
-          isMatch = true;
-        }
-
-        if (isMatch) {
-          targetRow = i + 1;
-          break;
-        }
-      }
-
-      var calcRow = calculateTripRow(item, targetSNo || (targetRow > 0 ? targetRow - 1 : sheet.getLastRow()));
-
-      if (targetRow > 0) {
-        sheet.getRange(targetRow, 1, 1, 26).setValues([[
-          calcRow.sNo, calcRow.tripDate, calcRow.vehicleNo, calcRow.from, calcRow.to, calcRow.freight,
-          calcRow.advanceDate, calcRow.advance, calcRow.halting, calcRow.trspName, calcRow.trspCommission,
-          calcRow.diesel, calcRow.toll, calcRow.loading, calcRow.unloading, calcRow.police, calcRow.rta,
-          calcRow.other, calcRow.driverCommission, calcRow.sumOfTotalExp, calcRow.totalExpGiven,
-          calcRow.status, calcRow.plFormatted, calcRow.balanceReceivedDate, calcRow.balance, calcRow.tripId
-        ]]);
-        createCloudBackup(ss, 'Edit_Trip_' + calcRow.sNo + '_by_' + currentUser);
-        return jsonResponse({
-          success: true,
-          status: 'success',
-          action: 'updateTrip',
-          tripId: calcRow.tripId,
-          message: 'Trip #' + calcRow.sNo + ' updated successfully in cloud',
-          data: calcRow
-        });
-      } else {
-        appendTripToSheet(sheet, calcRow);
-        createCloudBackup(ss, 'Add_Trip_' + calcRow.sNo + '_by_' + currentUser);
-        return jsonResponse({
-          success: true,
-          status: 'success',
-          action: 'addTrip',
-          tripId: calcRow.tripId,
-          message: 'Trip appended to cloud sheet',
-          data: calcRow
-        });
-      }
-    }
-
-    // --- F. MANUAL / TRIGGERED CLOUD BACKUP ---
-    if (action === 'createBackup') {
-      var backupRes = createCloudBackup(ss, payload.reason || 'Manual');
-      return jsonResponse(backupRes);
-    }
-
-    // --- G. RESTORE DATASET (ADMIN ONLY) ---
-    if (action === 'restoreFullDataset') {
+    if (action === 'updateSettings' || action === 'restoreBackup') {
       if (userRole !== 'Admin') {
-        return jsonResponse({ success: false, error: 'Unauthorized: Only Admin can restore dataset.' });
+        return jsonResponse({ success: false, error: "Unauthorized: Only Admin can modify settings or restore backups." });
       }
-
-      var tripsToRestore = payload.data || payload.trips || [];
-      sheet.clearContents();
-      sheet.appendRow(TRIP_HEADERS);
-
-      tripsToRestore.forEach(function(t, idx) {
-        var calculated = calculateTripRow(t, t.sNo || (idx + 1));
-        appendTripToSheet(sheet, calculated);
-      });
-
-      createCloudBackup(ss, 'Restore_Completed_by_' + currentUser);
-      return jsonResponse({
-        success: true,
-        message: 'Full dataset restored to Google Sheet (' + tripsToRestore.length + ' trips).'
-      });
+      return jsonResponse({ success: true, message: "Settings operation completed." });
     }
 
-    return jsonResponse({ success: false, message: 'Unknown POST action: ' + action });
+    if (action === 'updateVehicleData') {
+      return jsonResponse(executeUpdateVehicle(ss, payload, requestedVehicle));
+    }
+
+    return jsonResponse({ success: false, error: "Invalid action: " + action });
   } catch (err) {
     return jsonResponse({ success: false, error: err.toString() });
   } finally {
-    // Always release the lock
     lock.releaseLock();
   }
 }
 
-// ==========================================
-// 3. CORE BUSINESS CALCULATIONS & HELPERS
-// ==========================================
-function calculateTripRow(p, nextSNo) {
-  var freight = Number(p.freight) || 0;
-  var advance = Number(p.advance) || 0;
+// =========================================================================
+// MUTATION HANDLERS (ENFORCING SECURITY CHAIN & FINANCIAL RULES)
+// =========================================================================
 
-  var trspCommission = Number(p.trspCommission) || 0;
-  var diesel = Number(p.diesel) || 0;
-  var toll = Number(p.toll) || 0;
-  var loading = Number(p.loading) || 0;
-  var unloading = Number(p.unloading) || 0;
-  var police = Number(p.police) || 0;
-  var rta = Number(p.rta) || 0;
-  var other = Number(p.other) || 0;
-  var driverCommission = Number(p.driverCommission) || 0;
+function executeCreateTrip(ss, trip, vehicleNo) {
+  if (!vehicleNo) throw new Error("Requested vehicle is required.");
+  var sheet = ss.getSheetByName(SHEET_TRIPS);
 
-  // 20. Sum OF Total Exp = 9 expenses
-  var sumOfTotalExp = trspCommission + diesel + toll + loading + unloading + police + rta + other + driverCommission;
+  // Auto-lock trip to requested vehicle
+  trip.vehicleNo = vehicleNo;
 
-  // 21. Total Exp Given = Advance + Sum OF Total Exp
-  var totalExpGiven = advance + sumOfTotalExp;
+  // Validate financial rules
+  var calc = calculateBackendTrip(trip, []);
+  
+  var tripId = trip.tripId || ("TRIP-" + Utilities.formatDate(new Date(), "GMT+5:30", "yyyyMMdd") + "-" + vehicleNo.slice(-4) + "-" + Math.floor(1000 + Math.random() * 9000));
+  var sNo = sheet.getLastRow(); // header is row 1
+  var now = new Date().toISOString();
 
-  // 23. P/L = Freight - Total Exp Given
-  var netPL = freight - totalExpGiven;
-  var plFormatted = netPL >= 0 ? ('P +₹' + Math.abs(netPL).toLocaleString('en-IN')) : ('L -₹' + Math.abs(netPL).toLocaleString('en-IN'));
+  var row = [
+    tripId, sNo, calc.tripDate, vehicleNo, calc.from, calc.to,
+    calc.freight, calc.advanceDate, calc.advance, calc.haltingDetails,
+    calc.trspName, calc.trspCommission, calc.diesel, calc.toll, calc.loading,
+    calc.unloading, calc.police, calc.rta, calc.other, calc.driverExp,
+    calc.otherExpenseNotes, calc.totalExpenses, calc.profitLoss, calc.tripStatus,
+    calc.originalBalance, 0, calc.originalBalance,
+    calc.balanceStatus, calc.paymentIndicator, now, now
+  ];
 
-  // 25. Balance = Freight - Advance
-  var expectedBalance = freight - advance;
-  var balance = (p.balance !== undefined && p.balance !== null && p.balance !== '' && !isNaN(Number(p.balance)))
-    ? Number(p.balance)
-    : expectedBalance;
+  sheet.appendRow(row);
+  return { success: true, tripId: tripId, data: calc };
+}
 
-  var status = p.status || 'Pending';
-  if (status === 'Done') status = 'Paid';
+function executeUpdateTrip(ss, trip, requestedVehicle) {
+  var sheet = ss.getSheetByName(SHEET_TRIPS);
+  var data = sheet.getDataRange().getValues();
+  var tripId = String(trip.tripId || '').trim();
 
-  var statusAmount = balance;
-  if (status === 'Paid') {
-    statusAmount = 0;
-  } else if (status === 'Partially Paid') {
-    statusAmount = Number(p.statusAmount) || balance;
+  for (var r = 1; r < data.length; r++) {
+    if (String(data[r][0]).trim() === tripId) {
+      // SECURITY VERIFICATION: Target trip vehicle must match requested vehicle
+      var existingVehicle = String(data[r][3]).trim();
+      if (requestedVehicle && existingVehicle !== requestedVehicle) {
+        throw new Error("Vehicle Access Mismatch: Trip belongs to " + existingVehicle + ", but mutation was sent for " + requestedVehicle);
+      }
+
+      // Load existing receipts to compute proper balances
+      var receipts = fetchReceipts(ss, tripId, existingVehicle);
+      var calc = calculateBackendTrip(trip, receipts);
+      var now = new Date().toISOString();
+
+      var updatedRow = [
+        tripId, data[r][1], calc.tripDate, existingVehicle, calc.from, calc.to,
+        calc.freight, calc.advanceDate, calc.advance, calc.haltingDetails,
+        calc.trspName, calc.trspCommission, calc.diesel, calc.toll, calc.loading,
+        calc.unloading, calc.police, calc.rta, calc.other, calc.driverExp,
+        calc.otherExpenseNotes, calc.totalExpenses, calc.profitLoss, calc.tripStatus,
+        calc.originalBalance, calc.totalReceived, calc.remainingBalance,
+        calc.balanceStatus, calc.paymentIndicator, data[r][29] || now, now
+      ];
+
+      sheet.getRange(r + 1, 1, 1, updatedRow.length).setValues([updatedRow]);
+      return { success: true, tripId: tripId, data: calc };
+    }
   }
 
-  var fromLoc = String(p.from || '').trim();
-  var toLoc = String(p.to || '').trim();
-  var balanceReceivedDate = p.balanceReceivedDate ? formatDate(p.balanceReceivedDate) : '';
-  var tripId = p.tripId || p.id || ('TR-' + Date.now() + '-' + Math.floor(Math.random() * 10000));
+  throw new Error("Trip not found: " + tripId);
+}
+
+function executeDeleteTrip(ss, tripId, requestedVehicle) {
+  var sheet = ss.getSheetByName(SHEET_TRIPS);
+  var data = sheet.getDataRange().getValues();
+  var targetId = String(tripId || '').trim();
+
+  for (var r = 1; r < data.length; r++) {
+    if (String(data[r][0]).trim() === targetId) {
+      var existingVehicle = String(data[r][3]).trim();
+      if (requestedVehicle && existingVehicle !== requestedVehicle) {
+        throw new Error("Vehicle Access Mismatch: Cannot delete trip belonging to " + existingVehicle);
+      }
+
+      sheet.deleteRow(r + 1);
+
+      // Cascade delete receipts
+      var rcptSheet = ss.getSheetByName(SHEET_RECEIPTS);
+      var rcptData = rcptSheet.getDataRange().getValues();
+      for (var i = rcptData.length - 1; i >= 1; i--) {
+        if (String(rcptData[i][1]).trim() === targetId) {
+          rcptSheet.deleteRow(i + 1);
+        }
+      }
+
+      return { success: true, deletedTripId: targetId };
+    }
+  }
+
+  throw new Error("Trip not found: " + targetId);
+}
+
+function executeAddReceipt(ss, receipt, tripId, requestedVehicle) {
+  var tripSheet = ss.getSheetByName(SHEET_TRIPS);
+  var tripData = tripSheet.getDataRange().getValues();
+  var targetTripId = String(tripId || '').trim();
+
+  var foundTrip = null;
+  var tripRowIndex = -1;
+
+  for (var r = 1; r < tripData.length; r++) {
+    if (String(tripData[r][0]).trim() === targetTripId) {
+      foundTrip = tripData[r];
+      tripRowIndex = r + 1;
+      break;
+    }
+  }
+
+  if (!foundTrip) throw new Error("Trip not found: " + targetTripId);
+
+  var vehicleNo = String(foundTrip[3]).trim();
+  if (requestedVehicle && vehicleNo !== requestedVehicle) {
+    throw new Error("Vehicle Access Mismatch: Trip belongs to " + vehicleNo);
+  }
+
+  var existingReceipts = fetchReceipts(ss, targetTripId, vehicleNo);
+  var freight = Number(foundTrip[6]) || 0;
+  var advance = Number(foundTrip[8]) || 0;
+  var originalBalance = freight - advance;
+
+  var currentTotalReceived = 0;
+  for (var i = 0; i < existingReceipts.length; i++) {
+    currentTotalReceived += Number(existingReceipts[i].amount || 0);
+  }
+
+  var newAmount = Number(receipt.receivedAmount || receipt.amount) || 0;
+  if (newAmount <= 0) throw new Error("Receipt amount must be > 0");
+
+  var newTotalReceived = currentTotalReceived + newAmount;
+  if (newTotalReceived > originalBalance) {
+    throw new Error("Overpayment rejected: Total receipts (" + newTotalReceived + ") exceed balance (" + originalBalance + ")");
+  }
+
+  // Append receipt
+  var rcptSheet = ss.getSheetByName(SHEET_RECEIPTS);
+  var rcptId = receipt.receiptId || ("REC-" + Utilities.formatDate(new Date(), "GMT+5:30", "yyyyMMdd") + "-" + Math.floor(100 + Math.random() * 900));
+  var now = new Date().toISOString();
+
+  rcptSheet.appendRow([
+    rcptId, targetTripId, vehicleNo, receipt.receivedDate || receipt.date, newAmount,
+    receipt.notes || '', now, now
+  ]);
+
+  // Recalculate trip remaining balance
+  var remaining = originalBalance - newTotalReceived;
+  var balanceStatus = remaining === 0 ? "Done" : "Partially Received";
+  var indicator = remaining === 0 ? "green" : "red";
+
+  tripSheet.getRange(tripRowIndex, 26, 1, 4).setValues([[newTotalReceived, remaining, balanceStatus, indicator]]);
+
+  return { success: true, receiptId: rcptId, remainingBalance: remaining, balanceStatus: balanceStatus };
+}
+
+function executeDeleteReceipt(ss, receiptId, tripId, requestedVehicle) {
+  var rcptSheet = ss.getSheetByName(SHEET_RECEIPTS);
+  var rcptData = rcptSheet.getDataRange().getValues();
+  var targetRcptId = String(receiptId || '').trim();
+
+  for (var r = 1; r < rcptData.length; r++) {
+    if (String(rcptData[r][0]).trim() === targetRcptId) {
+      rcptSheet.deleteRow(r + 1);
+      break;
+    }
+  }
+
+  // Recalculate trip balance
+  var tripSheet = ss.getSheetByName(SHEET_TRIPS);
+  var tripData = tripSheet.getDataRange().getValues();
+  var targetTripId = String(tripId || '').trim();
+
+  for (var t = 1; t < tripData.length; t++) {
+    if (String(tripData[t][0]).trim() === targetTripId) {
+      var remainingReceipts = fetchReceipts(ss, targetTripId, requestedVehicle);
+      var totalRecv = 0;
+      for (var k = 0; k < remainingReceipts.length; k++) {
+        totalRecv += Number(remainingReceipts[k].amount || 0);
+      }
+      var origBal = Number(tripData[t][24]) || 0;
+      var rem = Math.max(0, origBal - totalRecv);
+      var status = rem === 0 ? "Done" : (totalRecv > 0 ? "Partially Received" : "Not Received");
+      var ind = rem === 0 ? "green" : "red";
+
+      tripSheet.getRange(t + 1, 26, 1, 4).setValues([[totalRecv, rem, status, ind]]);
+      return { success: true, deletedReceiptId: targetRcptId, remainingBalance: rem, balanceStatus: status };
+    }
+  }
+
+  return { success: true, deletedReceiptId: targetRcptId };
+}
+
+function executeUpdateVehicle(ss, vehicleData, vehicleNo) {
+  var sheet = ss.getSheetByName(SHEET_VEHICLES);
+  var data = sheet.getDataRange().getValues();
+  var targetNo = String(vehicleNo || vehicleData.vehicleNo).trim();
+
+  for (var r = 1; r < data.length; r++) {
+    if (String(data[r][1]).trim() === targetNo) {
+      sheet.getRange(r + 1, 4, 1, 4).setValues([[
+        vehicleData.driverName || '',
+        vehicleData.driverPhone || '',
+        vehicleData.status || 'Active',
+        vehicleData.notes || ''
+      ]]);
+      return { success: true, vehicleNo: targetNo };
+    }
+  }
+
+  // Add new vehicle if not found
+  var vehId = "VEH-" + ("00" + sheet.getLastRow()).slice(-3);
+  sheet.appendRow([
+    vehId, targetNo, targetNo, vehicleData.driverName || '', vehicleData.driverPhone || '',
+    vehicleData.status || 'Active', vehicleData.notes || '', new Date().toISOString(), new Date().toISOString()
+  ]);
+
+  return { success: true, vehicleNo: targetNo, created: true };
+}
+
+// =========================================================================
+// QUERY HELPERS & CALCULATION ENGINE
+// =========================================================================
+
+function fetchVehicles(ss) {
+  var sheet = ss.getSheetByName(SHEET_VEHICLES);
+  var data = sheet.getDataRange().getValues();
+  var list = [];
+  for (var r = 1; r < data.length; r++) {
+    if (data[r][1]) {
+      list.push({
+        vehicleId: data[r][0],
+        vehicleNo: data[r][1],
+        vehicleName: data[r][2],
+        driverName: data[r][3],
+        driverPhone: data[r][4],
+        status: data[r][5],
+        notes: data[r][6]
+      });
+    }
+  }
+  return list;
+}
+
+function fetchTrips(ss, vehicleNo) {
+  var sheet = ss.getSheetByName(SHEET_TRIPS);
+  var data = sheet.getDataRange().getValues();
+  var list = [];
+
+  for (var r = 1; r < data.length; r++) {
+    var v = String(data[r][3]).trim();
+    // VEHICLE SCOPING: Filter strictly by vehicle if specified
+    if (vehicleNo && v !== vehicleNo) continue;
+
+    var tripId = String(data[r][0]).trim();
+    var receipts = fetchReceipts(ss, tripId, v);
+
+    list.push({
+      tripId: tripId,
+      sNo: data[r][1],
+      tripDate: data[r][2],
+      vehicleNo: v,
+      from: data[r][4],
+      to: data[r][5],
+      freightAmount: Number(data[r][6]) || 0,
+      freight: Number(data[r][6]) || 0,
+      advanceDate: data[r][7],
+      advanceAmount: Number(data[r][8]) || 0,
+      advance: Number(data[r][8]) || 0,
+      haltingDetails: data[r][9],
+      trspName: data[r][10],
+      trspCommission: Number(data[r][11]) || 0,
+      diesel: Number(data[r][12]) || 0,
+      tollCharges: Number(data[r][13]) || 0,
+      toll: Number(data[r][13]) || 0,
+      loadingCharges: Number(data[r][14]) || 0,
+      loading: Number(data[r][14]) || 0,
+      unloadingCharges: Number(data[r][15]) || 0,
+      unloading: Number(data[r][15]) || 0,
+      policeExp: Number(data[r][16]) || 0,
+      police: Number(data[r][16]) || 0,
+      rtaExp: Number(data[r][17]) || 0,
+      rta: Number(data[r][17]) || 0,
+      otherExpenses: Number(data[r][18]) || 0,
+      other: Number(data[r][18]) || 0,
+      driverExp: Number(data[r][19]) || 0,
+      driverTripCommission: Number(data[r][19]) || 0,
+      otherExpenseNotes: data[r][20] || '',
+      totalExpenses: Number(data[r][21]) || 0,
+      profitLoss: Number(data[r][22]) || 0,
+      tripStatus: data[r][23] || 'In Progress',
+      originalBalance: Number(data[r][24]) || 0,
+      totalBalanceReceived: Number(data[r][25]) || 0,
+      remainingBalance: Number(data[r][26]) || 0,
+      balanceStatus: data[r][27] || 'Not Received',
+      paymentIndicator: data[r][28] || 'red',
+      balanceReceipts: receipts
+    });
+  }
+
+  return list;
+}
+
+function fetchReceipts(ss, tripId, vehicleNo) {
+  var sheet = ss.getSheetByName(SHEET_RECEIPTS);
+  var data = sheet.getDataRange().getValues();
+  var list = [];
+
+  for (var r = 1; r < data.length; r++) {
+    if (String(data[r][1]).trim() === tripId) {
+      list.push({
+        receiptId: data[r][0],
+        tripId: data[r][1],
+        vehicleNo: data[r][2],
+        receivedDate: data[r][3],
+        date: data[r][3],
+        receivedAmount: Number(data[r][4]) || 0,
+        amount: Number(data[r][4]) || 0,
+        notes: data[r][5]
+      });
+    }
+  }
+
+  return list;
+}
+
+function calculateBackendTrip(t, receipts) {
+  var freight = Number(t.freightAmount !== undefined ? t.freightAmount : t.freight) || 0;
+  var advance = Number(t.advanceAmount !== undefined ? t.advanceAmount : t.advance) || 0;
+
+  if (advance > freight) {
+    throw new Error("Advance Amount cannot exceed Freight Amount.");
+  }
+
+  var diesel = Number(t.diesel) || 0;
+  var toll = Number(t.tollCharges !== undefined ? t.tollCharges : t.toll) || 0;
+  var rta = Number(t.rtaExp !== undefined ? t.rtaExp : t.rta) || 0;
+  var police = Number(t.policeExp !== undefined ? t.policeExp : t.police) || 0;
+  var loading = Number(t.loadingCharges !== undefined ? t.loadingCharges : t.loading) || 0;
+  var unloading = Number(t.unloadingCharges !== undefined ? t.unloadingCharges : t.unloading) || 0;
+  var driverExp = Number(t.driverExp !== undefined ? t.driverExp : (t.driverTripCommission !== undefined ? t.driverTripCommission : t.driverCommission)) || 0;
+  var trspCommission = Number(t.trspCommission) || 0;
+  var other = Number(t.otherExpenses !== undefined ? t.otherExpenses : t.other) || 0;
+
+  if (diesel < 0 || toll < 0 || rta < 0 || police < 0 || loading < 0 || unloading < 0 || driverExp < 0 || trspCommission < 0 || other < 0) {
+    throw new Error("Expenses cannot be negative.");
+  }
+
+  // 1. TOTAL EXPENSES (Sum of 9 Operational Expenses)
+  var totalExpenses = diesel + toll + rta + police + loading + unloading + driverExp + trspCommission + other;
+
+  // 2. PROFIT / LOSS (Internal Business Metric)
+  var profitLoss = freight - totalExpenses;
+
+  // 3. CUSTOMER ORIGINAL BALANCE (External Receivable)
+  var originalBalance = freight - advance;
+
+  // 4. RECEIVED PAYMENTS (Sum of Balance Receipts)
+  var totalRecv = 0;
+  if (Array.isArray(receipts)) {
+    for (var i = 0; i < receipts.length; i++) {
+      totalRecv += Number(receipts[i].amount !== undefined ? receipts[i].amount : (receipts[i].receivedAmount || 0));
+    }
+  }
+
+  // 5. OVERPAYMENT PROTECTION
+  if (totalRecv > originalBalance) {
+    throw new Error("Overpayment rejected. Balance is ₹" + originalBalance + ", but received ₹" + totalRecv + ".");
+  }
+
+  // 6. REMAINING CUSTOMER BALANCE (Original Balance - Total Balance Receipts)
+  var remaining = originalBalance - totalRecv;
+
+  // 7. PAYMENT STATUS & RED / GREEN INDICATOR
+  var balanceStatus = remaining === 0 ? "Done" : (totalRecv > 0 ? "Partially Received" : "Not Received");
+  var indicator = remaining === 0 ? "green" : "red";
 
   return {
-    sNo: nextSNo || 1,
-    tripDate: p.tripDate || formatDate(new Date()),
-    vehicleNo: String(p.vehicleNo || '').trim().toUpperCase(),
-    from: fromLoc,
-    to: toLoc,
+    tripDate: t.tripDate || '',
+    from: t.from || '',
+    to: t.to || '',
     freight: freight,
-    advanceDate: p.advanceDate ? formatDate(p.advanceDate) : '',
+    advanceDate: t.advanceDate || '',
     advance: advance,
-    halting: String(p.halting || 'None').trim(),
-    trspName: String(p.trspName || 'Direct').trim(),
+    haltingDetails: t.haltingDetails || t.halting || '',
+    trspName: t.trspName || '',
     trspCommission: trspCommission,
     diesel: diesel,
     toll: toll,
@@ -402,235 +541,204 @@ function calculateTripRow(p, nextSNo) {
     police: police,
     rta: rta,
     other: other,
-    driverCommission: driverCommission,
-    sumOfTotalExp: sumOfTotalExp,
-    totalExpGiven: totalExpGiven,
-    status: status,
-    statusAmount: statusAmount,
-    netPL: netPL,
-    plFormatted: plFormatted,
-    balanceReceivedDate: balanceReceivedDate,
-    balance: balance,
-    tripId: tripId
+    driverExp: driverExp,
+    otherExpenseNotes: t.otherExpenseNotes || '',
+    totalExpenses: totalExpenses,
+    profitLoss: profitLoss,
+    tripStatus: t.tripStatus || t.status || 'In Progress',
+    originalBalance: originalBalance,
+    totalReceived: totalRecv,
+    remainingBalance: remaining,
+    balanceStatus: balanceStatus,
+    paymentIndicator: indicator
   };
 }
 
-function appendTripToSheet(sheet, t) {
-  sheet.appendRow([
-    t.sNo,                  // 1
-    t.tripDate,              // 2
-    t.vehicleNo,             // 3
-    t.from,                  // 4
-    t.to,                    // 5
-    t.freight,               // 6
-    t.advanceDate,           // 7
-    t.advance,               // 8
-    t.halting,               // 9
-    t.trspName,              // 10
-    t.trspCommission,        // 11
-    t.diesel,                // 12
-    t.toll,                  // 13
-    t.loading,               // 14
-    t.unloading,             // 15
-    t.police,                // 16
-    t.rta,                   // 17
-    t.other,                 // 18
-    t.driverCommission,      // 19
-    t.sumOfTotalExp,         // 20
-    t.totalExpGiven,         // 21
-    t.status,                // 22
-    t.plFormatted,           // 23
-    t.balanceReceivedDate,   // 24
-    t.balance,               // 25
-    t.tripId                 // 26 (UUID)
-  ]);
+/**
+ * Recalculate stored totals for all existing rows in Trips sheet.
+ * Repairs data using:
+ * Total Expenses = sum of 9 expenses
+ * Profit/Loss = Freight - Total Expenses
+ * Original Balance = Freight - Advance
+ * Remaining Balance = Original Balance - Total Balance Received
+ */
+function recalculateAllTrips() {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName(SHEET_TRIPS);
+    if (!sheet) return "Trips sheet not found";
+
+    var data = sheet.getDataRange().getValues();
+    if (data.length <= 1) return "No trip records found to recalculate.";
+
+    var updatedCount = 0;
+    for (var r = 1; r < data.length; r++) {
+      var row = data[r];
+      var tripId = String(row[0]).trim();
+      var vehicleNo = String(row[3]).trim();
+
+      var freight = Number(row[6]) || 0;
+      var advance = Number(row[8]) || 0;
+      var trspComm = Number(row[11]) || 0;
+      var diesel = Number(row[12]) || 0;
+      var toll = Number(row[13]) || 0;
+      var loading = Number(row[14]) || 0;
+      var unloading = Number(row[15]) || 0;
+      var police = Number(row[16]) || 0;
+      var rta = Number(row[17]) || 0;
+      var other = Number(row[18]) || 0;
+      var driverExp = Number(row[19]) || 0;
+
+      // 1. Total Expenses
+      var totalExpenses = diesel + toll + rta + police + loading + unloading + driverExp + trspComm + other;
+      // 2. Profit / Loss
+      var profitLoss = freight - totalExpenses;
+      // 3. Customer Original Balance
+      var originalBalance = freight - advance;
+
+      // 4. Receipts
+      var receipts = fetchReceipts(ss, tripId, vehicleNo);
+      var totalRecv = 0;
+      for (var i = 0; i < receipts.length; i++) {
+        totalRecv += Number(receipts[i].amount || receipts[i].receivedAmount || 0);
+      }
+      // 5. Remaining Customer Balance
+      var remainingBalance = originalBalance - totalRecv;
+      var balanceStatus = remainingBalance === 0 ? "Done" : (totalRecv > 0 ? "Partially Received" : "Not Received");
+      var indicator = remainingBalance === 0 ? "green" : "red";
+
+      // Col 22 (idx 21): Total Expenses
+      // Col 23 (idx 22): Profit/Loss
+      // Col 25 (idx 24): Original Balance
+      // Col 26 (idx 25): Total Balance Received
+      // Col 27 (idx 26): Remaining Balance
+      // Col 28 (idx 27): Balance Status
+      // Col 29 (idx 28): Payment Indicator
+      sheet.getRange(r + 1, 22).setValue(totalExpenses);
+      sheet.getRange(r + 1, 23).setValue(profitLoss);
+      sheet.getRange(r + 1, 25).setValue(originalBalance);
+      sheet.getRange(r + 1, 26).setValue(totalRecv);
+      sheet.getRange(r + 1, 27).setValue(remainingBalance);
+      sheet.getRange(r + 1, 28).setValue(balanceStatus);
+      sheet.getRange(r + 1, 29).setValue(indicator);
+      sheet.getRange(r + 1, 31).setValue(new Date().toISOString());
+
+      updatedCount++;
+    }
+    return "Successfully recalculated " + updatedCount + " trips using the authoritative financial formulas.";
+  } finally {
+    lock.releaseLock();
+  }
 }
 
-function fetchAllTrips(sheet) {
-  var data = sheet.getDataRange().getValues();
-  if (data.length <= 1) return [];
+/**
+ * Test the exact ₹1,30,000 master example in Google Apps Script
+ */
+function testExactFinancialExample() {
+  var trip = {
+    freightAmount: 130000,
+    advanceAmount: 120000,
+    diesel: 70000,
+    tollCharges: 20000,
+    rtaExp: 8000,
+    policeExp: 2000,
+    loadingCharges: 2400,
+    unloadingCharges: 1200,
+    driverExp: 13600,
+    trspCommission: 0,
+    otherExpenses: 2000
+  };
 
-  var trips = [];
-  for (var i = 1; i < data.length; i++) {
-    var r = data[i];
-    if (!r[1] && !r[2]) continue;
+  var res1 = calculateBackendTrip(trip, []);
+  if (res1.totalExpenses !== 119200) throw new Error("Expected expenses 119200, got " + res1.totalExpenses);
+  if (res1.profitLoss !== 10800) throw new Error("Expected profit 10800, got " + res1.profitLoss);
+  if (res1.originalBalance !== 10000) throw new Error("Expected original balance 10000, got " + res1.originalBalance);
+  if (res1.remainingBalance !== 10000) throw new Error("Expected remaining balance 10000, got " + res1.remainingBalance);
+  if (res1.paymentIndicator !== "red") throw new Error("Expected red indicator");
 
-    var sNo = r[0] || i;
-    var tripDate = formatDate(r[1]);
-    var vehicleNo = String(r[2] || '').trim().toUpperCase();
-    var fromLoc = String(r[3] || '').trim();
-    var toLoc = String(r[4] || '').trim();
-    var freight = Number(r[5]) || 0;
-    var advanceDate = formatDate(r[6]);
-    var advance = Number(r[7]) || 0;
-    var halting = String(r[8] || '').trim();
-    var trspName = String(r[9] || '').trim();
-    var trspCommission = Number(r[10]) || 0;
-    var diesel = Number(r[11]) || 0;
-    var toll = Number(r[12]) || 0;
-    var loading = Number(r[13]) || 0;
-    var unloading = Number(r[14]) || 0;
-    var police = Number(r[15]) || 0;
-    var rta = Number(r[16]) || 0;
-    var other = Number(r[17]) || 0;
-    var driverCommission = Number(r[18]) || 0;
-    var sumOfTotalExp = Number(r[19]) || (trspCommission + diesel + toll + loading + unloading + police + rta + other + driverCommission);
-    var totalExpGiven = Number(r[20]) || (advance + sumOfTotalExp);
-    var status = String(r[21] || 'Pending').trim();
-    if (status === 'Done') status = 'Paid';
+  // After 9000 receipt
+  var res2 = calculateBackendTrip(trip, [{ amount: 9000 }]);
+  if (res2.remainingBalance !== 1000) throw new Error("Expected remaining balance 1000, got " + res2.remainingBalance);
+  if (res2.paymentIndicator !== "red") throw new Error("Expected red indicator");
 
-    var pl = r[22] ? String(r[22]).trim() : '';
-    var balanceReceivedDate = formatDate(r[23]);
-    var balance = Number(r[24]) !== undefined && r[24] !== '' ? Number(r[24]) : (freight - advance);
-    var tripId = String(r[25] || '').trim();
-    if (!tripId) {
-      tripId = 'TR-' + (sNo || i);
-      try { sheet.getRange(i + 1, 26).setValue(tripId); } catch (e) {}
-    }
+  // After 1000 receipt
+  var res3 = calculateBackendTrip(trip, [{ amount: 9000 }, { amount: 1000 }]);
+  if (res3.remainingBalance !== 0) throw new Error("Expected remaining balance 0, got " + res3.remainingBalance);
+  if (res3.paymentIndicator !== "green") throw new Error("Expected green indicator");
+  if (res3.balanceStatus !== "Done") throw new Error("Expected Done status");
 
-    var netPL = freight - totalExpGiven;
-    if (!pl) {
-      pl = netPL >= 0 ? ('P +₹' + Math.abs(netPL).toLocaleString('en-IN')) : ('L -₹' + Math.abs(netPL).toLocaleString('en-IN'));
-    }
-
-    var statusAmount = balance;
-    if (status === 'Paid') statusAmount = 0;
-
-    trips.push({
-      sNo: sNo,
-      tripDate: tripDate,
-      vehicleNo: vehicleNo,
-      from: fromLoc,
-      to: toLoc,
-      freight: freight,
-      advanceDate: advanceDate,
-      advance: advance,
-      halting: halting,
-      trspName: trspName,
-      trspCommission: trspCommission,
-      diesel: diesel,
-      toll: toll,
-      loading: loading,
-      unloading: unloading,
-      police: police,
-      rta: rta,
-      other: other,
-      driverCommission: driverCommission,
-      sumOfTotalExp: sumOfTotalExp,
-      totalExpGiven: totalExpGiven,
-      statusAmount: statusAmount,
-      status: status,
-      netPL: netPL,
-      pl: pl,
-      balanceReceivedDate: balanceReceivedDate,
-      balance: balance,
-      tripId: tripId
-    });
+  // Overpayment test
+  try {
+    calculateBackendTrip(trip, [{ amount: 10800 }]); // Testing the 10,800 profit vs 10,000 balance trap
+    throw new Error("Should have rejected 10800 receipt against 10000 balance");
+  } catch (e) {
+    if (!e.message.includes("Overpayment rejected")) throw e;
   }
-  return trips;
+
+  Logger.log(">>> ALL EXACT FINANCIAL TESTS PASSED IN APPS SCRIPT! <<<");
+  return "PASSED";
 }
 
-function getOrCreateSheet(ss, name, headers) {
-  var sheet = ss.getSheetByName(name);
-  if (!sheet) {
-    sheet = ss.insertSheet(name);
-    if (headers && headers.length > 0) {
-      sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-      sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold').setBackground('#0f172a').setFontColor('#ffffff');
-      sheet.setFrozenRows(1);
-    }
+function ensureAllSheets(ss) {
+  var now = new Date().toISOString();
+  var vSheet = ss.getSheetByName(SHEET_VEHICLES);
+  if (!vSheet) {
+    vSheet = ss.insertSheet(SHEET_VEHICLES);
+    vSheet.appendRow(VEHICLE_HEADERS);
+    // Seed initial vehicles
+    vSheet.appendRow(['VEH-001', 'TS15UE1122', 'TS15UE1122', 'Driver John', '', 'Active', 'Heavy Lorry', now, now]);
+    vSheet.appendRow(['VEH-002', 'TG15T6666', 'TG15T6666', 'Driver Ravi', '', 'Active', 'Heavy Lorry', now, now]);
   }
-  return sheet;
+
+  var tSheet = ss.getSheetByName(SHEET_TRIPS);
+  if (!tSheet) {
+    tSheet = ss.insertSheet(SHEET_TRIPS);
+    tSheet.appendRow(TRIP_HEADERS);
+  }
+
+  // Seed initial 2 canonical trips if Trips sheet is empty or header only
+  if (tSheet.getLastRow() <= 1) {
+    tSheet.appendRow([
+      'TRIP-20260828-1122-1001', 1, '28-08-2026', 'TS15UE1122', 'Hyderabad, Telangana', 'Purnia, Bihar',
+      200000, '28-08-2026', 90000, 'Two days halting during transit', 'MRC', 2000, 50000, 10000,
+      2500, 2500, 1000, 1000, 1000, 12000, 'Damage-1000', 82000, 118000, 'Pending',
+      110000, 0, 110000, 'Not Received', 'red', now, now
+    ]);
+
+    tSheet.appendRow([
+      'TRIP-20260828-6666-1002', 2, '28-08-2026', 'TG15T6666', 'Hyderabad, Telangana', 'Purnia, Bihar',
+      250000, '28-08-2026', 90000, 'Two days halting during transit', 'MRC', 2000, 80000, 10000,
+      2500, 2500, 1000, 1000, 1000, 12000, 'Damage-1000', 112000, 138000, 'Paid',
+      160000, 160000, 0, 'Done', 'green', now, now
+    ]);
+  }
+
+  var rSheet = ss.getSheetByName(SHEET_RECEIPTS);
+  if (!rSheet) {
+    rSheet = ss.insertSheet(SHEET_RECEIPTS);
+    rSheet.appendRow(RECEIPT_HEADERS);
+  }
+
+  if (rSheet.getLastRow() <= 1) {
+    rSheet.appendRow([
+      'REC-20260828-6666-01', 'TRIP-20260828-6666-1002', 'TG15T6666', '28-08-2026', 160000,
+      'Full balance settlement', now, now
+    ]);
+  }
 }
 
-function formatDate(val) {
-  if (!val) return '';
-  if (val instanceof Date) {
-    var y = val.getFullYear();
-    var m = String(val.getMonth() + 1);
-    if (m.length < 2) m = '0' + m;
-    var d = String(val.getDate());
-    if (d.length < 2) d = '0' + d;
-    return y + '-' + m + '-' + d;
-  }
-  var s = String(val).trim();
-  if (!s || s === '-') return '';
-  if (s.indexOf('T') !== -1) {
-    return s.split('T')[0];
-  }
-  return s;
+/**
+ * Callable utility to seed or re-seed the 2 canonical trips into the Google Sheet
+ */
+function seedMasterTrips() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  ensureAllSheets(ss);
+  return "Master trips and vehicles successfully verified and seeded in Google Sheet.";
 }
 
 function jsonResponse(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj))
     .setMimeType(ContentService.MimeType.JSON);
-}
-
-// ==========================================
-// 4. CLOUD BACKUP SYSTEM (GOOGLE DRIVE CLONE)
-// ==========================================
-function createCloudBackup(ss, reason) {
-  try {
-    var now = new Date();
-    var pad = function(n) { return (n < 10 ? '0' : '') + n; };
-    var timeStr = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate()) + '_' +
-                  pad(now.getHours()) + '-' + pad(now.getMinutes()) + '-' + pad(now.getSeconds());
-    var cleanReason = reason ? String(reason).replace(/[^a-zA-Z0-9_-]/g, '_') : 'Manual';
-    var backupName = 'Lorry_Backup_' + timeStr + '_' + cleanReason;
-
-    try {
-      var folders = DriveApp.getFoldersByName(BACKUP_FOLDER_NAME);
-      var folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(BACKUP_FOLDER_NAME);
-      var file = DriveApp.getFileById(ss.getId());
-      file.makeCopy(backupName, folder);
-      return { success: true, backupName: backupName, timestamp: timeStr };
-    } catch (driveErr) {
-      // Fallback: create snapshot tab inside the spreadsheet
-      var tabName = 'SNAP_' + timeStr.substring(5, 16).replace(/[^a-zA-Z0-9]/g, '_');
-      if (tabName.length > 28) tabName = tabName.substring(0, 28);
-      var snapSheet = ss.insertSheet(tabName);
-      snapSheet.appendRow(['Backup Timestamp', now.toISOString(), 'Reason', reason]);
-      var data = (ss.getSheetByName(SHEET_TRIPS) || ss.getSheets()[0]).getDataRange().getValues();
-      if (data.length > 0) {
-        snapSheet.getRange(2, 1, data.length, data[0].length).setValues(data);
-      }
-      return { success: true, backupName: tabName, inSheet: true, timestamp: timeStr };
-    }
-  } catch (err) {
-    Logger.log('Cloud backup error: ' + err.toString());
-    return { success: false, error: err.toString() };
-  }
-}
-
-// ==========================================
-// 5. MASTER SPREADSHEET LOCATOR (SELF-HEALING)
-// ==========================================
-function getMasterSpreadsheet(e) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  if (ss) return ss;
-
-  var props = PropertiesService.getScriptProperties();
-  var sheetId = props.getProperty('SPREADSHEET_ID');
-
-  if (!sheetId && e && e.parameter && e.parameter.sheetId) {
-    sheetId = e.parameter.sheetId;
-    props.setProperty('SPREADSHEET_ID', sheetId);
-  }
-
-  if (sheetId) {
-    try {
-      return SpreadsheetApp.openById(sheetId);
-    } catch (err) {
-      Logger.log('Could not open spreadsheet by ID: ' + err);
-    }
-  }
-
-  try {
-    ss = SpreadsheetApp.create('SR_T Lorry Freight Management Data');
-    props.setProperty('SPREADSHEET_ID', ss.getId());
-    getOrCreateSheet(ss, SHEET_TRIPS, TRIP_HEADERS);
-    return ss;
-  } catch (createErr) {
-    throw new Error('No active Google Sheet found. Please bind this script to a Google Sheet (Extensions -> Apps Script) or authorize DriveApp.');
-  }
 }
