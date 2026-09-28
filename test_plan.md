@@ -65,3 +65,4 @@
 - **TC-UI-04 (Official PDF / Print Receipt):** Clicking `📄 PDF / Print Receipt` opens a printable official **SR TRANSPORT** consignment voucher with driver and customer stamp lines.
 - **TC-UI-05 (Dashboard Balance Alert & Popup):** If pending balance exists, an executive alert banner appears on top. Clicking `Review Balances` opens the interactive modal listing pending shipments with a 1-click `Settle Payment` shortcut.
 - **TC-UI-06 (Monthly P&L Matrix):** Dashboard displays chronological monthly breakdown (Month, Trips, Freight, Expenses, Net Profit/Loss, Original Balance, Received, Pending).
+

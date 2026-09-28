@@ -129,3 +129,4 @@ Switching vehicles via the header badge or slide-over drawer resets all active q
 ## 5. Universal Professional Footer & Branding
 Every view features the standardized copyright and developer signature:
 > `© 2026 SR Transport • Enterprise Freight & Fleet Management System • Developed for Fleet Operations • All Rights Reserved`
+
