@@ -8,7 +8,8 @@ const Api = {
    * Universal GET request to Google Apps Script Web App
    */
   async get(action, params = {}) {
-    const url = new URL(CONFIG.GOOGLE_APPS_SCRIPT_URL);
+    const baseUrl = CONFIG.getScriptUrl ? CONFIG.getScriptUrl() : CONFIG.GOOGLE_APPS_SCRIPT_URL;
+    const url = new URL(baseUrl);
     url.searchParams.set('action', action);
     for (const [k, v] of Object.entries(params)) {
       if (v !== undefined && v !== null) {
@@ -44,7 +45,8 @@ const Api = {
     };
 
     try {
-      const res = await fetch(CONFIG.GOOGLE_APPS_SCRIPT_URL, {
+      const baseUrl = CONFIG.getScriptUrl ? CONFIG.getScriptUrl() : CONFIG.GOOGLE_APPS_SCRIPT_URL;
+      const res = await fetch(baseUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify(envelope)

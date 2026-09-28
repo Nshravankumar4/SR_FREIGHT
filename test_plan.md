@@ -66,3 +66,20 @@
 - **TC-UI-05 (Dashboard Balance Alert & Popup):** If pending balance exists, an executive alert banner appears on top. Clicking `Review Balances` opens the interactive modal listing pending shipments with a 1-click `Settle Payment` shortcut.
 - **TC-UI-06 (Monthly P&L Matrix):** Dashboard displays chronological monthly breakdown (Month, Trips, Freight, Expenses, Net Profit/Loss, Original Balance, Received, Pending).
 
+### 2.6 Transport Ledger Management Login UI & Authentication Fixes
+- **TC-LOGIN-01 (Side-by-Side User Toggle):** Clean auth card matching Transport Ledger design with side-by-side cards: 👑 **ADMIN** (`Administrator`) vs 👤 **RUDRA** (`User`).
+- **TC-LOGIN-02 (Dynamic Placeholder & Focus):** Clicking Rudra switches active border highlight and updates password placeholder to `Enter password for Rudra`. Clicking Admin updates to `Enter password for Admin`.
+- **TC-LOGIN-03 (Password Eye Toggle):** Clicking 👁️ toggles between masked password and plain text.
+- **TC-LOGIN-04 (Credentials Verification):**
+  - Admin: accepts `Shravan`, `Shravan@1`, or custom set password.
+  - Rudra: accepts `RudraSarika@2505`, `Rudra`, `EShravan@2`, or custom set password.
+- **TC-LOGIN-05 (Foolproof Logout Bugfix):** Fixed `TypeError: Trips.closeEditDrawer is not a function`. Safe execution chain guarantees session reset, token wiping, poller clearance, modal closure, and clean return to `#view-login`.
+- **TC-LOGIN-06 (Password Management):** `🔑 Change` button in drawer and Settings view allows users to securely update passwords in local storage.
+
+### 2.7 Multi-User Live Cloud Sync & Settings Diagnostics
+- **TC-SYNC-01 (Multi-User Live Sync Alert):** Banner with 30-second fix guide displayed when Google Cloud Database requires public Web App access (`Who has access: Anyone`).
+- **TC-SYNC-02 (Live Status & Manual Sync):** Status dot (`🟢 Online`, `🟡 Syncing`, `🔴 Error`) and `🔄 Sync` button in header and drawer for on-demand cloud sync.
+- **TC-SYNC-03 (Diagnostic Cloud Test):** `⚡ Test Cloud Connection & Live Sync` button in Settings verifies endpoint reachability, parses JSON response, and alerts if Google account sign-in redirect is detected.
+- **TC-SYNC-04 (Dynamic Web App URL):** Admin can customize the Google Apps Script Web App URL from Settings and save it to browser configuration.
+
+

@@ -637,6 +637,12 @@ const Trips = {
     TripForm.openEditDrawer(tripId);
   },
 
+  closeEditDrawer() {
+    if (typeof TripForm !== 'undefined' && TripForm.closeEditDrawer) {
+      TripForm.closeEditDrawer();
+    }
+  },
+
   /**
    * Re-renders the View modal if it is currently open for this trip
    */

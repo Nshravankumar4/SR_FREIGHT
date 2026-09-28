@@ -9,6 +9,14 @@ const CONFIG = {
   GOOGLE_APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbxXNUcEvcCbjL1fxtSPz1CVUSLOHKzSzYgasOGgUJ111r7i77MVVBkocCJd15v5lP1S/exec",
   SPREADSHEET_ID: "1X-whiMGT3BxgdMjayuXHw-d8fZeaX1dKjLeEEiIPQf0",
 
+  getScriptUrl() {
+    try {
+      return localStorage.getItem('lorry_custom_script_url') || this.GOOGLE_APPS_SCRIPT_URL;
+    } catch (_) {
+      return this.GOOGLE_APPS_SCRIPT_URL;
+    }
+  },
+
   DEFAULT_CURRENCY: "₹",
   DEFAULT_DATE_FORMAT: "DD-MM-YYYY",
 
