@@ -14,8 +14,9 @@ const App = {
     // 1. Initialize local dataset
     Trips.loadFromLocal();
 
-    // 2. Setup global UI event bindings
+    // 2. Setup global UI event bindings & cross-tab sync channel
     this.bindEvents();
+    this.setupSyncChannel();
 
     // 3. Attempt session restoration (F5 reload)
     const hasSession = Auth.restoreSession();
@@ -158,6 +159,38 @@ const App = {
     if (this._pollerInterval) {
       clearInterval(this._pollerInterval);
       this._pollerInterval = null;
+    }
+  },
+
+  /**
+   * Set up real-time cross-tab synchronization via BroadcastChannel
+   */
+  setupSyncChannel() {
+    if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+      try {
+        this._channel = new BroadcastChannel('lorry_sync_channel');
+        this._channel.onmessage = (event) => {
+          const { type, payload } = event.data || {};
+          if (type === 'receipt_added' || type === 'receipt_deleted' || type === 'trip_updated') {
+            if (appState.currentVehicle && payload && payload.vehicleNo === appState.currentVehicle) {
+              Trips.loadFromLocal();
+              TripTable.render();
+              if (appState.currentPage === 'dashboard') Dashboard.render();
+            }
+          }
+        };
+      } catch (_) {}
+    }
+  },
+
+  /**
+   * Broadcast state changes to other open tabs
+   */
+  broadcastStateChange(type, payload = {}) {
+    if (this._channel) {
+      try {
+        this._channel.postMessage({ type, payload, timestamp: Date.now() });
+      } catch (_) {}
     }
   }
 };

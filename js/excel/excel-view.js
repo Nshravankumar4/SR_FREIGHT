@@ -200,11 +200,16 @@ const ExcelView = {
       if (el) el.textContent = val;
     };
 
+    const now = new Date();
+    const timeFormatted = now.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) + ' ' + now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+    const userRole = (appState.currentUser && appState.currentUser.name) ? `${appState.currentUser.name} (${appState.currentUser.role})` : 'Authorized Operator';
+
     setPreview('excel-preview-trips', trips.length);
     setPreview('excel-preview-freight', Utils.displayCurrency(totalFreight));
     setPreview('excel-preview-expenses', Utils.displayCurrency(totalExpenses));
     setPreview('excel-preview-profit', `${totalProfit >= 0 ? '+' : ''}${Utils.displayCurrency(totalProfit)}`);
     setPreview('excel-preview-balance', Utils.displayCurrency(totalBalance));
+    setPreview('excel-generated-time', `Report Generated: ${timeFormatted} • Prepared by: ${userRole}`);
 
     // Dynamic Download Button Label
     const downloadLabel = document.getElementById('excel-download-label');

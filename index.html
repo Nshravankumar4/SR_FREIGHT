@@ -75,10 +75,12 @@
       <div class="flex items-center gap-3">
         <span id="header-user-badge" class="text-xs font-semibold text-slate-300 hidden md:inline">Shravan (Admin)</span>
         <button 
+          id="btn-header-logout"
           onclick="Auth.logout(); Router.navigate('login');" 
-          class="p-2 text-slate-400 hover:text-rose-400 transition" 
-          title="Logout">
-          🚪
+          class="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white rounded-xl text-xs font-black shadow-sm hover:shadow-md transition flex items-center gap-1.5 cursor-pointer border border-rose-500" 
+          title="Logout from System">
+          <span class="text-sm">🚪</span>
+          <span>Logout</span>
         </button>
       </div>
     </div>
@@ -130,9 +132,9 @@
         <span>🔄</span>
         <span>Change Vehicle</span>
       </button>
-      <button onclick="Auth.logout(); Router.navigate('login');" class="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 rounded-lg text-xs font-bold transition">
-        <span>🚪</span>
-        <span>Logout</span>
+      <button onclick="Auth.logout(); Router.navigate('login');" class="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white rounded-xl text-xs font-black shadow-sm transition cursor-pointer">
+        <span class="text-sm">🚪</span>
+        <span>Logout from System</span>
       </button>
     </div>
   </aside>
@@ -531,6 +533,7 @@
         <div>
           <span class="text-[10px] font-black uppercase text-cyan-400 tracking-wider">Export Preview Summary</span>
           <h3 id="excel-preview-vehicle-range" class="text-base font-black text-white mt-0.5">TS15UE1122 &bull; All Time</h3>
+          <p id="excel-generated-time" class="text-[11px] text-slate-300 font-mono mt-0.5">Generated: Today • By Authorized Operator</p>
         </div>
         <div class="flex items-center gap-2">
           <button id="excel-download-btn" onclick="ExcelView.exportToExcel()" class="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black rounded-xl text-xs shadow-md transition cursor-pointer">
@@ -931,6 +934,48 @@
       </form>
     </div>
   </aside>
+
+  <!-- ========================================================================= -->
+  <!-- 11b. MODAL: OUTSTANDING BALANCE RECOVERY ALERT                            -->
+  <!-- ========================================================================= -->
+  <div id="modal-outstanding-balances" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 max-w-3xl w-full max-h-[85vh] overflow-y-auto p-6 md:p-8 animate-fade-in space-y-5">
+      <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-4">
+        <div class="flex items-center gap-3">
+          <div class="p-3 bg-rose-50 dark:bg-rose-950/60 text-rose-600 rounded-2xl text-2xl border border-rose-200 dark:border-rose-800">⚠️</div>
+          <div>
+            <h3 class="text-lg font-black text-slate-900 dark:text-white">Outstanding Customer Balances</h3>
+            <p id="outstanding-modal-subtitle" class="text-xs text-slate-500">Unsettled receivables requiring collection</p>
+          </div>
+        </div>
+        <button onclick="Dashboard.closeOutstandingModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white text-2xl font-bold p-1 cursor-pointer">&times;</button>
+      </div>
+
+      <div id="outstanding-balances-list" class="space-y-3">
+        <!-- Rendered dynamically by Dashboard.renderOutstandingModal() -->
+      </div>
+
+      <div class="flex items-center justify-end pt-3 border-t border-slate-200 dark:border-slate-700">
+        <button onclick="Dashboard.closeOutstandingModal()" class="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-white font-bold text-xs rounded-xl transition cursor-pointer">
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Universal Professional Branding & Copyright Footer -->
+  <footer id="app-footer" class="mt-auto py-5 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
+      <div class="flex items-center gap-2">
+        <span class="text-base">🚛</span>
+        <span class="font-black text-slate-800 dark:text-slate-200 tracking-tight">SR TRANSPORT</span>
+        <span class="text-[11px] text-slate-400">&bull; Enterprise Freight & Fleet Management System</span>
+      </div>
+      <div class="text-[11px]">
+        <span>&copy; 2026 SR Transport &bull; Developed for Fleet Operations &bull; All Rights Reserved</span>
+      </div>
+    </div>
+  </footer>
 
   <!-- ========================================================================= -->
   <!-- 12. SCRIPT DEPENDENCIES (Modular Hierarchy)                               -->

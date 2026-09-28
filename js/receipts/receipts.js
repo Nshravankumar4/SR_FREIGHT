@@ -46,33 +46,57 @@ const Receipts = {
     const recalculated = FinancialEngine.calculateTrip(trip, trip.balanceReceipts);
     Object.assign(trip, recalculated);
 
-    // Save state
+    // 5. Save state to cache
     Trips.persistState();
 
     Utils.showToast(`✅ Payment of ₹${newReceipt.amount.toLocaleString('en-IN')} added. Remaining: ₹${recalculated.remainingBalance.toLocaleString('en-IN')}`);
 
-    // Refresh UI
-    if (typeof ReceiptTable !== 'undefined') {
-      ReceiptTable.render(trip);
-    }
-    this.updateDrawerSummary(recalculated);
-    Trips.renderTable();
-    if (appState.currentPage === 'dashboard') {
-      Dashboard.render();
+    // 6. Immediately refresh all dependent UI layers
+    this.refreshAllUI(trip, recalculated);
+
+    // 7. Broadcast update to other open tabs
+    if (typeof App !== 'undefined' && typeof App.broadcastStateChange === 'function') {
+      App.broadcastStateChange('receipt_added', { tripId: trip.tripId, vehicleNo: trip.vehicleNo });
     }
 
-    // Background cloud sync
+    // 8. Cloud confirmation & synchronization
     try {
-      await Api.addReceipt(newReceipt, trip.tripId, trip.vehicleNo);
+      appState.isSaving = true;
+      appState.pendingMutationCount = (appState.pendingMutationCount || 0) + 1;
+
+      const res = await Api.addReceipt(newReceipt, trip.tripId, trip.vehicleNo);
+      appState.lastSuccessfulMutation = Date.now();
+
+      // Once confirmed, fetch latest receipts for authoritative parity
+      if (res && res.success) {
+        try {
+          const cloudRcpts = await Api.getReceipts(trip.tripId, trip.vehicleNo);
+          if (cloudRcpts && cloudRcpts.success && Array.isArray(cloudRcpts.data)) {
+            trip.balanceReceipts = cloudRcpts.data;
+            const confirmedCalc = FinancialEngine.calculateTrip(trip, trip.balanceReceipts);
+            Object.assign(trip, confirmedCalc);
+            Trips.persistState();
+            this.refreshAllUI(trip, confirmedCalc);
+          }
+        } catch (_) {}
+      }
     } catch (err) {
       console.warn("Background addReceipt sync note:", err);
+    } finally {
+      appState.pendingMutationCount = Math.max(0, (appState.pendingMutationCount || 1) - 1);
+      appState.isSaving = appState.pendingMutationCount > 0;
     }
   },
 
   /**
-   * Delete an existing receipt installment and recalculate
+   * Delete an existing receipt installment and recalculate (Admin Only)
    */
   async deleteReceipt(tripId, receiptId) {
+    if (typeof Auth !== 'undefined' && typeof Auth.isAdmin === 'function' && !Auth.isAdmin()) {
+      alert("Permission Denied: Only Administrators can delete payment receipts.");
+      return;
+    }
+
     if (!confirm("Are you sure you want to delete this payment receipt? The remaining balance will automatically recalculate.")) {
       return;
     }
@@ -98,21 +122,56 @@ const Receipts = {
 
     Utils.showToast(`🗑️ Payment receipt removed. Remaining balance restored to ₹${recalculated.remainingBalance.toLocaleString('en-IN')}`, 'warning');
 
-    // Refresh UI
+    // Immediately refresh all dependent UI layers
+    this.refreshAllUI(trip, recalculated);
+
+    // Broadcast update
+    if (typeof App !== 'undefined' && typeof App.broadcastStateChange === 'function') {
+      App.broadcastStateChange('receipt_deleted', { tripId: trip.tripId, vehicleNo: trip.vehicleNo });
+    }
+
+    // Cloud sync with mutation lock
+    try {
+      appState.isSaving = true;
+      appState.pendingMutationCount = (appState.pendingMutationCount || 0) + 1;
+      await Api.deleteReceipt(receiptId, trip.tripId, trip.vehicleNo);
+      appState.lastSuccessfulMutation = Date.now();
+    } catch (err) {
+      console.warn("Background deleteReceipt sync note:", err);
+    } finally {
+      appState.pendingMutationCount = Math.max(0, (appState.pendingMutationCount || 1) - 1);
+      appState.isSaving = appState.pendingMutationCount > 0;
+    }
+  },
+
+  /**
+   * Helper to synchronously refresh all UI views after a receipt change
+   */
+  refreshAllUI(trip, recalculated) {
     if (typeof ReceiptTable !== 'undefined') {
       ReceiptTable.render(trip);
     }
     this.updateDrawerSummary(recalculated);
-    Trips.renderTable();
-    if (appState.currentPage === 'dashboard') {
+
+    if (typeof Trips !== 'undefined' && typeof Trips.renderTable === 'function') {
+      Trips.renderTable();
+    }
+
+    if (appState.currentPage === 'dashboard' && typeof Dashboard !== 'undefined' && typeof Dashboard.render === 'function') {
       Dashboard.render();
     }
 
-    // Background cloud sync
-    try {
-      await Api.deleteReceipt(receiptId, trip.tripId, trip.vehicleNo);
-    } catch (err) {
-      console.warn("Background deleteReceipt sync note:", err);
+    // If View Modal is open for this trip, refresh it live
+    if (typeof Trips !== 'undefined' && typeof Trips.refreshOpenViewModal === 'function') {
+      Trips.refreshOpenViewModal(trip.tripId || trip.id);
+    }
+
+    // If Outstanding Balances Modal is open, refresh it live
+    if (typeof Dashboard !== 'undefined' && typeof Dashboard.renderOutstandingModal === 'function') {
+      const modal = document.getElementById('modal-outstanding-balances');
+      if (modal && !modal.classList.contains('hidden')) {
+        Dashboard.renderOutstandingModal();
+      }
     }
   },
 
@@ -135,7 +194,7 @@ const Receipts = {
         badgeEl.textContent = '🟢 PAYMENT CLEARED';
       } else if (trip.totalReceived > 0) {
         badgeEl.className = 'px-3 py-1 rounded-full text-xs font-black bg-amber-100 text-amber-800 border border-amber-300';
-        badgeEl.textContent = '🔴 PARTIALLY RECEIVED';
+        badgeEl.textContent = '🟡 PARTIALLY RECEIVED';
       } else {
         badgeEl.className = 'px-3 py-1 rounded-full text-xs font-black bg-rose-100 text-rose-800 border border-rose-300';
         badgeEl.textContent = '🔴 PAYMENT PENDING';

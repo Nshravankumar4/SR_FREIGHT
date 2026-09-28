@@ -23,6 +23,8 @@ const ReceiptTable = {
 
     let runningRemaining = origBal;
 
+    const isAdmin = typeof Auth !== 'undefined' && typeof Auth.isAdmin === 'function' ? Auth.isAdmin() : true;
+
     const rowsHtml = receipts.map((r, idx) => {
       const amt = Number(r.amount !== undefined ? r.amount : (r.receivedAmount || 0));
       runningRemaining = Math.max(0, runningRemaining - amt);
@@ -37,12 +39,14 @@ const ReceiptTable = {
           </td>
           <td class="py-2.5 px-3 text-slate-500 truncate max-w-[120px]" title="${r.notes || ''}">${r.notes || '-'}</td>
           <td class="py-2.5 px-3 text-right">
-            <button 
-              type="button" 
-              onclick="Receipts.deleteReceipt('${trip.tripId || trip.id}', '${r.receiptId || idx}')"
-              class="text-rose-600 hover:text-rose-800 font-bold px-2 py-1 rounded hover:bg-rose-50 dark:hover:bg-rose-900/20 transition">
-              Delete
-            </button>
+            ${isAdmin ? `
+              <button 
+                type="button" 
+                onclick="Receipts.deleteReceipt('${trip.tripId || trip.id}', '${r.receiptId || idx}')"
+                class="text-rose-600 hover:text-rose-800 font-bold px-2 py-1 rounded hover:bg-rose-50 dark:hover:bg-rose-900/20 transition cursor-pointer">
+                Delete
+              </button>
+            ` : `<span class="text-slate-400 font-normal text-xs">Recorded</span>`}
           </td>
         </tr>
       `;
@@ -58,7 +62,7 @@ const ReceiptTable = {
               <th class="py-2 px-3">Received</th>
               <th class="py-2 px-3">Remaining</th>
               <th class="py-2 px-3">Notes</th>
-              <th class="py-2 px-3 text-right">Action</th>
+              <th class="py-2 px-3 text-right">${isAdmin ? 'Action' : 'Status'}</th>
             </tr>
           </thead>
           <tbody>

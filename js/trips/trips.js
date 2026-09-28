@@ -395,10 +395,13 @@ const Trips = {
               </div>
             </div>
 
-            <!-- Header Action Buttons -->
-            <div class="flex items-center gap-2">
-              <button onclick="Trips.openEditFromView('${trip.tripId || trip.id}')" class="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-black text-white bg-blue-600 hover:bg-blue-500 rounded-xl shadow-md transition cursor-pointer">
-                <span>✏️ Edit This Trip</span>
+            <!-- Header Action Buttons: Download Excel Voucher, Print / PDF Receipt, Close -->
+            <div class="flex flex-wrap items-center gap-2">
+              <button onclick="Trips.exportTripExcel('${trip.tripId || trip.id}')" class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-black text-slate-900 bg-emerald-400 hover:bg-emerald-300 rounded-xl shadow transition cursor-pointer" title="Download Official Excel Voucher">
+                <span>📥 Excel Voucher</span>
+              </button>
+              <button onclick="Trips.printTripReceipt('${trip.tripId || trip.id}')" class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-black text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl shadow transition cursor-pointer" title="Download / Print PDF Freight Receipt">
+                <span>📄 PDF / Print Receipt</span>
               </button>
               <button onclick="Trips.closeViewModal()" class="px-3 py-2 text-xs font-bold text-slate-300 hover:text-white bg-white/10 hover:bg-white/20 border border-white/15 rounded-xl transition cursor-pointer">
                 ✕ Close
@@ -537,14 +540,23 @@ const Trips = {
         </div>
 
         <!-- Footer Actions -->
-        <div class="flex items-center justify-between pt-4 border-t border-slate-200 dark:border-slate-700">
-          <span class="text-xs text-slate-400">Read-Only Mode &bull; Click "Edit This Trip" to modify expenses or add payments.</span>
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-slate-200 dark:border-slate-700">
+          <div class="flex items-center gap-2 text-xs text-slate-500">
+            <span>🔒 Read-Only Inspection View</span>
+            <span>&bull;</span>
+            <span>To edit data, use "Edit" on the main table</span>
+          </div>
           <div class="flex items-center gap-2">
-            <button onclick="Trips.closeViewModal()" class="px-4 py-2 border border-slate-300 dark:border-slate-600 font-bold text-xs rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 transition">
-              Close
+            <button onclick="Trips.exportTripExcel('${trip.tripId || trip.id}')" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition cursor-pointer flex items-center gap-1.5">
+              <span>📥</span>
+              <span>Excel Voucher</span>
             </button>
-            <button onclick="Trips.openEditFromView('${trip.tripId || trip.id}')" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md transition">
-              ✏️ Edit This Trip
+            <button onclick="Trips.printTripReceipt('${trip.tripId || trip.id}')" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow transition cursor-pointer flex items-center gap-1.5">
+              <span>📄</span>
+              <span>Official PDF / Print</span>
+            </button>
+            <button onclick="Trips.closeViewModal()" class="px-4 py-2 border border-slate-300 dark:border-slate-600 font-bold text-xs rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 transition cursor-pointer">
+              Close
             </button>
           </div>
         </div>
@@ -552,7 +564,10 @@ const Trips = {
     `;
 
     const modal = document.getElementById('modal-view-trip');
-    if (modal) modal.classList.remove('hidden');
+    if (modal) {
+      modalContent.setAttribute('data-trip-id', trip.tripId || trip.id);
+      modal.classList.remove('hidden');
+    }
   },
 
   closeViewModal() {
@@ -560,13 +575,302 @@ const Trips = {
     if (modal) modal.classList.add('hidden');
   },
 
-  openEditFromView(tripId) {
-    this.closeViewModal();
-    this.openEditDrawer(tripId);
-  },
-
   openEditDrawer(tripId) {
     TripForm.openEditDrawer(tripId);
+  },
+
+  /**
+   * Re-renders the View modal if it is currently open for this trip
+   */
+  refreshOpenViewModal(tripId) {
+    const modal = document.getElementById('modal-view-trip');
+    if (modal && !modal.classList.contains('hidden')) {
+      const currentTripId = document.getElementById('view-trip-modal-content')?.getAttribute('data-trip-id');
+      if (String(currentTripId) === String(tripId)) {
+        this.openViewModal(tripId);
+      }
+    }
+  },
+
+  /**
+   * Export an individual trip as an executive styled Excel (.xlsx) voucher
+   */
+  async exportTripExcel(tripId) {
+    const trip = (appState.trips || []).find(t => String(t.tripId || t.id) === String(tripId) || Number(t.id) === Number(tripId) || String(t.sNo) === String(tripId));
+    if (!trip) {
+      alert("Trip record not found.");
+      return;
+    }
+
+    if (typeof ExcelJS === 'undefined') {
+      alert("Excel export engine is initializing. Please try again in a moment.");
+      return;
+    }
+
+    const calc = FinancialEngine.calculateTrip(trip, trip.balanceReceipts || []);
+    const isProfit = calc.profitLoss >= 0;
+    const isCleared = calc.remainingBalance === 0;
+
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = "SR Transport Enterprise";
+    workbook.created = new Date();
+
+    const sheet = workbook.addWorksheet(`Trip_${trip.sNo || 1}`, {
+      views: [{ showGridLines: true }]
+    });
+
+    sheet.columns = [
+      { width: 5 },
+      { width: 30 },
+      { width: 35 },
+      { width: 25 },
+      { width: 5 }
+    ];
+
+    sheet.mergeCells('B2:D2');
+    const titleCell = sheet.getCell('B2');
+    titleCell.value = "SR TRANSPORT - OFFICIAL FREIGHT & SETTLEMENT VOUCHER";
+    titleCell.font = { name: 'Segoe UI', size: 13, bold: true, color: { argb: 'FFFFFFFF' } };
+    titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+    titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F172A' } };
+
+    sheet.mergeCells('B3:D3');
+    const subCell = sheet.getCell('B3');
+    subCell.value = `Vehicle: ${trip.vehicleNo} • Trip #${trip.sNo || trip.id || 1} • Dispatched: ${Utils.formatDisplayDate(trip.tripDate)}`;
+    subCell.font = { name: 'Segoe UI', size: 10, italic: true, color: { argb: 'FF94A3B8' } };
+    subCell.alignment = { horizontal: 'center', vertical: 'middle' };
+    subCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
+
+    let r = 5;
+    const addSectionHeader = (text) => {
+      sheet.mergeCells(`B${r}:D${r}`);
+      const c = sheet.getCell(`B${r}`);
+      c.value = text;
+      c.font = { name: 'Segoe UI', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+      c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF334155' } };
+      c.alignment = { vertical: 'middle' };
+      r++;
+    };
+
+    const addRow = (label, val, note = '') => {
+      sheet.getCell(`B${r}`).value = label;
+      sheet.getCell(`B${r}`).font = { name: 'Segoe UI', size: 10, bold: true };
+      sheet.getCell(`C${r}`).value = val;
+      sheet.getCell(`C${r}`).font = { name: 'Segoe UI', size: 10 };
+      sheet.getCell(`D${r}`).value = note;
+      sheet.getCell(`D${r}`).font = { name: 'Segoe UI', size: 9, italic: true, color: { argb: 'FF64748B' } };
+      r++;
+    };
+
+    addSectionHeader("1. SHIPMENT & ROUTE INFORMATION");
+    addRow("Vehicle Registration", trip.vehicleNo);
+    addRow("Dispatched Date", Utils.formatDisplayDate(trip.tripDate));
+    addRow("Route Origin (From)", trip.from || '—');
+    addRow("Route Destination (To)", trip.to || '—');
+    addRow("Halting Details", trip.haltingDetails || '—');
+    addRow("Transporter / Broker", trip.trspName || '—');
+    addRow("Trip Status", calc.tripStatus);
+    r++;
+
+    addSectionHeader("2. FREIGHT BILLING & ADVANCES");
+    addRow("Gross Freight Amount", `₹${calc.freight.toLocaleString('en-IN')}`, "Total contract value");
+    addRow("Advance Amount Received", `₹${calc.advance.toLocaleString('en-IN')}`, `Received on ${Utils.formatDisplayDate(trip.advanceDate)}`);
+    addRow("Original Customer Balance", `₹${calc.originalBalance.toLocaleString('en-IN')}`, "Freight − Advance");
+    r++;
+
+    addSectionHeader("3. ITEMIZED OPERATIONAL EXPENSES (9 CATEGORIES)");
+    addRow("1. Diesel Expense", `₹${calc.diesel.toLocaleString('en-IN')}`);
+    addRow("2. Toll Plaza Charges", `₹${calc.toll.toLocaleString('en-IN')}`);
+    addRow("3. RTA / Checkpost", `₹${calc.rta.toLocaleString('en-IN')}`);
+    addRow("4. Police / Border", `₹${calc.police.toLocaleString('en-IN')}`);
+    addRow("5. Loading Charges", `₹${calc.loading.toLocaleString('en-IN')}`);
+    addRow("6. Unloading Charges", `₹${calc.unloading.toLocaleString('en-IN')}`);
+    addRow("7. Driver Trip Expense", `₹${calc.driverExp.toLocaleString('en-IN')}`);
+    addRow("8. Transport Commission", `₹${calc.trspCommission.toLocaleString('en-IN')}`);
+    addRow("9. Other Operational Expenses", `₹${calc.otherExpenses.toLocaleString('en-IN')}`, trip.otherExpenseNotes || '');
+    addRow("Total Operational Expenses", `₹${calc.totalExpenses.toLocaleString('en-IN')}`, "Sum of 9 expenses");
+    addRow("Net Trip Profit / Loss", `${isProfit ? '+' : ''}₹${calc.profitLoss.toLocaleString('en-IN')}`, isProfit ? "PROFIT" : "LOSS");
+    r++;
+
+    addSectionHeader("4. CUSTOMER BALANCE SETTLEMENT LEDGER");
+    addRow("Original Customer Balance", `₹${calc.originalBalance.toLocaleString('en-IN')}`);
+    const receipts = Array.isArray(trip.balanceReceipts) ? trip.balanceReceipts : [];
+    if (receipts.length === 0) {
+      addRow("Installment Payments", "No payments recorded yet", "₹0 received");
+    } else {
+      receipts.forEach((rcpt, idx) => {
+        addRow(`Installment #${idx + 1}`, `+₹${(Number(rcpt.amount) || 0).toLocaleString('en-IN')}`, `Date: ${Utils.formatDisplayDate(rcpt.receivedDate || rcpt.date)} • ${rcpt.notes || 'UPI/Cash'}`);
+      });
+    }
+    addRow("Total Received from Customer", `₹${calc.totalReceived.toLocaleString('en-IN')}`, "Sum of installments");
+    addRow("Remaining Customer Balance", `₹${calc.remainingBalance.toLocaleString('en-IN')}`, isCleared ? "🟢 CLEARED" : "🔴 PENDING");
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `SR_Transport_Voucher_${trip.vehicleNo}_Trip_${trip.sNo || trip.id || 1}.xlsx`;
+    link.click();
+    Utils.showToast(`📥 Excel Voucher downloaded for Trip #${trip.sNo || 1}!`);
+  },
+
+  /**
+   * Generates a printable official SR Transport Freight Bill & Balance Receipt
+   */
+  printTripReceipt(tripId) {
+    const trip = (appState.trips || []).find(t => String(t.tripId || t.id) === String(tripId) || Number(t.id) === Number(tripId) || String(t.sNo) === String(tripId));
+    if (!trip) {
+      alert("Trip record not found.");
+      return;
+    }
+
+    const calc = FinancialEngine.calculateTrip(trip, trip.balanceReceipts || []);
+    const isProfit = calc.profitLoss >= 0;
+    const isCleared = calc.remainingBalance === 0;
+    const receipts = Array.isArray(trip.balanceReceipts) ? trip.balanceReceipts : [];
+
+    const printWindow = window.open('', '_blank', 'width=900,height=800');
+    if (!printWindow) {
+      alert("Popup blocked! Please allow popups to print/download official PDF receipt.");
+      return;
+    }
+
+    let runningBal = calc.originalBalance;
+    const receiptRows = receipts.length === 0 
+      ? `<tr><td colspan="5" style="text-align:center; padding:10px; color:#64748b;">No balance payment installments received yet.</td></tr>`
+      : receipts.map((r, i) => {
+          const amt = Number(r.amount !== undefined ? r.amount : (r.receivedAmount || 0));
+          runningBal = Math.max(0, runningBal - amt);
+          return `
+            <tr>
+              <td style="padding:6px 8px; border:1px solid #cbd5e1; text-align:center;">#${i + 1}</td>
+              <td style="padding:6px 8px; border:1px solid #cbd5e1;">${Utils.formatDisplayDate(r.receivedDate || r.date)}</td>
+              <td style="padding:6px 8px; border:1px solid #cbd5e1; text-align:right; font-weight:bold; color:#059669;">+₹${amt.toLocaleString('en-IN')}</td>
+              <td style="padding:6px 8px; border:1px solid #cbd5e1; text-align:right; font-weight:bold; color:${runningBal === 0 ? '#059669' : '#dc2626'};">₹${runningBal.toLocaleString('en-IN')}</td>
+              <td style="padding:6px 8px; border:1px solid #cbd5e1;">${r.notes || '-'}</td>
+            </tr>
+          `;
+        }).join('');
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>SR Transport Official Freight Bill - Trip #${trip.sNo || trip.id || 1}</title>
+        <style>
+          @page { size: A4; margin: 15mm; }
+          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #1e293b; margin: 0; padding: 20px; font-size: 12px; }
+          .header { text-align: center; border-bottom: 2px solid #0f172a; padding-bottom: 12px; margin-bottom: 16px; }
+          .logo { font-size: 26px; font-weight: 900; letter-spacing: -0.5px; color: #0f172a; }
+          .sub { font-size: 11px; color: #475569; margin-top: 2px; }
+          .badge { display: inline-block; padding: 4px 12px; background: #0f172a; color: #fff; font-weight: bold; border-radius: 4px; font-size: 11px; margin-top: 6px; }
+          .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+          .box { border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px; background: #f8fafc; }
+          .box-title { font-size: 11px; font-weight: 800; text-transform: uppercase; color: #334155; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin-bottom: 6px; }
+          .row { display: flex; justify-content: space-between; padding: 3px 0; font-size: 11px; }
+          .row strong { font-family: monospace; font-size: 12px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+          th { background: #0f172a; color: #fff; padding: 6px 8px; text-align: left; font-size: 10px; text-transform: uppercase; }
+          .sign-box { display: flex; justify-content: space-between; margin-top: 40px; padding-top: 20px; border-top: 1px solid #cbd5e1; }
+          .sign-line { width: 200px; text-align: center; border-top: 1px dashed #64748b; padding-top: 4px; font-size: 10px; font-weight: bold; color: #475569; }
+          @media print {
+            .no-print { display: none !important; }
+            body { padding: 0; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="no-print" style="margin-bottom: 20px; text-align: right;">
+          <button onclick="window.print()" style="padding: 8px 18px; background: #2563eb; color: #fff; font-weight: bold; border: none; border-radius: 6px; cursor: pointer;">🖨️ Print / Save as PDF</button>
+          <button onclick="window.close()" style="padding: 8px 14px; background: #64748b; color: #fff; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; margin-left: 8px;">✕ Close</button>
+        </div>
+
+        <div class="header">
+          <div class="logo">SR TRANSPORT</div>
+          <div class="sub">Heavy Freight Fleet Operations & Logistics Management System</div>
+          <div class="sub">Fleet HQ: Hyderabad • Operational Vehicles: TS15UE1122 & TG15T6666</div>
+          <div class="badge">OFFICIAL FREIGHT CONSIGNMENT VOUCHER & SETTLEMENT RECEIPT</div>
+        </div>
+
+        <div class="grid">
+          <div class="box">
+            <div class="box-title">Shipment Information</div>
+            <div class="row"><span>Voucher / S.No:</span><strong>#${trip.sNo || trip.id || 1}</strong></div>
+            <div class="row"><span>Vehicle Number:</span><strong style="color:#1d4ed8;">${trip.vehicleNo}</strong></div>
+            <div class="row"><span>Dispatch Date:</span><strong>${Utils.formatDisplayDate(trip.tripDate)}</strong></div>
+            <div class="row"><span>Route (From ➔ To):</span><strong>${trip.from || '—'} ➔ ${trip.to || '—'}</strong></div>
+            <div class="row"><span>Transporter / Broker:</span><strong>${trip.trspName || '—'}</strong></div>
+            <div class="row"><span>Halting Transit:</span><strong>${trip.haltingDetails || '—'}</strong></div>
+          </div>
+
+          <div class="box">
+            <div class="box-title">Customer Financial Settlement</div>
+            <div class="row"><span>Total Gross Freight:</span><strong>₹${calc.freight.toLocaleString('en-IN')}</strong></div>
+            <div class="row"><span>Advance Received:</span><strong>₹${calc.advance.toLocaleString('en-IN')}</strong></div>
+            <div class="row"><span>Advance Recd Date:</span><strong>${Utils.formatDisplayDate(trip.advanceDate)}</strong></div>
+            <div class="row" style="border-top:1px solid #e2e8f0; padding-top:4px;"><span>Original Balance:</span><strong>₹${calc.originalBalance.toLocaleString('en-IN')}</strong></div>
+            <div class="row"><span>Total Installments Recd:</span><strong style="color:#059669;">+₹${calc.totalReceived.toLocaleString('en-IN')}</strong></div>
+            <div class="row" style="background:#fee2e2; padding:4px 6px; border-radius:4px; margin-top:4px;">
+              <span style="font-weight:bold; color:#b91c1c;">Outstanding Balance:</span>
+              <strong style="color:#b91c1c; font-size:13px;">₹${calc.remainingBalance.toLocaleString('en-IN')} (${isCleared ? 'CLEARED' : 'PENDING'})</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="box" style="margin-bottom:16px;">
+          <div class="box-title">Itemized Operational Expenses (Trip Profit Calculation)</div>
+          <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:6px; font-size:11px;">
+            <div>Diesel: <strong>₹${calc.diesel.toLocaleString('en-IN')}</strong></div>
+            <div>Toll Charges: <strong>₹${calc.toll.toLocaleString('en-IN')}</strong></div>
+            <div>RTA Charges: <strong>₹${calc.rta.toLocaleString('en-IN')}</strong></div>
+            <div>Police / Border: <strong>₹${calc.police.toLocaleString('en-IN')}</strong></div>
+            <div>Loading: <strong>₹${calc.loading.toLocaleString('en-IN')}</strong></div>
+            <div>Unloading: <strong>₹${calc.unloading.toLocaleString('en-IN')}</strong></div>
+            <div>Driver Expense: <strong>₹${calc.driverExp.toLocaleString('en-IN')}</strong></div>
+            <div>TRSP Comm: <strong>₹${calc.trspCommission.toLocaleString('en-IN')}</strong></div>
+            <div>Other Exp: <strong>₹${calc.otherExpenses.toLocaleString('en-IN')}</strong></div>
+          </div>
+          <div style="display:flex; justify-content:space-between; margin-top:8px; padding-top:6px; border-top:1px solid #e2e8f0; font-size:11px;">
+            <span>Total Operational Expenses: <strong style="color:#d97706;">₹${calc.totalExpenses.toLocaleString('en-IN')}</strong></span>
+            <span>Net Trip Margin (Freight − Exp): <strong style="color:${isProfit ? '#059669' : '#dc2626'}; font-size:13px;">${isProfit ? 'PROFIT +' : 'LOSS -'}₹${Math.abs(calc.profitLoss).toLocaleString('en-IN')}</strong></span>
+          </div>
+        </div>
+
+        <div class="box" style="margin-bottom:16px;">
+          <div class="box-title">Customer Balance Payment Installment History</div>
+          <table>
+            <thead>
+              <tr>
+                <th style="width:40px; text-align:center;">#</th>
+                <th style="width:120px;">Date</th>
+                <th style="width:120px; text-align:right;">Amount Received</th>
+                <th style="width:120px; text-align:right;">Remaining Balance</th>
+                <th>Payment Mode / Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${receiptRows}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="sign-box">
+          <div class="sign-line">Driver / Broker Signature</div>
+          <div class="sign-line">Customer / Consignee Stamp</div>
+          <div class="sign-line">For SR TRANSPORT (Authorized Signatory)</div>
+        </div>
+
+        <div style="margin-top:24px; text-align:center; font-size:10px; color:#94a3b8;">
+          System-generated official transport voucher &bull; © 2026 SR Transport &bull; Enterprise Fleet Management System
+        </div>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.open();
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
   }
 };
 
