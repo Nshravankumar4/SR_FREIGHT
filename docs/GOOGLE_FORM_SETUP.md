@@ -122,4 +122,4 @@ The following columns are calculated automatically by the Apps Script & Web Dash
 - **20. Sum OF Total Exp:** Sum of the 9 operating expenses (TRSP Comm + Diesel + Toll + Loading + Unloading + Police + RTA + Other + Driver Comm)
 - **21. Total Exp Given:** `Advance Amount + Sum OF Total Exp`
 - **23. P/L:** Net profit or loss calculated as `Freight Amount - Total Exp Given`
-- **25. Balance Amount:** Net pending freight calculated as `Freight Amount - Total Exp Given`
+- **25. Balance Amount:** Net pending freight calculated as `Freight Amount - Advance Amount`
