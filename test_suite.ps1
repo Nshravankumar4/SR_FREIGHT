@@ -287,9 +287,33 @@ Run-Check "Invoice Studio Navigation & Isolation Routing Integration" {
     return ($hasMenuBtn -and $hasViewContainer -and $hasIframe -and $hasRouterView -and $hasRouterCase)
 }
 
+# 23. Invoice Studio 100% Online Template Assets
+Run-Check "Invoice Studio Online Template Assets (template-assets.js, pre-embedded fallback)" {
+    $hasAssetJs = Test-Path "D:\Repo\Lorry\invoice-studio\template-assets.js"
+    $assetContent = if ($hasAssetJs) { Get-Content 'D:\Repo\Lorry\invoice-studio\template-assets.js' -Raw } else { "" }
+    $hasDocxB64 = $assetContent.Contains("INVOICE_TEMPLATE_BASE64")
+    $hasStampB64 = $assetContent.Contains("INVOICE_STAMP_BASE64")
+    $html = Get-Content 'D:\Repo\Lorry\invoice-studio\index.html' -Raw
+    $hasTag = $html.Contains("template-assets.js")
+
+    return ($hasAssetJs -and $hasDocxB64 -and $hasStampB64 -and $hasTag)
+}
+
+# 24. Invoice Studio Single Sign-On & Delete Permission Guard
+Run-Check "Invoice Studio Single Sign-On & Role Guard (Rudra Delete Blocked)" {
+    $appJs = Get-Content 'D:\Repo\Lorry\invoice-studio\app.js' -Raw
+    $hasSso = $appJs.Contains("getCurrentUser = () =>")
+    $hasCanDelete = $appJs.Contains("canDelete = () =>")
+    $hasRudraGuard = $appJs.Contains("uname === 'rudra'")
+    $hasTableGuard = $appJs.Contains('${canDelete() ? `<button type="button" class="action-btn delete"')
+    $hasActionGuard = $appJs.Contains("if (!canDelete())")
+
+    return ($hasSso -and $hasCanDelete -and $hasRudraGuard -and $hasTableGuard -and $hasActionGuard)
+}
+
 Write-Host "`n==========================================================" -ForegroundColor Cyan
 if ($allPassed) {
-    Write-Host "🎉 ALL 22 AUTOMATED VERIFICATION CHECKS PASSED SUCCESSFULLY!" -ForegroundColor Green
+    Write-Host "🎉 ALL 24 AUTOMATED VERIFICATION CHECKS PASSED SUCCESSFULLY!" -ForegroundColor Green
 } else {
     Write-Host "⚠️ SOME CHECKS FAILED. PLEASE REVIEW THE LOG ABOVE." -ForegroundColor Red
 }

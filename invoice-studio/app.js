@@ -118,6 +118,29 @@
     invoices: [],
   };
 
+  // --- Single Sign-On / Unified Lorry Session & Authorization ---
+  const getCurrentUser = () => {
+    try {
+      if (window.parent && window.parent.appState && window.parent.appState.currentUser) {
+        return window.parent.appState.currentUser;
+      }
+    } catch (_) {}
+    try {
+      const raw = localStorage.getItem('lorry_user') || localStorage.getItem('lorry_session');
+      if (raw) return JSON.parse(raw);
+    } catch (_) {}
+    return { username: 'admin', name: 'Shravan', role: 'Admin' };
+  };
+
+  const canDelete = () => {
+    const u = getCurrentUser();
+    if (!u) return false;
+    const uname = String(u.username || '').toLowerCase();
+    // Rudra is strictly restricted from deletion
+    if (uname === 'rudra' || uname === 'user') return false;
+    return (u.role === 'Admin' || uname === 'admin' || uname === 'shravan');
+  };
+
   // --- Value Helpers ---
   const val = (el) => (el?.value || '').trim();
   const setVal = (el, v) => {
@@ -461,12 +484,28 @@
       throw new Error('Word template engine is still loading. Please try again in a moment.');
     }
 
-    // 1. Fetch the master template (always fresh, bypassing any browser cache)
-    const resp = await fetch('templates/11048.docx?v=' + Date.now());
-    if (!resp.ok) {
+    // 1. Fetch the master template (fresh fetch with instant base64 offline/CORS fallback)
+    let arrayBuffer = null;
+    try {
+      const resp = await fetch('templates/11048.docx?v=' + Date.now());
+      if (resp.ok) {
+        arrayBuffer = await resp.arrayBuffer();
+      }
+    } catch (_) {}
+
+    // Fallback to pre-embedded master template if fetch fails (e.g. file://, CORS, or offline)
+    if (!arrayBuffer && typeof window !== 'undefined' && window.INVOICE_TEMPLATE_BASE64) {
+      const binary = atob(window.INVOICE_TEMPLATE_BASE64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      arrayBuffer = bytes.buffer;
+    }
+
+    if (!arrayBuffer) {
       throw new Error('Master Word template not found at templates/11048.docx');
     }
-    const arrayBuffer = await resp.arrayBuffer();
 
     // 2. Unzip the docx
     const zip = await window.JSZip.loadAsync(arrayBuffer);
@@ -528,14 +567,29 @@
 
     // 5. Ensure the SR Transport stamp+sign image is injected into docx media
     try {
-      const imgResp = await fetch('stamp_with_sign.png?v=' + Date.now());
-      if (imgResp.ok) {
-        const imgBuffer = await imgResp.arrayBuffer();
+      let imgBuffer = null;
+      try {
+        const imgResp = await fetch('stamp_with_sign.png?v=' + Date.now());
+        if (imgResp.ok) {
+          imgBuffer = await imgResp.arrayBuffer();
+        }
+      } catch (_) {}
+
+      if (!imgBuffer && typeof window !== 'undefined' && window.INVOICE_STAMP_BASE64) {
+        const binary = atob(window.INVOICE_STAMP_BASE64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) {
+          bytes[i] = binary.charCodeAt(i);
+        }
+        imgBuffer = bytes.buffer;
+      }
+
+      if (imgBuffer) {
         zip.file('word/media/image3.png', imgBuffer);
         zip.file('word/media/image4.png', imgBuffer);
       }
     } catch (e) {
-      // If stamp_with_sign.png fetch fails, template already contains it
+      // If stamp injection fails, template already contains default image
     }
 
     // 6. Generate DOCX Blob
@@ -752,7 +806,7 @@
           <button type="button" class="action-btn edit" title="Load and edit this invoice" data-action="edit" data-inv="${escapeXml(inv.invoiceNumber)}">✏️ Edit</button>
           <button type="button" class="action-btn word" title="Download Word (.docx)" data-action="word" data-inv="${escapeXml(inv.invoiceNumber)}">📄 Word</button>
           <button type="button" class="action-btn pdf" title="Download PDF" data-action="pdf" data-inv="${escapeXml(inv.invoiceNumber)}">📑 PDF</button>
-          <button type="button" class="action-btn delete" title="Delete record" data-action="delete" data-inv="${escapeXml(inv.invoiceNumber)}">🗑️</button>
+          ${canDelete() ? `<button type="button" class="action-btn delete" title="Delete record" data-action="delete" data-inv="${escapeXml(inv.invoiceNumber)}">🗑️</button>` : ''}
         </td>
       </tr>
     `
@@ -956,6 +1010,10 @@
           btn.textContent = '📑 PDF';
         }
       } else if (action === 'delete') {
+        if (!canDelete()) {
+          alert("Delete operation not permitted.\n\nRudra can create, edit, view, and generate invoices but cannot delete them.");
+          return;
+        }
         if (confirm(`Are you sure you want to delete Invoice #${invNum}?`)) {
           deleteFromLocalInvoices(invNum);
           renderHistoryTable(historySearchInput?.value || '');
@@ -1040,20 +1098,34 @@
     printButton.textContent = 'Generating Word & PDF...';
     showStatus('info', `Generating both Word and PDF invoices for #${data.invoiceNumber}...`);
 
+    let docxRes = null;
+    let pdfRes = null;
+    let errors = [];
+
+    // 1. Generate and download Word (.docx)
     try {
-      // 1. Generate and download Word (.docx)
-      const docxRes = await generateDocxClient(data, true);
+      docxRes = await generateDocxClient(data, true);
+    } catch (docxErr) {
+      console.warn("Word generation note:", docxErr);
+      errors.push("Word (.docx): " + docxErr.message);
+    }
 
-      // Brief delay so browser handles downloads cleanly
-      await new Promise((resolve) => setTimeout(resolve, 350));
+    // Brief delay so browser handles downloads cleanly
+    await new Promise((resolve) => setTimeout(resolve, 350));
 
-      // 2. Generate and download PDF
-      const pdfRes = await generatePdfClient(data, true);
+    // 2. Generate and download PDF
+    try {
+      pdfRes = await generatePdfClient(data, true);
+    } catch (pdfErr) {
+      console.warn("PDF generation note:", pdfErr);
+      errors.push("PDF: " + pdfErr.message);
+    }
 
-      // 3. Save to localStorage database
-      saveToLocalInvoices(data);
-      renderHistoryTable(historySearchInput?.value || '');
+    // 3. Save to database / history
+    saveToLocalInvoices(data);
+    renderHistoryTable(historySearchInput?.value || '');
 
+    if (docxRes && pdfRes) {
       showStatus(
         'success',
         `Invoice #${data.invoiceNumber} generated! Both Word (.docx) and PDF downloaded.`,
@@ -1062,12 +1134,28 @@
         pdfRes.url,
         pdfRes.filename
       );
-    } catch (err) {
-      showStatus('error', 'Invoice generation error: ' + err.message);
-    } finally {
-      printButton.disabled = false;
-      printButton.textContent = 'Generate Invoice (Word & PDF)';
+    } else if (docxRes) {
+      showStatus(
+        'success',
+        `Invoice #${data.invoiceNumber} generated! Word (.docx) downloaded.${errors.length ? ' (Note: ' + errors.join('; ') + ')' : ''}`,
+        docxRes.url,
+        docxRes.filename
+      );
+    } else if (pdfRes) {
+      showStatus(
+        'success',
+        `Invoice #${data.invoiceNumber} generated! PDF downloaded.${errors.length ? ' (Note: ' + errors.join('; ') + ')' : ''}`,
+        null,
+        null,
+        pdfRes.url,
+        pdfRes.filename
+      );
+    } else {
+      showStatus('error', 'Invoice generation error: ' + errors.join('; '));
     }
+
+    printButton.disabled = false;
+    printButton.textContent = 'Generate Invoice (Word & PDF)';
   });
 
   // --- Initial Page Load ---

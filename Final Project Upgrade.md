@@ -63,11 +63,113 @@ The system manages vehicle fleets as **strictly isolated operational workspaces*
  │ 📊 View Excel    │              │ Pending Receiv.  │               │ 25-Column Table  │
  │ 🚚 Vehicle Data  │              │ (Strictly 1122)  │               │ 👁️ View Modal    │
  │ 🔔 Renewals 🔴   │              └──────────────────┘               │ ✏️ Edit Drawer   │
- │ ⚙ Settings      │                                                 └──────────────────┘
+ │ 🧾 Invoice Studio│                                                 └──────────────────┘
+ │ ⚙ Settings      │
  │ 🔄 Switch Vehicle│
  │ 🚪 Logout        │
  └──────────────────┘
 ```
+
+---
+
+# 2.1 🧾 ONLINE INVOICE STUDIO INTEGRATION & SINGLE-LOGIN ARCHITECTURE
+
+The existing **S-R / TransBill / Invoice Studio** system is integrated into the SR_T Lorry Freight Management System as a fully online module.
+
+### 2.1.1 Single Application & Single Login
+
+The production system provides **one Lorry application URL and one login session**.
+
+```text
+                    ┌──────────────────────────────┐
+                    │       SR_T LORRY APP         │
+                    │       ONE PRODUCTION URL     │
+                    └──────────────┬───────────────┘
+                                   │
+                                   ▼
+                    ┌──────────────────────────────┐
+                    │       SINGLE LOGIN            │
+                    │                              │
+                    │ Admin  → Shravan              │
+                    │ User   → Rudra                │
+                    └──────────────┬───────────────┘
+                                   │
+                         Authenticated Session
+                                   │
+             ┌─────────────────────┴─────────────────────┐
+             │                                           │
+             ▼                                           ▼
+   ┌──────────────────────┐                  ┌──────────────────────┐
+   │   LORRY MODULES      │                  │   INVOICE STUDIO     │
+   │                      │                  │                      │
+   │ Dashboard            │                  │ Invoice Creation     │
+   │ Trips                │                  │ Invoice Editing      │
+   │ Vehicles             │                  │ Live Preview         │
+   │ Balance Receipts     │                  │ Validation           │
+   │ Renewals             │                  │ Invoice History      │
+   │ Settings             │                  │ DOCX Generation      │
+   │ Excel / Reports      │                  │ PDF Generation       │
+   └──────────────────────┘                  │ Download / Print     │
+                                             │ Templates            │
+                                             │ Signature / Stamp    │
+                                             └──────────┬───────────┘
+                                                        │
+                                                        ▼
+                                             ONLINE S-R BACKEND
+                                                        │
+                                                        ▼
+                                             PERSISTENT CLOUD STORAGE
+```
+
+### 2.1.2 Invoice Studio Navigation
+
+Exactly one new navigation item is added to the existing Lorry menu:
+```text
+🧾 Invoice Studio
+```
+Existing navigation items and functionality remain untouched. Clicking **Invoice Studio** opens the complete S-R Invoice Studio application without requiring another login.
+
+### 2.1.3 No Second Login
+
+Invoice Studio MUST NOT display a separate username/password login. The authenticated Lorry session is used to authorize Invoice Studio.
+The following are strictly prohibited:
+* Second Invoice Studio login screen
+* Passing the Lorry password to Invoice Studio
+* Password in URL parameters
+* Password in browser localStorage or sessionStorage
+* Password embedded in frontend JavaScript
+* Client-supplied role being trusted without verification
+
+### 2.1.4 Role Permissions
+
+Invoice Studio follows the existing Lorry role model:
+
+| User | Invoice Studio Access | Create | View | Edit | Generate | Download | Delete |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Admin / Shravan** | Full | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Rudra** | Full except Delete | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+
+Delete is strictly restricted to Admin across all modules where deletion exists. Rudra retains full non-delete access (Create, View, Edit, Generate, Download).
+
+### 2.1.5 Complete S-R Functionality Preservation
+
+All existing S-R / TransBill / Invoice Studio capabilities are 100% preserved:
+* Invoice creation & editing
+* Live A4 invoice preview
+* Form validation & duplicate prevention
+* Freight, tax, and Indian currency words calculation ("Rupees ... Only")
+* Word (.docx) generation using master template (`templates/11048.docx`)
+* Official digital stamp & signature injection (`stamp_with_sign.png`)
+* PDF generation, print, and downloads
+* Draft and history management
+
+### 2.1.6 Online-Only Production Architecture
+
+Production Invoice Studio operates completely online:
+* No local Python installation required for end users.
+* No `py server.py` manual startup needed.
+* No `localhost:8000` dependencies.
+* Operates directly in the browser via client-side template processing with pre-embedded fallbacks and HTTPS cloud API capability.
 
 ---
 
@@ -313,7 +415,7 @@ This verification chain is executed on every backend mutation:
 
 ---
 
-# 8. MODULAR PROJECT STRUCTURE (34 PRODUCTION FILES)
+# 8. MODULAR PROJECT STRUCTURE
 
 ```text
 D:\Repo\Lorry
@@ -336,6 +438,23 @@ D:\Repo\Lorry
 ├── google-apps-script/
 │   └── Code.gs                            # 3-Sheet backend with strict vehicle isolation & LockService
 │
+├── invoice-studio/                        # Isolated S-R TransBill Invoice Creation Studio
+│   ├── index.html                         # Full billing desk UI (form + live A4 preview)
+│   ├── app.js                             # Client-side calculations, validation, draft storage
+│   ├── styles.css                         # A4 sheet typography & layout styles
+│   ├── template-assets.js                 # Pre-embedded fallback master Word template & stamp
+│   ├── server.py                          # Python HTTP backend for cloud API / DOCX generation
+│   ├── requirements.txt                   # Server dependencies
+│   ├── render.yaml                        # Render cloud deployment specification
+│   ├── sample_invoice.json                # Reference sample invoice data
+│   ├── README.md                          # Invoice Studio documentation
+│   ├── INVOICE_SYSTEM_REQUIREMENTS.md     # Studio requirements
+│   ├── templates/
+│   │   └── 11048.docx                     # Master reference Word template
+│   ├── data/                              # Saved invoice records
+│   ├── generated/                         # Generated DOCX and PDF documents
+│   └── assets/                            # Official stamp, signature, and logo assets
+│
 ├── js/
 │   ├── api.js                             # Cloud API client with retry & mutation guards
 │   ├── app.js                             # Bootstrap, authentication bindings, poller
@@ -355,6 +474,12 @@ D:\Repo\Lorry
 │   │   ├── receipt-form.js                # Installment validation & overpayment protection
 │   │   ├── receipt-table.js               # History table renderer
 │   │   └── receipts.js                    # Add/delete receipt controller
+│   ├── renewals/
+│   │   ├── renewal-alerts.js              # Expired/due popup alert modal
+│   │   ├── renewal-calculations.js        # Countdown engine & urgency categorization
+│   │   ├── renewal-form.js                # Add / Edit compliance document form controller
+│   │   ├── renewal-table.js               # Filterable compliance records table
+│   │   └── renewals.js                    # Master Renewals controller & 28 canonical items
 │   ├── settings/
 │   │   └── settings.js                    # Global currency, date, theme settings
 │   ├── trips/
@@ -423,7 +548,7 @@ The Renewals & Alerts module (`js/renewals/`) runs alongside existing fleet oper
 
 # 11. OPERATIONAL RULES & CONSTRAINTS
 
-1. **Local Development First:** Strictly **NO automatic `git push`**. All work remains local on the `main` branch.
+1. **Local Development First & 100% Online Operation:** Local development may be performed locally, but production and end-user operation must be 100% online without requiring local Python, localhost, or terminal commands.
 2. **Master Excel Protection:** [`Lorry_Trips_ALL_TRIPS_ALL (2).xlsx`](file:///d:/Repo/Lorry/Lorry_Trips_ALL_TRIPS_ALL%20(2).xlsx) is the pristine offline backup and must never be deleted or overwritten.
 3. **Google Sheets as Source of Truth:** Browser local storage is an ephemeral cache for rapid rendering and offline resilience; Google Sheets is the sole authoritative financial source of truth.
 4. **Non-Destructive Polling:** Background sync respects the mutation mutex lock (`isSaving`, `pendingMutationCount > 0`) to prevent local edits from being overwritten by poller cycles.
@@ -435,8 +560,11 @@ The Renewals & Alerts module (`js/renewals/`) runs alongside existing fleet oper
 1. **Role Matrix:**
    - **Admin (Shravan):** Everything + Delete across all modules.
    - **Rudra:** Everything except Delete. Rudra can View, Add, Edit, Search, Filter, change Settings, run Diagnostics, Sync with Cloud, and Export Reports.
-2. **Delete as Sole Restriction:** Delete is strictly forbidden for Rudra on Trips, Receipts, and Renewals.
-3. **Triple Security Guard:**
+2. **Delete as Sole Restriction:**
+   Delete is strictly forbidden for Rudra on all modules where deletion functionality exists, including Trips, Receipts, Renewals, and Invoice Studio.
+3. **Invoice Studio Single Sign-On & Permissions:**
+   Invoice Studio uses the same authenticated Lorry session. Rudra receives full Invoice Studio functionality except Delete. Admin receives full Invoice Studio functionality including Delete.
+4. **Triple Security Guard:**
    - **UI Layer:** Action buttons in tables and drawers are conditioned on `canDelete()`.
    - **API Client Layer:** `Api.post()` checks `Auth.canDelete()` before sending any action containing `'delete'`.
    - **Apps Script Backend:** `userCanDelete(envelope)` rejects requests with `envelope.user === 'rudra'` or unauthorized credentials with `DELETE_NOT_ALLOWED`.

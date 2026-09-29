@@ -166,6 +166,7 @@ const Auth = {
       };
       try {
         localStorage.setItem(CONFIG.SESSION_KEY, JSON.stringify(sessionData));
+        localStorage.setItem('lorry_user', JSON.stringify(appState.currentUser));
       } catch (_) {}
     }
   },
@@ -231,6 +232,7 @@ const Auth = {
     // 4. Clear storage tokens
     try {
       localStorage.removeItem(CONFIG.SESSION_KEY);
+      localStorage.removeItem('lorry_user');
       localStorage.removeItem(CONFIG.VEHICLE_KEY);
       sessionStorage.clear();
     } catch (_) {}
