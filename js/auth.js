@@ -261,8 +261,20 @@ const Auth = {
    */
   isAdmin() {
     return Boolean(appState.currentUser && appState.currentUser.role === 'Admin');
+  },
+
+  /**
+   * Centralized Permission Helper: Only Admin (Shravan) can delete records.
+   * Rudra has full access to View, Add, Edit, and Settings, but CANNOT delete.
+   */
+  canDelete() {
+    return this.isAdmin();
   }
 };
+
+if (typeof window !== 'undefined') {
+  window.canDelete = () => Auth.canDelete();
+}
 
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = Auth;

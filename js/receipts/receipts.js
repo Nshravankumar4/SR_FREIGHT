@@ -92,8 +92,11 @@ const Receipts = {
    * Delete an existing receipt installment and recalculate (Admin Only)
    */
   async deleteReceipt(tripId, receiptId) {
-    if (typeof Auth !== 'undefined' && typeof Auth.isAdmin === 'function' && !Auth.isAdmin()) {
-      alert("Permission Denied: Only Administrators can delete payment receipts.");
+    if (typeof Auth !== 'undefined' && typeof Auth.canDelete === 'function' && !Auth.canDelete()) {
+      alert("Delete operation not permitted.\n\nRudra can add and edit records but cannot delete them.");
+      return;
+    } else if (typeof Auth !== 'undefined' && typeof Auth.isAdmin === 'function' && !Auth.isAdmin()) {
+      alert("Delete operation not permitted.\n\nRudra can add and edit records but cannot delete them.");
       return;
     }
 

@@ -82,4 +82,20 @@
 - **TC-SYNC-03 (Diagnostic Cloud Test):** `⚡ Test Cloud Connection & Live Sync` button in Settings verifies endpoint reachability, parses JSON response, and alerts if Google account sign-in redirect is detected.
 - **TC-SYNC-04 (Dynamic Web App URL):** Admin can customize the Google Apps Script Web App URL from Settings and save it to browser configuration.
 
+### 2.8 Fleet Renewals & Alerts Verification (100% Passed)
+- **TC-REN-01 (Dynamic Urgency Status Engine):** Validates automatic calculation against current system date:
+  - Overdue (days < 0): `🔴 OVERDUE` (e.g. `TG15C2324` Bike Insurance expired 24 days ago)
+  - Due Today (days == 0): `🔴 DUE TODAY`
+  - Due Tomorrow (days == 1): `🟠 DUE TOMORROW` (e.g. `TG15UE1122` Quarterly Tax)
+  - Due This Week (days <= 7): `🟠 DUE THIS WEEK`
+  - Due Soon (days <= 30): `🟡 DUE SOON`
+  - Upcoming (days <= 90): `🔵 UPCOMING`
+  - Active (days > 90): `🟢 ACTIVE` (e.g. `TG15G1122` Insurance)
+- **TC-REN-02 (Startup Alert Modal & Header Bell):** Critical attention modal displays automatically on startup if overdue or urgent items exist. Header bell button displays red count badge.
+- **TC-REN-03 (Role-Based Action Guards):** Admin can Add, Edit, and Delete renewals. For employee `rudra`, Add, Edit, and Delete action buttons are hidden and mutation attempts are blocked.
+- **TC-REN-04 (Multi-Schedule Reminders):** Add/Edit modal supports custom reminder checkboxes (1, 7, 15, 30, 60, 90 days before due date).
+- **TC-REN-05 (Fleet Canonical Seed Data):** 28 preloaded documents across `TG15G1122`, `TG15C2324`, `TG15UE1122`, and `TG15T6666`.
+- **TC-REN-06 (Dedicated Sheet Isolation):** Renewals are stored in `Renewals` tab in Google Sheets with zero modification or interference with `Trips` calculations.
+
+
 

@@ -62,8 +62,9 @@ The system manages vehicle fleets as **strictly isolated operational workspaces*
  │ 📋 Transactions  │              │ Expenses| Profit │               │ 🔍 8 Status Cards│
  │ 📊 View Excel    │              │ Pending Receiv.  │               │ 25-Column Table  │
  │ 🚚 Vehicle Data  │              │ (Strictly 1122)  │               │ 👁️ View Modal    │
- │ ⚙ Settings      │              └──────────────────┘               │ ✏️ Edit Drawer   │
- │ 🔄 Switch Vehicle│                                                 └──────────────────┘
+ │ 🔔 Renewals 🔴   │              └──────────────────┘               │ ✏️ Edit Drawer   │
+ │ ⚙ Settings      │                                                 └──────────────────┘
+ │ 🔄 Switch Vehicle│
  │ 🚪 Logout        │
  └──────────────────┘
 ```
@@ -392,12 +393,51 @@ All 13 automated unit tests run locally using Node.js and verify all functional 
 | **Isolation** | **VEH-03** | Cross-Vehicle Mutation Rejection | Mutation targeting 1122 trip from 6666 workspace rejected | ✅ 100% Passed |
 | **Isolation** | **VEH-04** | Isolated Receipt Settlement | Receipts applied to 1122 reduce balance only for 1122 | ✅ 100% Passed |
 | **Isolation** | **VEH-05** | Sibling Vehicle Independence | 6666 balance remains 100% unaffected by 1122 payments | ✅ 100% Passed |
+| **Renewals** | **REN-01** | Dynamic Urgency Computation | Auto-evaluates Overdue (<0d), Due Today (0d), Due Tomorrow (1d), Active (>90d) | ✅ 100% Passed |
+| **Renewals** | **REN-02** | Separate Storage Isolation | Dedicated Google Sheets tab `Renewals` with zero impact on Trips or Financials | ✅ 100% Passed |
+| **Renewals** | **REN-03** | Role-Based Access Control | Admin has Add/Edit/Delete; Rudra has View/Add/Edit with Delete restricted | ✅ 100% Passed |
+| **Renewals** | **REN-04** | Multi-Reminder Schedule | Checkbox triggers for 1, 7, 15, 30, 60, and 90 days before document expiry | ✅ 100% Passed |
+| **Renewals** | **REN-05** | Canonical Seed Data | 28 Fleet records spanning TG15G1122, TG15C2324, TG15UE1122, and TG15T6666 | ✅ 100% Passed |
 
 ---
 
-# 10. OPERATIONAL RULES & CONSTRAINTS
+# 10. 🔔 STANDALONE FLEET RENEWALS & COMPLIANCE SYSTEM
+
+The Renewals & Alerts module (`js/renewals/`) runs alongside existing fleet operations:
+1. **Google Sheets Storage (`Renewals` Tab):**
+   - Headers: `Renewal ID`, `Vehicle No`, `Category`, `Document Name`, `Due Date`, `Duration`, `Provider`, `Reminder Days`, `Notes`, `Created Date`, `Updated Date`, `Created By`.
+2. **Real-Time Dynamic Urgency Calculation:**
+   - 🔴 **OVERDUE:** Expiry date is in the past.
+   - 🔴 **DUE TODAY:** Expires on the current calendar day.
+   - 🟠 **DUE TOMORROW / THIS WEEK:** Expires in 1 to 7 days.
+   - 🟡 **DUE SOON:** Expires in 8 to 30 days.
+   - 🔵 **UPCOMING:** Expires in 31 to 90 days.
+   - 🟢 **ACTIVE:** Valid for >90 days.
+3. **Modals & Badges:**
+   - Critical Attention Alert Modal (`#modal-renewal-alert`).
+   - Add/Edit Document Form Modal (`#modal-renewal-form`).
+   - Detailed Read-Only Document Modal (`#modal-renewal-view`).
+   - Dynamic badges on header bell icon and drawer menu.
+
+---
+
+# 11. OPERATIONAL RULES & CONSTRAINTS
 
 1. **Local Development First:** Strictly **NO automatic `git push`**. All work remains local on the `main` branch.
 2. **Master Excel Protection:** [`Lorry_Trips_ALL_TRIPS_ALL (2).xlsx`](file:///d:/Repo/Lorry/Lorry_Trips_ALL_TRIPS_ALL%20(2).xlsx) is the pristine offline backup and must never be deleted or overwritten.
 3. **Google Sheets as Source of Truth:** Browser local storage is an ephemeral cache for rapid rendering and offline resilience; Google Sheets is the sole authoritative financial source of truth.
 4. **Non-Destructive Polling:** Background sync respects the mutation mutex lock (`isSaving`, `pendingMutationCount > 0`) to prevent local edits from being overwritten by poller cycles.
+
+---
+
+# 12. 🛡️ STRICT TWO-LAYER PERMISSION & SECURITY ARCHITECTURE
+
+1. **Role Matrix:**
+   - **Admin (Shravan):** Everything + Delete across all modules.
+   - **Rudra:** Everything except Delete. Rudra can View, Add, Edit, Search, Filter, change Settings, run Diagnostics, Sync with Cloud, and Export Reports.
+2. **Delete as Sole Restriction:** Delete is strictly forbidden for Rudra on Trips, Receipts, and Renewals.
+3. **Triple Security Guard:**
+   - **UI Layer:** Action buttons in tables and drawers are conditioned on `canDelete()`.
+   - **API Client Layer:** `Api.post()` checks `Auth.canDelete()` before sending any action containing `'delete'`.
+   - **Apps Script Backend:** `userCanDelete(envelope)` rejects requests with `envelope.user === 'rudra'` or unauthorized credentials with `DELETE_NOT_ALLOWED`.
+

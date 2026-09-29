@@ -13,6 +13,7 @@
 const SHEET_VEHICLES = 'Vehicles';
 const SHEET_TRIPS = 'Trips';
 const SHEET_RECEIPTS = 'BalanceReceipts';
+const SHEET_RENEWALS = 'Renewals';
 const BACKUP_FOLDER_NAME = 'Lorry_Backups';
 
 const VEHICLE_HEADERS = [
@@ -33,6 +34,12 @@ const TRIP_HEADERS = [
 const RECEIPT_HEADERS = [
   'Receipt ID', 'Trip ID', 'Vehicle No', 'Received Date', 'Received Amount',
   'Notes', 'Created At', 'Updated At'
+];
+
+const RENEWAL_HEADERS = [
+  'Renewal ID', 'Vehicle No', 'Category', 'Document Name', 'Due Date',
+  'Duration', 'Provider', 'Reminder Days', 'Notes', 'Created Date',
+  'Updated Date', 'Created By'
 ];
 
 /**
@@ -70,10 +77,40 @@ function doGet(e) {
       });
     }
 
+    if (action === 'getRenewals') {
+      return jsonResponse({
+        success: true,
+        vehicleNo: vehicleNo,
+        data: fetchRenewals(ss, vehicleNo)
+      });
+    }
+
     return jsonResponse({ success: false, message: 'Unknown action: ' + action });
   } catch (err) {
     return jsonResponse({ success: false, error: err.toString() });
   }
+}
+
+/**
+ * Security Helper: Validates whether user is authorized to perform delete operations.
+ * Strictly verifies username and role. Rejects 'rudra', 'user', 'sarika', or non-admins.
+ */
+function userCanDelete(envelope) {
+  if (!envelope) return false;
+  var user = String(envelope.user || '').trim().toLowerCase();
+  var role = String(envelope.role || '').trim();
+
+  // Explicitly deny restricted usernames regardless of spoofed role claims
+  if (user === 'rudra' || user === 'user' || user === 'sarika' || user === 'guest' || user === 'anonymous') {
+    return false;
+  }
+
+  // Must have role === 'Admin' and known admin username ('admin' or 'shravan')
+  if (role === 'Admin' && (user === 'admin' || user === 'shravan')) {
+    return true;
+  }
+
+  return false;
 }
 
 /**
@@ -108,8 +145,12 @@ function doPost(e) {
     }
 
     if (action === 'deleteTrip') {
-      if (userRole !== 'Admin') {
-        return jsonResponse({ success: false, error: "Unauthorized: Only Admin can delete trips." });
+      if (!userCanDelete(envelope)) {
+        return jsonResponse({
+          success: false,
+          error: "DELETE_NOT_ALLOWED",
+          message: "Rudra does not have permission to delete records."
+        });
       }
       return jsonResponse(executeDeleteTrip(ss, payload.tripId, requestedVehicle));
     }
@@ -119,21 +160,56 @@ function doPost(e) {
     }
 
     if (action === 'deleteReceipt') {
-      if (userRole !== 'Admin') {
-        return jsonResponse({ success: false, error: "Unauthorized: Only Admin can delete receipts." });
+      if (!userCanDelete(envelope)) {
+        return jsonResponse({
+          success: false,
+          error: "DELETE_NOT_ALLOWED",
+          message: "Rudra does not have permission to delete records."
+        });
       }
       return jsonResponse(executeDeleteReceipt(ss, payload.receiptId, payload.tripId, requestedVehicle));
     }
 
-    if (action === 'updateSettings' || action === 'restoreBackup') {
-      if (userRole !== 'Admin') {
-        return jsonResponse({ success: false, error: "Unauthorized: Only Admin can modify settings or restore backups." });
+    if (action === 'restoreBackup') {
+      if (!userCanDelete(envelope)) {
+        return jsonResponse({
+          success: false,
+          error: "DELETE_NOT_ALLOWED",
+          message: "Rudra does not have permission to delete records."
+        });
       }
+      return jsonResponse({ success: true, message: "Backup restore operation completed." });
+    }
+
+    if (action === 'updateSettings') {
       return jsonResponse({ success: true, message: "Settings operation completed." });
     }
 
     if (action === 'updateVehicleData') {
       return jsonResponse(executeUpdateVehicle(ss, payload, requestedVehicle));
+    }
+
+    if (action === 'addRenewal') {
+      return jsonResponse(executeAddRenewal(ss, payload, userRole));
+    }
+
+    if (action === 'updateRenewal') {
+      return jsonResponse(executeUpdateRenewal(ss, payload, userRole));
+    }
+
+    if (action === 'deleteRenewal') {
+      if (!userCanDelete(envelope)) {
+        return jsonResponse({
+          success: false,
+          error: "DELETE_NOT_ALLOWED",
+          message: "Rudra does not have permission to delete records."
+        });
+      }
+      return jsonResponse(executeDeleteRenewal(ss, payload.renewalId, userRole));
+    }
+
+    if (action === 'seedRenewals') {
+      return jsonResponse(executeSeedRenewals(ss));
     }
 
     return jsonResponse({ success: false, error: "Invalid action: " + action });
@@ -727,6 +803,12 @@ function ensureAllSheets(ss) {
       'Full balance settlement', now, now
     ]);
   }
+
+  var renSheet = ss.getSheetByName(SHEET_RENEWALS);
+  if (!renSheet) {
+    renSheet = ss.insertSheet(SHEET_RENEWALS);
+    renSheet.appendRow(RENEWAL_HEADERS);
+  }
 }
 
 /**
@@ -736,6 +818,153 @@ function seedMasterTrips() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   ensureAllSheets(ss);
   return "Master trips and vehicles successfully verified and seeded in Google Sheet.";
+}
+
+// =========================================================================
+// RENEWALS & FLEET COMPLIANCE MODULE BACKEND HANDLERS
+// =========================================================================
+
+function fetchRenewals(ss, vehicleNo) {
+  var sheet = ss.getSheetByName(SHEET_RENEWALS);
+  if (!sheet) return [];
+  var data = sheet.getDataRange().getValues();
+  if (data.length <= 1) return [];
+
+  var renewals = [];
+  var vFilter = vehicleNo ? vehicleNo.toUpperCase().trim() : '';
+
+  for (var i = 1; i < data.length; i++) {
+    var row = data[i];
+    if (!row[0]) continue;
+    var rowVehicle = String(row[1] || '').trim().toUpperCase();
+
+    // Canonical alias check
+    if (vFilter && vFilter !== 'ALL') {
+      var matches = (rowVehicle === vFilter);
+      if (!matches && (vFilter === 'TS15UE1122' || vFilter === 'TG15UE1122')) {
+        matches = (rowVehicle === 'TS15UE1122' || rowVehicle === 'TG15UE1122');
+      }
+      if (!matches) continue;
+    }
+
+    var remDays = [];
+    if (row[7]) {
+      try {
+        remDays = JSON.parse(row[7]);
+      } catch (_) {
+        remDays = String(row[7]).split(',').map(function(s) { return parseInt(s.trim(), 10); }).filter(Boolean);
+      }
+    }
+
+    renewals.push({
+      renewalId: String(row[0]).trim(),
+      vehicleNo: String(row[1]).trim(),
+      category: String(row[2]).trim(),
+      documentName: String(row[3]).trim(),
+      dueDate: String(row[4]).trim(),
+      duration: String(row[5] || '—').trim(),
+      provider: String(row[6] || '—').trim(),
+      reminderDays: remDays.length ? remDays : [30],
+      notes: String(row[8] || '').trim(),
+      createdDate: String(row[9] || '').trim(),
+      updatedDate: String(row[10] || '').trim(),
+      createdBy: String(row[11] || 'admin').trim()
+    });
+  }
+
+  return renewals;
+}
+
+function executeAddRenewal(ss, record, userRole) {
+  var sheet = ss.getSheetByName(SHEET_RENEWALS);
+  if (!sheet) {
+    ensureAllSheets(ss);
+    sheet = ss.getSheetByName(SHEET_RENEWALS);
+  }
+
+  var now = new Date().toISOString().slice(0, 10);
+  var renId = record.renewalId || ('REN-' + String(record.vehicleNo || 'FLEET').replace(/[^A-Z0-9]/g, '') + '-' + Date.now().toString().slice(-4));
+  var remDaysStr = JSON.stringify(record.reminderDays || [30]);
+
+  sheet.appendRow([
+    renId,
+    record.vehicleNo || '',
+    record.category || 'Insurance',
+    record.documentName || '',
+    record.dueDate || '',
+    record.duration || '—',
+    record.provider || '—',
+    remDaysStr,
+    record.notes || '',
+    record.createdDate || now,
+    now,
+    record.createdBy || (userRole === 'Admin' ? 'admin' : 'rudra')
+  ]);
+
+  return { success: true, message: "Renewal added successfully", renewalId: renId };
+}
+
+function executeUpdateRenewal(ss, record, userRole) {
+  var sheet = ss.getSheetByName(SHEET_RENEWALS);
+  if (!sheet) return { success: false, error: "Renewals sheet not found" };
+
+  var data = sheet.getDataRange().getValues();
+  var targetId = String(record.renewalId).trim();
+  var rowIndex = -1;
+
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][0]).trim() === targetId) {
+      rowIndex = i + 1; // 1-based sheet row
+      break;
+    }
+  }
+
+  if (rowIndex === -1) {
+    return { success: false, error: "Renewal record not found: " + targetId };
+  }
+
+  var now = new Date().toISOString().slice(0, 10);
+  var remDaysStr = JSON.stringify(record.reminderDays || [30]);
+
+  sheet.getRange(rowIndex, 2).setValue(record.vehicleNo || '');
+  sheet.getRange(rowIndex, 3).setValue(record.category || 'Insurance');
+  sheet.getRange(rowIndex, 4).setValue(record.documentName || '');
+  sheet.getRange(rowIndex, 5).setValue(record.dueDate || '');
+  sheet.getRange(rowIndex, 6).setValue(record.duration || '—');
+  sheet.getRange(rowIndex, 7).setValue(record.provider || '—');
+  sheet.getRange(rowIndex, 8).setValue(remDaysStr);
+  sheet.getRange(rowIndex, 9).setValue(record.notes || '');
+  sheet.getRange(rowIndex, 11).setValue(now);
+
+  return { success: true, message: "Renewal record updated successfully" };
+}
+
+function executeDeleteRenewal(ss, renewalId, userRole) {
+  var sheet = ss.getSheetByName(SHEET_RENEWALS);
+  if (!sheet) return { success: false, error: "Renewals sheet not found" };
+
+  var data = sheet.getDataRange().getValues();
+  var targetId = String(renewalId).trim();
+  var rowIndex = -1;
+
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][0]).trim() === targetId) {
+      rowIndex = i + 1;
+      break;
+    }
+  }
+
+  if (rowIndex === -1) {
+    return { success: false, error: "Renewal record not found: " + targetId };
+  }
+
+  sheet.deleteRow(rowIndex);
+  return { success: true, message: "Renewal record deleted successfully" };
+}
+
+function executeSeedRenewals(ss) {
+  ensureAllSheets(ss);
+  return { success: true, message: "Renewals sheet verified and ready" };
 }
 
 function jsonResponse(obj) {

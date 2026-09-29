@@ -18,12 +18,6 @@ const Router = {
       page = 'vehicles';
     }
 
-    // 3. Enforce Admin-only guard on Settings
-    if (page === 'settings' && !Auth.isAdmin()) {
-      Utils.showToast("Unauthorized: Settings is restricted to Administrator only.", "error");
-      page = 'dashboard';
-    }
-
     appState.currentPage = page;
 
     // Hide all view containers
@@ -34,7 +28,8 @@ const Router = {
       'view-trips',
       'view-excel',
       'view-vehicle-data',
-      'view-settings'
+      'view-settings',
+      'view-renewals'
     ];
 
     views.forEach(id => {
@@ -79,6 +74,9 @@ const Router = {
       case 'settings':
         if (typeof Settings !== 'undefined') Settings.render();
         break;
+      case 'renewals':
+        if (typeof Renewals !== 'undefined') Renewals.render();
+        break;
     }
 
     // Close slide-over menu if open
@@ -108,14 +106,15 @@ const Router = {
       dRole.textContent = appState.currentUser ? (appState.currentUser.role === 'Admin' ? 'ADMIN' : 'USER') : 'ADMIN';
     }
 
-    // Settings menu item visibility (ADMIN ONLY)
+    // Settings menu item visibility (Available to both Admin and Rudra)
     const settingsBtn = document.getElementById('menu-btn-settings');
     if (settingsBtn) {
-      if (Auth.isAdmin()) {
-        settingsBtn.classList.remove('hidden');
-      } else {
-        settingsBtn.classList.add('hidden');
-      }
+      settingsBtn.classList.remove('hidden');
+    }
+
+    // Refresh renewal notification badges in header & menu
+    if (typeof Renewals !== 'undefined' && Renewals.updateNotificationBadges) {
+      Renewals.updateNotificationBadges();
     }
   },
 

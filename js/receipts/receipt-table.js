@@ -23,7 +23,7 @@ const ReceiptTable = {
 
     let runningRemaining = origBal;
 
-    const isAdmin = typeof Auth !== 'undefined' && typeof Auth.isAdmin === 'function' ? Auth.isAdmin() : true;
+    const canDelete = typeof Auth !== 'undefined' && typeof Auth.canDelete === 'function' ? Auth.canDelete() : (typeof Auth !== 'undefined' && typeof Auth.isAdmin === 'function' ? Auth.isAdmin() : false);
 
     const rowsHtml = receipts.map((r, idx) => {
       const amt = Number(r.amount !== undefined ? r.amount : (r.receivedAmount || 0));
@@ -39,7 +39,7 @@ const ReceiptTable = {
           </td>
           <td class="py-2.5 px-3 text-slate-500 truncate max-w-[120px]" title="${r.notes || ''}">${r.notes || '-'}</td>
           <td class="py-2.5 px-3 text-right">
-            ${isAdmin ? `
+            ${canDelete ? `
               <button 
                 type="button" 
                 onclick="Receipts.deleteReceipt('${trip.tripId || trip.id}', '${r.receiptId || idx}')"

@@ -327,8 +327,8 @@ const Trips = {
    * Delete trip (Admin only)
    */
   async promptDelete(tripId) {
-    if (!Auth.isAdmin()) {
-      alert("Permission Denied: Only Administrators can delete trip records.");
+    if (typeof Auth !== 'undefined' && typeof Auth.canDelete === 'function' && !Auth.canDelete()) {
+      alert("Delete operation not permitted.\n\nRudra can add and edit records but cannot delete them.");
       return;
     }
 

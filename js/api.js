@@ -35,6 +35,19 @@ const Api = {
    * Universal POST request for state mutations
    */
   async post(action, payload = {}, vehicleNo = '') {
+    // SECURITY GUARD: If action is a delete operation, strictly check authorization
+    if (typeof action === 'string' && action.toLowerCase().includes('delete')) {
+      if (typeof Auth !== 'undefined' && typeof Auth.canDelete === 'function' && !Auth.canDelete()) {
+        const forbiddenErr = {
+          success: false,
+          error: "DELETE_NOT_ALLOWED",
+          message: "Rudra does not have permission to delete records."
+        };
+        console.warn(`[Api.post] Denied unauthorized delete request (${action}):`, forbiddenErr);
+        return forbiddenErr;
+      }
+    }
+
     const envelope = {
       action,
       vehicleNo: vehicleNo || appState.currentVehicle || '',
@@ -83,6 +96,9 @@ const Api = {
   },
 
   async deleteTrip(tripId, vehicleNo) {
+    if (typeof Auth !== 'undefined' && typeof Auth.canDelete === 'function' && !Auth.canDelete()) {
+      return { success: false, error: "DELETE_NOT_ALLOWED", message: "Rudra does not have permission to delete records." };
+    }
     return this.post('deleteTrip', { tripId }, vehicleNo);
   },
 
@@ -96,7 +112,30 @@ const Api = {
   },
 
   async deleteReceipt(receiptId, tripId, vehicleNo) {
+    if (typeof Auth !== 'undefined' && typeof Auth.canDelete === 'function' && !Auth.canDelete()) {
+      return { success: false, error: "DELETE_NOT_ALLOWED", message: "Rudra does not have permission to delete records." };
+    }
     return this.post('deleteReceipt', { receiptId, tripId }, vehicleNo);
+  },
+
+  // Renewal Endpoints
+  async getRenewals(vehicleNo = '') {
+    return this.get('getRenewals', vehicleNo ? { vehicleNo } : {});
+  },
+
+  async addRenewal(renewalData) {
+    return this.post('addRenewal', renewalData);
+  },
+
+  async updateRenewal(renewalData) {
+    return this.post('updateRenewal', renewalData);
+  },
+
+  async deleteRenewal(renewalId) {
+    if (typeof Auth !== 'undefined' && typeof Auth.canDelete === 'function' && !Auth.canDelete()) {
+      return { success: false, error: "DELETE_NOT_ALLOWED", message: "Rudra does not have permission to delete records." };
+    }
+    return this.post('deleteRenewal', { renewalId });
   }
 };
 

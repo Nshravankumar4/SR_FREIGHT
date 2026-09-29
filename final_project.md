@@ -14,7 +14,7 @@
 | :--- | :--- | :---: | :--- |
 | **Cloudflare Pages / Workers** | [https://y.srtransport.workers.dev/](https://y.srtransport.workers.dev/) | 🟢 Active | Edge-cached production client |
 | **Vercel Edge Cloud** | [https://ytransport.vercel.app/](https://ytransport.vercel.app/) | 🟢 Active | High-availability global deployment |
-| **Google Cloud Spreadsheet** | [Open Connected Google Sheet](https://docs.google.com/spreadsheets/d/1X-whiMGT3BxgdMjayuXHw-d8fZeaX1dKjLeEEiIPQf0/edit) | 🟢 Active | Authoritative Database (Trips, Vehicles, BalanceReceipts) |
+| **Google Cloud Spreadsheet** | [Open Connected Google Sheet](https://docs.google.com/spreadsheets/d/1X-whiMGT3BxgdMjayuXHw-d8fZeaX1dKjLeEEiIPQf0/edit) | 🟢 Active | Authoritative Database (Trips, Vehicles, BalanceReceipts, Renewals) |
 | **Google Apps Script Web App** | `https://script.google.com/macros/s/AKfycbxXNUcEvcCbjL1fxtSPz1CVUSLOHKzSzYgasOGgUJ111r7i77MVVBkocCJd15v5lP1S/exec` | 🟢 Live (v3/v4) | Backend API with Concurrency Locks & Role Verification |
 | **Active Deployment ID** | `AKfycbxXNUcEvcCbjL1fxtSPz1CVUSLOHKzSzYgasOGgUJ111r7i77MVVBkocCJd15v5lP1S` | 🟢 Production | Google Apps Script Active Web App |
 
@@ -80,11 +80,28 @@
   - Triggers standard print / PDF save dialog (`window.print()`).
 
 ### 2.7 Role-Based Access Control (Admin vs. Employee)
-- **Admin (`admin` / `Shravan`):** Full access to Add, Edit, Delete trips, Delete payment receipts, Settings, and System Exports.
-- **Employee (`rudra` / `RudraSarika@2505`):** Access to Add/Edit trips and Record payment installments.
-  - `🗑️ Delete Trip` and `🗑️ Delete Receipt` buttons are completely hidden.
+- **Admin (`admin` / `Shravan`):** Full access to Add, Edit, Delete trips, Delete payment receipts, Add/Edit/Delete fleet renewals, Settings, and System Exports.
+- **Employee (`rudra` / `RudraSarika@2505`):** Access to Add/Edit trips, Record payment installments, and View fleet renewals.
+  - `🗑️ Delete Trip`, `🗑️ Delete Receipt`, and renewal mutation buttons are completely hidden.
   - `⚙️ Settings` button is hidden; unauthorized navigation triggers a warning toast.
   - Backend `Code.gs` rejects any delete or settings mutation attempted with non-admin credentials.
+
+### 2.8 Standalone Fleet Renewals & Alerts Module
+- **Zero Impact on Trip Accounting:** Runs as an isolated module accessible from the main menu (`🔔 Renewals & Alerts`) and header bell icon. Trips and finance formulas are never affected.
+- **Separate Storage:** Persisted to dedicated Google Sheets tab `Renewals` (`SHEET_RENEWALS = 'Renewals'`).
+- **Dynamic Status Calculations:** Evaluates document expiries against current system date:
+  - 🔴 **OVERDUE:** Due date < today (e.g. `TG15C2324` Bike Insurance due `05-09-2026`).
+  - 🔴 **DUE TODAY:** Due date = today.
+  - 🟠 **DUE TOMORROW / THIS WEEK:** Due within 1 to 7 days (e.g. `TG15UE1122` Quarterly Tax due `30-09-2026`).
+  - 🟡 **DUE SOON:** Due within 30 days.
+  - 🔵 **UPCOMING:** Due within 90 days.
+  - 🟢 **ACTIVE:** Valid for >90 days (e.g. `TG15G1122` Insurance due `16-03-2028`).
+- **Alert Modals & Badges:**
+  - Automated attention popup modal on application startup for expired/urgent items.
+  - Real-time attention badge counter on header bell icon and drawer menu.
+  - Add / Edit modal (`#modal-renewal-form`) with custom multi-reminder checkboxes (1, 7, 15, 30, 60, 90 days).
+  - High-contrast read-only detail inspection modal (`#modal-renewal-view`).
+- **Canonical Fleet Seed Data:** Preloaded with 28 fleet documents covering `TG15G1122`, `TG15C2324`, `TG15UE1122`, and `TG15T6666`.
 
 ---
 
@@ -128,5 +145,42 @@ Switching vehicles via the header badge or slide-over drawer resets all active q
 
 ## 5. Universal Professional Footer & Branding
 Every view features the standardized copyright and developer signature:
-> `© 2026 SR Transport • Enterprise Freight & Fleet Management System • Developed for Fleet Operations • All Rights Reserved`
+> `© 2026 SR Transport • Enterprise Freight & Fleet Management System • Developed by Shravan Kumar • All Rights Reserved`
+
+---
+
+## 6. Strict Two-Layer Permission & Security Model
+
+The system enforces a clean, deterministic 2-role permission architecture:
+- **Admin (Shravan):** Unrestricted access across all modules, including **Delete**.
+- **Rudra:** Full application access across all modules (View, Add, Edit, Search, Filters, Settings, Reports, Cloud Sync, Backup, Logout) **EXCEPT Delete**.
+
+### Permission Matrix
+
+| Module / Operation | Admin (Shravan) | Rudra | Enforcement Layer |
+| :--- | :---: | :---: | :--- |
+| **Authentication & Login** | ✅ | ✅ | `js/auth.js` |
+| **Dashboard & Monthly Analytics** | ✅ | ✅ | `js/dashboard/dashboard.js` |
+| **Trips: View Records** | ✅ | ✅ | `js/trips/trip-table.js` |
+| **Trips: Add New Trip** | ✅ | ✅ | `js/trips/trip-form.js` |
+| **Trips: Edit Trip** | ✅ | ✅ | `js/trips/trip-form.js` |
+| **Trips: Delete Trip** | ✅ | ❌ | UI hidden + `trips.js` + `api.js` + Apps Script |
+| **Balance Receipts: View** | ✅ | ✅ | `js/receipts/receipt-table.js` |
+| **Balance Receipts: Add Installment** | ✅ | ✅ | `js/receipts/receipts.js` |
+| **Balance Receipts: Delete Installment** | ✅ | ❌ | UI hidden + `receipts.js` + `api.js` + Apps Script |
+| **Renewals & Alerts: View Records** | ✅ | ✅ | `js/renewals/renewal-table.js` |
+| **Renewals & Alerts: Add Record** | ✅ | ✅ | `js/renewals/renewals.js` |
+| **Renewals & Alerts: Edit Record** | ✅ | ✅ | `js/renewals/renewal-form.js` |
+| **Renewals & Alerts: Delete Record** | ✅ | ❌ | UI hidden + `renewals.js` + `api.js` + Apps Script |
+| **Settings & Diagnostics** | ✅ | ✅ | `js/router.js` + `js/settings/settings.js` |
+| **Settings: Restore Backup / Overwrite** | ✅ | ❌ | Apps Script `userCanDelete` rejection |
+| **Google Sheets Cloud Sync** | ✅ | ✅ | `js/api.js` |
+| **Excel & PDF Exports** | ✅ | ✅ | Client-side ExcelJS & Print Dialogs |
+
+### Security Defense-in-Depth
+1. **Frontend Presentation:** Delete action buttons are strictly conditioned on `Auth.canDelete()`. Rudra never sees delete triggers.
+2. **Client API Guard:** `Api.post()` scans incoming mutation actions. Any action containing `'delete'` is immediately blocked with `{ success: false, error: "DELETE_NOT_ALLOWED", message: "Rudra does not have permission to delete records." }`.
+3. **Backend Google Apps Script Identity Enforcer:** `userCanDelete(envelope)` validates incoming `envelope.user` and `envelope.role`. Any request identifying `envelope.user === 'rudra'` (or non-admin usernames) is decisively rejected with `DELETE_NOT_ALLOWED` regardless of spoofed payload headers.
+
+
 

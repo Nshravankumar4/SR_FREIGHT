@@ -13,6 +13,9 @@ const App = {
 
     // 1. Initialize local dataset
     Trips.loadFromLocal();
+    if (typeof Renewals !== 'undefined') {
+      Renewals.loadFromLocal();
+    }
 
     // 2. Setup global UI event bindings & cross-tab sync channel
     this.bindEvents();
@@ -22,6 +25,16 @@ const App = {
     const hasSession = Auth.restoreSession();
 
     if (hasSession && appState.isLoggedIn) {
+      if (typeof Renewals !== 'undefined') {
+        Renewals.updateNotificationBadges();
+        setTimeout(() => {
+          if (typeof RenewalAlerts !== 'undefined') {
+            RenewalAlerts.checkAndShowAlerts(false);
+          }
+        }, 600);
+        Renewals.loadCloudRenewals().catch(e => console.warn('[App] Cloud renewals note:', e));
+      }
+
       if (appState.currentVehicle) {
         Router.navigate('dashboard');
         Trips.loadVehicleTrips(appState.currentVehicle);
@@ -51,6 +64,18 @@ const App = {
           if (errEl) errEl.classList.add('hidden');
           await Auth.login(u, p);
           Utils.showToast(`Welcome back, ${appState.currentUser.name}!`);
+
+          if (typeof Renewals !== 'undefined') {
+            Renewals.loadFromLocal();
+            Renewals.updateNotificationBadges();
+            setTimeout(() => {
+              if (typeof RenewalAlerts !== 'undefined') {
+                RenewalAlerts.checkAndShowAlerts(false);
+              }
+            }, 600);
+            Renewals.loadCloudRenewals().catch(e => console.warn('[App] Cloud renewals note:', e));
+          }
+
           Router.navigate('vehicles');
           App.startBackgroundPoller();
         } catch (err) {
@@ -199,6 +224,9 @@ const App = {
       if (appState.currentVehicle) {
         await Trips.loadVehicleTrips(appState.currentVehicle);
       }
+      if (typeof Renewals !== 'undefined') {
+        await Renewals.loadCloudRenewals();
+      }
       Utils.showToast("✅ Cloud database synchronized!", "success");
       if (syncDot) { syncDot.className = 'status-dot online'; }
       if (syncText) { syncText.textContent = 'Online'; }
@@ -268,6 +296,12 @@ const App = {
               Trips.loadFromLocal();
               TripTable.render();
               if (appState.currentPage === 'dashboard') Dashboard.render();
+            }
+          } else if (type === 'renewal_updated') {
+            if (typeof Renewals !== 'undefined') {
+              Renewals.loadFromLocal();
+              Renewals.updateNotificationBadges();
+              if (appState.currentPage === 'renewals') Renewals.render();
             }
           }
         };
