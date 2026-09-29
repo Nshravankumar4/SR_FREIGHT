@@ -13,6 +13,7 @@ const appState = {
   vehicles: [],
   trips: [],
   receipts: [],
+  renewals: [],
 
   selectedTrip: null,
   editingTripId: null,

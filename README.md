@@ -37,13 +37,30 @@ Just like in the reference architecture (`D:\Repo\SR_T`), the system operates ac
 
 ## 🔐 Dual-Layer Role & Permissions Security
 
-| Role | Username | Password | View & Export | Add Trips | Edit Trips | Delete Trips | Cloud Settings |
-| :--- | :--- | :--- | :---: | :---: | :---: | :---: | :---: |
-| **Admin** | `admin` or `shravan` | `Shravan` | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Employee** | `rudra` | `RudraSarika@2505` | ✅ | ✅ | ✅ | ❌ Restricted | ❌ Restricted |
+| Role | Username | Password | View & Export | Add/Edit Trips | Delete Trips | Balance Receipts | Renewals & Alerts | Cloud Settings |
+| :--- | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Admin** | `admin` or `shravan` | `Shravan` | ✅ | ✅ | ✅ | Full (Add & Delete) | Full (Add, Edit, Delete) | ✅ |
+| **Employee** | `rudra` | `RudraSarika@2505` | ✅ | ✅ | ❌ Restricted | Add Only | View Only | ❌ Restricted |
 
-* **UI Layer:** The `🗑️ Delete` button and `⚙️ Settings` button are completely hidden for Rudra. Any direct programmatic calls trigger security alert toasts.
-* **Backend Layer (`Code.gs`):** Google Apps Script strictly validates `role === 'Admin'` before deleting any row or updating cloud settings.
+* **UI Layer:** The `🗑️ Delete` button, `⚙️ Settings` button, and renewal mutation controls are hidden for Rudra. Any direct programmatic calls trigger security alert toasts.
+* **Backend Layer (`Code.gs`):** Google Apps Script strictly validates `role === 'Admin'` before deleting trips, receipts, renewals, or updating cloud settings.
+
+---
+
+## 🔔 Fleet Renewals & Expiry Alerts System
+
+A standalone compliance and vehicle asset tracking module completely isolated from Trips and Financials:
+* **Dedicated Sheet:** Stored in Google Sheets tab named **`Renewals`**.
+* **Dynamic Status Calculations (No Hardcoding):** Urgency is dynamically evaluated against the current system date:
+  - 🔴 **OVERDUE:** Expiry date is before current date (e.g. `TG15C2324` Bike Insurance).
+  - 🔴 **DUE TODAY:** Expires today (pulsing high-priority badge).
+  - 🟠 **DUE TOMORROW / THIS WEEK:** Due within 1 to 7 days (e.g. `TG15UE1122` & `TG15T6666` Quarterly Road Taxes).
+  - 🟡 **DUE SOON:** Due within 30 days.
+  - 🔵 **UPCOMING:** Due within 90 days.
+  - 🟢 **ACTIVE:** Valid for >90 days (e.g. `TG15G1122` Car Insurance).
+* **Multi-Schedule Reminder Alerts:** Multi-select reminder timelines (1, 7, 15, 30, 60, 90 days before due date).
+* **Automated Expiry Popups:** Instant startup modal alerts operators of critical or overdue renewals with a 1-click shortcut to the renewals workspace.
+* **Header & Drawer Badges:** Real-time red attention count badge on the top header bell button and menu drawer.
 
 ---
 
@@ -62,7 +79,7 @@ Just like in the reference architecture (`D:\Repo\SR_T`), the system operates ac
 
 ```
 D:\Repo\Lorry/
-├── index.html                   # Master Responsive Layout (Trips, Dashboard, Excel, Settings)
+├── index.html                   # Master Responsive Layout (Trips, Dashboard, Excel, Renewals, Settings)
 ├── css/
 │   ├── base.css                 # Typography & color variables
 │   └── components.css           # Cards, buttons, tables, badges
@@ -76,6 +93,12 @@ D:\Repo\Lorry/
 │   ├── utils.js                 # Formatting & date converters
 │   ├── calculations/
 │   │   └── financial.js         # Authoritative financial engine
+│   ├── renewals/
+│   │   ├── renewal-calculations.js # Dynamic status engine & time diff calculations
+│   │   ├── renewals.js             # Canonical 28-doc dataset, state sync & badges
+│   │   ├── renewal-table.js        # Urgency-sorted table & multi-filter controller
+│   │   ├── renewal-form.js         # Add / Edit renewal modal with reminder checkboxes
+│   │   └── renewal-alerts.js       # Critical attention popups & header bell handler
 │   ├── vehicles/
 │   │   ├── vehicle-list.js      # Vehicle selection screen
 │   │   ├── vehicle-workspace.js # Vehicle-scoped context
@@ -96,13 +119,13 @@ D:\Repo\Lorry/
 │   └── settings/
 │       └── settings.js          # Cloud settings & snapshots
 ├── google-apps-script/
-│   └── Code.gs                  # Apps Script backend (Vehicles, Trips, Receipts)
+│   └── Code.gs                  # Apps Script backend (Vehicles, Trips, Receipts, Renewals)
 ├── docs/
-│   ├── GOOGLE_SHEET_SETUP.md    # 3-Sheet database specifications
+│   ├── GOOGLE_SHEET_SETUP.md    # 4-Sheet database specifications
 │   ├── GOOGLE_FORM_SETUP.md     # Google Form field guide
 │   └── DEPLOYMENT_GUIDE.md      # Deployment guide & credentials
-├── tests/
-│   ├── financial-tests.js       # Financial engine unit tests
-│   └── vehicle-isolation-tests.js # Multi-vehicle isolation tests
+├── test_suite.ps1               # 15-test automated verification suite
+├── test_plan.md                 # Test plan & verification log
+├── final_project.md             # Production master blueprint
 └── README.md
 ```

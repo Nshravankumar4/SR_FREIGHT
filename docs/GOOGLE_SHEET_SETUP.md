@@ -6,6 +6,7 @@
   1. `Trips` — Master operational trips ledger indexed with `Trip ID` and `Vehicle No`.
   2. `Vehicles` — Vehicle registry and metadata (`TS15UE1122`, `TG15T6666`, etc.).
   3. `BalanceReceipts` — Installment payment receipts sub-ledger.
+  4. `Renewals` — Fleet compliance, insurance, taxes, permits, and fitness schedule.
 * **Cloud Backup Folder (Google Drive):** `Lorry_Backups`
 
 ---
@@ -45,6 +46,25 @@
 | **AC**| `Payment Indicator` | Semantic Visual Indicator | `red` (Remaining > 0) / `green` (Remaining == 0) |
 | **AD**| `Created At` | Record Creation Timestamp | ISO Timestamp |
 | **AE**| `Updated At` | Record Modification Timestamp | ISO Timestamp |
+
+---
+
+## 📋 Column Layout: `Renewals` Sheet
+
+| Col | Header | Description | Format / Example |
+|:---:|---|---|---|
+| **A** | `Renewal ID` | Permanent Unique Identifier | Unique ID (e.g. `REN-TG15UE1122-01`) |
+| **B** | `Vehicle No` | Vehicle Registration Number | e.g. `TG15UE1122`, `TG15T6666` |
+| **C** | `Category` | Document Classification | `Insurance`, `Tax`, `Fitness`, `Permit`, `Pollution`, `RC`, `Other` |
+| **D** | `Document Name` | Specific Document Name | e.g. `Car Insurance`, `Quarterly Tax`, `National Permit` |
+| **E** | `Due Date` | Document Expiry / Due Date | `YYYY-MM-DD` or `DD-MM-YYYY` |
+| **F** | `Duration` | Validity Duration | e.g. `1 Year`, `Quarterly`, `2 Years`, `5 Years` |
+| **G** | `Provider` | Insurance Company or Authority | e.g. `TATA AIG`, `RTA`, `Telangana MV Tax` |
+| **H** | `Reminder Days`| Multi-schedule reminder offsets | JSON array `[1, 7, 15, 30, 60, 90]` |
+| **I** | `Notes` | Policy numbers or instructions | Text (e.g. `Policy #0159982344`) |
+| **J** | `Created Date` | Date record created | `YYYY-MM-DD` |
+| **K** | `Updated Date` | Date record modified | `YYYY-MM-DD` |
+| **L** | `Created By` | Creator user identifier | `admin` |
 
 ---
 

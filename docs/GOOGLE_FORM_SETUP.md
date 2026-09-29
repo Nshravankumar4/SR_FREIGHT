@@ -125,3 +125,9 @@ This document specifies the exact fields, question types, validation rules, and 
 - **24. Total Balance Received:** Sum of all recorded balance receipt installments
 - **25. Original Customer Balance:** Net receivable calculated as `Freight Amount - Advance Amount`
 - **26. Remaining Customer Balance:** `Original Balance - Total Balance Received` (Down to ₹0 with 🔴/🟢 indicator)
+
+---
+
+## 🔔 Note on Fleet Renewals & Expiry Alerts
+
+Document renewals (Insurance, Pollution/PUC, Fitness, Road Taxes, State/National Permits, and RC) are managed directly within the Web App via the **`🔔 Renewals & Alerts`** module and stored in the dedicated **`Renewals`** tab of the connected Google Spreadsheet. They are kept strictly independent from the `Trips` sheet so trip accounting remains clean.

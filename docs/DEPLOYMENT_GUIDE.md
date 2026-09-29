@@ -36,10 +36,10 @@ This guide provides the complete documentation for the live production architect
                                            │
                          ┌─────────────────┴─────────────────┐
                          ▼                                   ▼
-          ┌─────────────────────────────┐     ┌─────────────────────────────┐
-          │     Master Google Sheet     │     │      Google Drive Cloud     │
-          │  Vehicles | Trips | Receipts│     │      (Lorry_Backups Folder) │
-          └─────────────────────────────┘     └─────────────────────────────┘
+          ┌────────────────────────────────────────┐     ┌─────────────────────────────┐
+          │          Master Google Sheet           │     │      Google Drive Cloud     │
+          │ Vehicles | Trips | Receipts | Renewals │     │      (Lorry_Backups Folder) │
+          └────────────────────────────────────────┘     └─────────────────────────────┘
 ```
 
 ---
@@ -48,8 +48,8 @@ This guide provides the complete documentation for the live production architect
 
 | User | Password | Role | Permissions |
 | :--- | :--- | :--- | :--- |
-| **Admin** | `Shravan` | Administrator | Full access: View, Add, Edit, Delete, Settings, Cloud Backups, Excel Export |
-| **Rudra** | `RudraSarika@2505` | Employee | View, Add, Edit, Filter, Excel Export. **Delete & Settings strictly blocked.** |
+| **Admin** | `Shravan` | Administrator | Full access: View, Add, Edit, Delete (Trips, Receipts, Renewals), Settings, Cloud Backups, Excel Export |
+| **Rudra** | `RudraSarika@2505` | Employee | View, Add, Edit trips/installments, View renewals. **Delete, Renewals Add/Edit/Delete, & Settings strictly blocked.** |
 
 ---
 
@@ -57,12 +57,13 @@ This guide provides the complete documentation for the live production architect
 
 1. Open your connected Google Sheet: [1X-whiMGT3BxgdMjayuXHw-d8fZeaX1dKjLeEEiIPQf0](https://docs.google.com/spreadsheets/d/1X-whiMGT3BxgdMjayuXHw-d8fZeaX1dKjLeEEiIPQf0/edit).
 2. Go to **Extensions ➔ Apps Script**.
-3. Paste the contents of `google-apps-script/Code.gs`.
+3. Replace the contents of the script editor with the updated `google-apps-script/Code.gs` (contains support for `Trips`, `Vehicles`, `BalanceReceipts`, and `Renewals`).
 4. Click **Deploy ➔ Manage deployments** (or **New deployment**).
 5. Ensure:
    * **Execute as:** `Me`
    * **Who has access:** `Anyone` *(Crucial for multi-user CORS-free cloud sync)*
 6. Copy the **Web App URL** and configure in the app settings.
+   *(Note: The backend automatically verifies and creates the `Renewals` sheet with the proper 12 headers on first execution via `ensureAllSheets()`)*
 
 ---
 

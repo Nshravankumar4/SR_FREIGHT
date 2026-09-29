@@ -317,7 +317,7 @@ const TripTable = {
       `;
       return;
     }
-
+    const canDelete = typeof Auth !== 'undefined' && typeof Auth.canDelete === 'function' ? Auth.canDelete() : Auth.isAdmin();
     const isAdmin = Auth.isAdmin();
 
     tbody.innerHTML = trips.map((t, idx) => {
@@ -366,7 +366,7 @@ const TripTable = {
                 title="Edit Trip Expenses & Record Payments">
                 <span>✏️ Edit</span>
               </button>
-              ${isAdmin ? `
+              ${canDelete ? `
                 <button 
                   onclick="Trips.promptDelete('${t.tripId || t.id}')"
                   class="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer"

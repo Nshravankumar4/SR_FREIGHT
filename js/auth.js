@@ -166,6 +166,7 @@ const Auth = {
       };
       try {
         localStorage.setItem(CONFIG.SESSION_KEY, JSON.stringify(sessionData));
+        localStorage.setItem('lorry_user', JSON.stringify(appState.currentUser));
       } catch (_) {}
     }
   },
@@ -231,6 +232,7 @@ const Auth = {
     // 4. Clear storage tokens
     try {
       localStorage.removeItem(CONFIG.SESSION_KEY);
+      localStorage.removeItem('lorry_user');
       localStorage.removeItem(CONFIG.VEHICLE_KEY);
       sessionStorage.clear();
     } catch (_) {}
@@ -261,8 +263,20 @@ const Auth = {
    */
   isAdmin() {
     return Boolean(appState.currentUser && appState.currentUser.role === 'Admin');
+  },
+
+  /**
+   * Centralized Permission Helper: Only Admin (Shravan) can delete records.
+   * Rudra has full access to View, Add, Edit, and Settings, but CANNOT delete.
+   */
+  canDelete() {
+    return this.isAdmin();
   }
 };
+
+if (typeof window !== 'undefined') {
+  window.canDelete = () => Auth.canDelete();
+}
 
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = Auth;
