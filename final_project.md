@@ -172,6 +172,8 @@ The system enforces a clean, deterministic 2-role permission architecture:
 | **Renewals & Alerts: Add Record** | ✅ | ✅ | `js/renewals/renewals.js` |
 | **Renewals & Alerts: Edit Record** | ✅ | ✅ | `js/renewals/renewal-form.js` |
 | **Renewals & Alerts: Delete Record** | ✅ | ❌ | UI hidden + `renewals.js` + `api.js` + Apps Script |
+| **Invoice Studio: Create & Preview** | ✅ | ✅ | `invoice-studio/app.js` |
+| **Invoice Studio: Generate DOCX / PDF** | ✅ | ✅ | `invoice-studio/server.py` |
 | **Settings & Diagnostics** | ✅ | ✅ | `js/router.js` + `js/settings/settings.js` |
 | **Settings: Restore Backup / Overwrite** | ✅ | ❌ | Apps Script `userCanDelete` rejection |
 | **Google Sheets Cloud Sync** | ✅ | ✅ | `js/api.js` |
@@ -181,6 +183,23 @@ The system enforces a clean, deterministic 2-role permission architecture:
 1. **Frontend Presentation:** Delete action buttons are strictly conditioned on `Auth.canDelete()`. Rudra never sees delete triggers.
 2. **Client API Guard:** `Api.post()` scans incoming mutation actions. Any action containing `'delete'` is immediately blocked with `{ success: false, error: "DELETE_NOT_ALLOWED", message: "Rudra does not have permission to delete records." }`.
 3. **Backend Google Apps Script Identity Enforcer:** `userCanDelete(envelope)` validates incoming `envelope.user` and `envelope.role`. Any request identifying `envelope.user === 'rudra'` (or non-admin usernames) is decisively rejected with `DELETE_NOT_ALLOWED` regardless of spoofed payload headers.
+
+---
+
+## 7. 🧾 Integrated Invoice Studio (S-R Transport)
+
+The complete S-R TransBill invoice creation studio is integrated as a dedicated, fully isolated module:
+- **Dedicated Namespace:** Resides in `invoice-studio/` with 100% of original source code, templates, and document generators preserved.
+- **Complete Feature Set:**
+  - Dynamic Form with Quick-Fill Chips (e.g. *Green Agrevolution*).
+  - Real-time live A4 invoice preview sheet updating with every keystroke.
+  - Indian currency words calculation (e.g. "Rupees Seven Thousand Only").
+  - Word (.docx) generation using master XML template (`invoice-studio/templates/11048.docx`).
+  - Embedded official S&R Transport stamp and signature (`stamp_with_sign.png`).
+  - Native PDF conversion and browser print support.
+  - Duplicate invoice number detection and draft history management.
+- **UI & JavaScript Isolation:** Embedded via responsive iframe in `#view-invoice-studio` preventing any CSS or JavaScript collisions with the main Lorry application.
+
 
 
 

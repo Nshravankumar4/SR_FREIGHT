@@ -29,7 +29,8 @@ const Router = {
       'view-excel',
       'view-vehicle-data',
       'view-settings',
-      'view-renewals'
+      'view-renewals',
+      'view-invoice-studio'
     ];
 
     views.forEach(id => {
@@ -76,6 +77,13 @@ const Router = {
         break;
       case 'renewals':
         if (typeof Renewals !== 'undefined') Renewals.render();
+        break;
+      case 'invoice-studio':
+        // Ensure invoice studio frame has source loaded
+        const frame = document.getElementById('invoice-studio-frame');
+        if (frame && !frame.src) {
+          frame.src = 'invoice-studio/index.html';
+        }
         break;
     }
 

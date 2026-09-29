@@ -172,6 +172,10 @@
           </div>
           <div id="drawer-renewal-badge"></div>
         </button>
+        <button id="menu-btn-invoice-studio" onclick="Router.navigate('invoice-studio')" class="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition cursor-pointer">
+          <span class="text-lg">🧾</span>
+          <span>Invoice Studio</span>
+        </button>
         <button id="menu-btn-settings" onclick="Router.navigate('settings')" class="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition cursor-pointer">
           <span class="text-lg">⚙️</span>
           <span>Settings & API</span>
@@ -746,6 +750,46 @@
   <!-- ========================================================================= -->
   <main id="view-renewals" class="hidden flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
     <div id="renewals-content" class="space-y-6"></div>
+  </main>
+
+  <!-- ========================================================================= -->
+  <!-- 9d. VIEW: INVOICE STUDIO (S-R Transport Invoice Studio)                   -->
+  <!-- ========================================================================= -->
+  <main id="view-invoice-studio" class="hidden flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4">
+    <!-- Header banner for Invoice Studio in Lorry -->
+    <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-3xl p-5 sm:p-6 shadow-xl border border-indigo-900/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div class="space-y-1">
+        <div class="inline-flex items-center gap-2 px-3 py-0.5 rounded-full bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-xs font-bold tracking-wide">
+          <span>🧾</span>
+          <span>TRANSBILL &bull; S&amp;R TRANSPORT BILLING DESK</span>
+        </div>
+        <h2 class="text-xl sm:text-2xl font-black text-white tracking-tight">Invoice Studio</h2>
+        <p class="text-xs text-slate-300 max-w-xl">
+          Automated freight billing studio. Fill LR trip details, preview the official A4 invoice in real time, and generate finished Word (.docx) &amp; PDF vouchers.
+        </p>
+      </div>
+      <div class="flex items-center gap-2.5 shrink-0">
+        <a href="invoice-studio/index.html" target="_blank" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-bold rounded-xl text-xs shadow transition flex items-center gap-1.5 cursor-pointer" title="Open Studio in new browser window">
+          <span>↗️</span>
+          <span>Open Fullscreen</span>
+        </a>
+        <button onclick="var f=document.getElementById('invoice-studio-frame'); if(f) f.src=f.src;" class="px-3.5 py-2 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl text-xs border border-white/15 transition flex items-center gap-1.5 cursor-pointer" title="Reload Invoice Studio">
+          <span>🔄</span>
+          <span>Reload</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Embedded Invoice Studio Application Frame -->
+    <div class="bg-slate-900 rounded-3xl border border-slate-700/80 shadow-2xl overflow-hidden h-[85vh]">
+      <iframe 
+        id="invoice-studio-frame" 
+        src="invoice-studio/index.html" 
+        class="w-full h-full border-0 bg-slate-950" 
+        title="S-R Transport Invoice Studio"
+        loading="lazy">
+      </iframe>
+    </div>
   </main>
 
   <!-- ========================================================================= -->

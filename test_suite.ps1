@@ -261,9 +261,35 @@ Run-Check "Google Apps Script Backend Security (userCanDelete, DELETE_NOT_ALLOWE
     return ($hasFunc -and $rejectsRudra -and $requiresAdmin -and $tripProtected -and $receiptProtected -and $renewalProtected -and $restoreProtected -and $hasStandardError)
 }
 
+# 21. Invoice Studio Namespace & Assets Integrity
+Run-Check "Invoice Studio Namespace & Assets (server.py, templates, stamps, app.js)" {
+    $dirExists = Test-Path "D:\Repo\Lorry\invoice-studio"
+    $hasServer = Test-Path "D:\Repo\Lorry\invoice-studio\server.py"
+    $hasApp = Test-Path "D:\Repo\Lorry\invoice-studio\app.js"
+    $hasCss = Test-Path "D:\Repo\Lorry\invoice-studio\styles.css"
+    $hasIndex = Test-Path "D:\Repo\Lorry\invoice-studio\index.html"
+    $hasTemplate = Test-Path "D:\Repo\Lorry\invoice-studio\templates\11048.docx"
+    $hasStamp = Test-Path "D:\Repo\Lorry\invoice-studio\stamp_with_sign.png"
+    return ($dirExists -and $hasServer -and $hasApp -and $hasCss -and $hasIndex -and $hasTemplate -and $hasStamp)
+}
+
+# 22. Invoice Studio Routing & Navigation Integration
+Run-Check "Invoice Studio Navigation & Isolation Routing Integration" {
+    $html = Get-Content 'D:\Repo\Lorry\index.html' -Raw
+    $router = Get-Content 'D:\Repo\Lorry\js\router.js' -Raw
+
+    $hasMenuBtn = $html.Contains('id="menu-btn-invoice-studio"') -and $html.Contains("Router.navigate('invoice-studio')")
+    $hasViewContainer = $html.Contains('id="view-invoice-studio"')
+    $hasIframe = $html.Contains('id="invoice-studio-frame"') -and $html.Contains('src="invoice-studio/index.html"')
+    $hasRouterView = $router.Contains("'view-invoice-studio'")
+    $hasRouterCase = $router.Contains("case 'invoice-studio':")
+
+    return ($hasMenuBtn -and $hasViewContainer -and $hasIframe -and $hasRouterView -and $hasRouterCase)
+}
+
 Write-Host "`n==========================================================" -ForegroundColor Cyan
 if ($allPassed) {
-    Write-Host "🎉 ALL 20 AUTOMATED VERIFICATION CHECKS PASSED SUCCESSFULLY!" -ForegroundColor Green
+    Write-Host "🎉 ALL 22 AUTOMATED VERIFICATION CHECKS PASSED SUCCESSFULLY!" -ForegroundColor Green
 } else {
     Write-Host "⚠️ SOME CHECKS FAILED. PLEASE REVIEW THE LOG ABOVE." -ForegroundColor Red
 }

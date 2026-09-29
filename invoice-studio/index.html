@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TransBill | Transport Invoice Studio</title>
+  <link rel="stylesheet" href="styles.css?v=20260913_2">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">S&amp;R</span>
+      <span>
+        <strong>S&amp;R TRANSPORT</strong>
+        <small>Transport Billing &amp; Invoice Management</small>
+      </span>
+    </div>
+    <div class="topbar-actions">
+      <span class="mode-badge" id="headerModeBadge">Mode: New Invoice</span>
+      <button class="ghost-button" id="fillSampleButton" type="button">Fill Sample</button>
+      <button class="ghost-button" id="clearFormButton" type="button">+ New Invoice</button>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <section class="editor-panel">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Transport Billing Desk</p>
+          <h1 id="editorHeading">Create a Freight Invoice</h1>
+          <p class="muted">Fill trip and LR details. The printable invoice updates live as you type.</p>
+        </div>
+        <div class="heading-badges">
+          <span class="draft-badge" id="draftStatus">New Draft</span>
+          <button type="button" class="cancel-edit-btn" id="cancelEditBtn" style="display:none;">Cancel Edit</button>
+        </div>
+      </div>
+
+      <div class="quick-chips">
+        <span>⚡ Quick Fill:</span>
+        <button type="button" class="chip-button" id="chipGreenAgro">🌾 Green Agrevolution (Default)</button>
+        <button type="button" class="chip-button" id="chipClear">Clear All</button>
+      </div>
+
+      <form id="invoiceForm" novalidate>
+        <!-- 1. Invoice Details -->
+        <fieldset>
+          <legend>1. Invoice Details</legend>
+          <div class="form-grid two">
+            <label>
+              Invoice Number <span class="required-star">*</span>
+              <input id="invoiceNumber" name="invoiceNumber" inputmode="numeric" placeholder="e.g. 11048" required>
+            </label>
+            <label>
+              Invoice Date <span class="required-star">*</span>
+              <input id="invoiceDate" name="invoiceDate" type="date" required>
+            </label>
+          </div>
+        </fieldset>
+
+        <!-- 2. Billed Party (Customer) -->
+        <fieldset>
+          <legend>2. Billed Party (Customer)</legend>
+          <div class="form-grid two">
+            <label>
+              Customer / Bill To <span class="required-star">*</span>
+              <input id="customerName" name="customerName" placeholder="e.g. GREEN AGREVOLUTION PRIVATE LTD" required>
+            </label>
+            <label>
+              GSTIN <span class="required-star">*</span>
+              <input id="customerGstin" name="customerGstin" placeholder="e.g. 09AAECG6456H1ZC" style="text-transform:uppercase" required>
+            </label>
+            <label class="span-2">
+              Billing Address <span class="required-star">*</span>
+              <textarea id="customerAddress" name="customerAddress" rows="2" placeholder="Full billing address with Pin Code" required></textarea>
+            </label>
+            <label>
+              State <span class="required-star">*</span>
+              <input id="customerState" name="customerState" placeholder="e.g. UTTAR PRADESH" required>
+            </label>
+            <label>
+              State Code <span class="required-star">*</span>
+              <input id="customerStateCode" name="customerStateCode" placeholder="e.g. 09/UP" style="text-transform:uppercase" required>
+            </label>
+          </div>
+        </fieldset>
+
+        <!-- 3. Shipment & Consignor / Consignee -->
+        <fieldset>
+          <legend>3. Consignor &amp; Consignee Details</legend>
+          <div class="form-grid two">
+            <label>
+              Consignor Name
+              <input id="consignor" name="consignor" placeholder="Defaults to Customer Name">
+            </label>
+            <label>
+              Consignee Name
+              <input id="consignee" name="consignee" placeholder="Defaults to Customer Name">
+            </label>
+            <label>
+              Consignor Address
+              <input id="consignorAddress" name="consignorAddress" placeholder="Defaults to Customer Address">
+            </label>
+            <label>
+              Consignee Address
+              <input id="consigneeAddress" name="consigneeAddress" placeholder="Defaults to Customer Address">
+            </label>
+            <label>
+              Consignor GSTIN
+              <input id="consignorGstin" name="consignorGstin" placeholder="e.g. 36AAECG6456H1ZF" style="text-transform:uppercase">
+            </label>
+            <label>
+              Consignor / Consignee State Code
+              <input id="consignorStateCode" name="consignorStateCode" placeholder="e.g. 36/TS" style="text-transform:uppercase">
+            </label>
+          </div>
+        </fieldset>
+
+        <!-- 4. Lorry Receipt & Trip Details (Classic Single-LR Style) -->
+        <fieldset>
+          <legend>4. Lorry Receipt &amp; Trip Details</legend>
+          <div class="form-grid two">
+            <label>
+              LR Number <span class="required-star">*</span>
+              <input id="lrNumber" name="lrNumber" placeholder="e.g. 11403" required>
+            </label>
+            <label>
+              LR Date <span class="required-star">*</span>
+              <input id="lrDate" name="lrDate" type="date" required>
+            </label>
+            <label>
+              Loading Location <span class="required-star">*</span>
+              <input id="loadingLocation" name="loadingLocation" placeholder="e.g. Medchal" required>
+            </label>
+            <label>
+              Unloading Location <span class="required-star">*</span>
+              <input id="unloadingLocation" name="unloadingLocation" placeholder="e.g. Kalakal" required>
+            </label>
+            <label>
+              Vehicle Number <span class="required-star">*</span>
+              <input id="vehicleNumber" name="vehicleNumber" placeholder="e.g. AP 28 X 7948" style="text-transform:uppercase" required>
+            </label>
+            <label>
+              Goods Description <span class="required-star">*</span>
+              <input id="goodsDescription" name="goodsDescription" placeholder="e.g. Seeds" required>
+            </label>
+            <label>
+              No. of Bags / Packages <span class="required-star">*</span>
+              <input id="packages" name="packages" type="number" min="0" inputmode="numeric" placeholder="273" required>
+            </label>
+            <label>
+              Weight (MT) <span class="required-star">*</span>
+              <input id="weight" name="weight" type="number" min="0" step="0.001" inputmode="decimal" placeholder="10.000" required>
+            </label>
+          </div>
+        </fieldset>
+
+        <!-- 5. Freight Charges & Taxes -->
+        <fieldset>
+          <legend>5. Freight Charges &amp; Taxes</legend>
+          <div class="form-grid three">
+            <label>
+              Rate (INR per MT) <span class="required-star">*</span>
+              <input id="rate" name="rate" type="number" min="0" step="0.01" inputmode="decimal" placeholder="700" required>
+            </label>
+            <label>
+              Other / Loading Charges (INR)
+              <input id="otherCharges" name="otherCharges" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0">
+            </label>
+            <label>
+              Discount (INR)
+              <input id="discount" name="discount" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0">
+            </label>
+            <label>
+              Tax Mode
+              <select id="taxMode" name="taxMode">
+                <option value="none">No Tax (GTA RCM Exempted)</option>
+                <option value="igst">IGST</option>
+                <option value="split">CGST + SGST</option>
+              </select>
+            </label>
+            <label>
+              Tax Rate (%)
+              <input id="taxRate" name="taxRate" type="number" min="0" max="100" step="0.01" inputmode="decimal" placeholder="0">
+            </label>
+            <label class="span-2">
+              Remarks / Note
+              <input id="remarks" name="remarks" placeholder="e.g. NA or Goods delivered in good condition">
+            </label>
+          </div>
+
+          <div class="calculation-strip">
+            <span>Freight: <strong id="calcFreight">INR 7,000.00</strong></span>
+            <span>Taxable: <strong id="calcTaxable">INR 7,000.00</strong></span>
+            <span>Grand Total: <strong id="calcGrandTotal">INR 7,000.00</strong></span>
+          </div>
+        </fieldset>
+
+        <!-- Form Actions -->
+        <div class="form-actions">
+          <button class="primary-button" id="printButton" type="submit">Generate Invoice (Word &amp; PDF)</button>
+          <button class="secondary-button" id="downloadPdfButton" type="button">Download PDF</button>
+          <button class="secondary-button" id="downloadDocxButton" type="button">Download Word (.docx)</button>
+          <button class="secondary-button" id="printPdfButton" type="button">Print</button>
+          <button class="secondary-button" id="saveButton" type="button">Save Draft</button>
+          <button class="text-button" id="resetButton" type="button">Reset</button>
+        </div>
+
+        <div id="statusBox" class="status-box" style="display: none;"></div>
+      </form>
+
+      <!-- Invoice History & Saved Records -->
+      <section class="history-section">
+        <div class="section-heading compact">
+          <div>
+            <p class="eyebrow">Database &amp; Management</p>
+            <h2>Saved Invoices &amp; Records</h2>
+          </div>
+          <div class="history-controls">
+            <input type="text" id="historySearchInput" placeholder="🔍 Search invoice / customer..." class="search-input">
+            <button type="button" class="ghost-button" id="refreshHistoryBtn" title="Refresh saved invoices">⟳ Refresh</button>
+            <span class="muted-badge" id="historyCountBadge">0 records</span>
+          </div>
+        </div>
+
+        <div class="history-table-wrapper">
+          <table class="history-table" id="historyTable">
+            <thead>
+              <tr>
+                <th>Invoice #</th>
+                <th>Date</th>
+                <th>Customer</th>
+                <th>LR #</th>
+                <th>Total (₹)</th>
+                <th class="actions-col">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="historyTableBody">
+              <tr>
+                <td colspan="6" class="empty-state">No saved invoices yet. Generated invoices will appear here.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+
+    <!-- Live Preview Panel -->
+    <section class="preview-panel">
+      <div class="preview-toolbar">
+        <span><span class="live-dot"></span>Live Preview (Matches 11048.docx Master Template)</span>
+        <span class="muted">A4 / Landscape Printable</span>
+      </div>
+
+      <article class="invoice-sheet" id="invoiceSheet">
+        <div class="invoice-title">FREIGHT INVOICE</div>
+        <div class="company-header">
+          <img src="logo.png" alt="SR Transport Logo" class="company-logo-img">
+          <div>
+            <h2>SR TRANSPORT</h2>
+            <p>Plot No. 341, Sai Bhagavan Colony, Beeramguda, R.C. Puram, Hyderabad - 502032</p>
+            <p><b>Phone No: 9704527762 / 9010578128 / 9966818478 &nbsp;|&nbsp; Email: rudrajagan.b@gmail.com</b></p>
+          </div>
+        </div>
+
+        <div class="bill-header">
+          <div>
+            <b>M/S. <span id="previewCustomerName">GREEN AGREVOLUTION PRIVATE LTD</span></b>
+            <p id="previewCustomerAddress">B-103/104, Gomti Nagar, Vibhuti Khand Gomti Nagar,<br>Lucknow - 226010<br>UTTAR PRADESH</p>
+          </div>
+          <div>
+            <b>GSTIN:</b> <span id="previewCustomerGstin">09AAECG6456H1ZC</span>
+            <p><b>STATE:</b> <span id="previewCustomerState">UTTAR PRADESH</span><br><b>STATE CODE:</b> <span id="previewCustomerStateCode">09/UP</span></p>
+          </div>
+          <div class="invoice-number">
+            <b>INVOICE NO:</b> <span id="previewInvoiceNumber">11048</span><br>
+            <b>DATE:</b> <span id="previewInvoiceDate">02-09-2026</span>
+          </div>
+        </div>
+
+        <div class="parties">
+          <div>
+            <b>CONSIGNOR:</b> <span id="previewConsignor">GREEN AGREVOLUTION PRIVATE LTD</span>
+            <p><b>ADDRESS:</b> <span id="previewConsignorAddress">C/O GREEN AGREVOLUTION PVT LTD, Medchal<br>Medchal<br>TELANGANA</span></p>
+            <b>GSTIN:</b> <span id="previewConsignorGstin">36AAECG6456H1ZF</span> &nbsp; <b>STATE CODE:</b> <span id="previewConsignorStateCode">36/TS</span>
+          </div>
+          <div>
+            <b>CONSIGNEE:</b> <span id="previewConsignee">GREEN AGREVOLUTION PVT LTD</span>
+            <p><b>ADDRESS:</b> <span id="previewConsigneeAddress">C/O Green Agrevolution Pvt Ltd, Medchal<br>Medchal<br>TELANGANA</span></p>
+            <b>GSTIN:</b> - &nbsp; <b>STATE CODE:</b> <span id="previewConsigneeStateCode">36/TS</span>
+          </div>
+        </div>
+
+        <!-- 4-Row Invoice Table matching 11048.docx -->
+        <table class="invoice-table">
+          <thead>
+            <tr>
+              <th>SL NO:</th>
+              <th>LR NO:</th>
+              <th>LR DATE</th>
+              <th>LOADING</th>
+              <th>UN-LOADING</th>
+              <th>DESCRIPTION</th>
+              <th colspan="2">VEHICLE</th>
+              <th>WEIGHT</th>
+              <th>RATE</th>
+              <th>FREIGHT</th>
+              <th>OTHERS</th>
+              <th>TOTAL</th>
+            </tr>
+            <tr class="subhead">
+              <th></th><th></th><th></th><th></th><th></th><th></th>
+              <th>NO.</th>
+              <th>No: of Bags</th>
+              <th></th><th></th><th></th><th></th><th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>1</td>
+              <td id="previewLrNumber">11403</td>
+              <td id="previewLrDate">02-09-2026</td>
+              <td id="previewLoading">Medchal</td>
+              <td id="previewUnloading">Kalakal</td>
+              <td id="previewDescription">Seeds</td>
+              <td id="previewVehicle">AP 28 X 7948</td>
+              <td id="previewPackages">273</td>
+              <td id="previewWeight">10.000</td>
+              <td id="previewRate">700</td>
+              <td id="previewFreight">7,000</td>
+              <td id="previewOtherCharges">0</td>
+              <td id="previewTotal">7,000</td>
+            </tr>
+            <tr><td colspan="13">&nbsp;</td></tr>
+            <tr><td colspan="13">&nbsp;</td></tr>
+            <tr><td colspan="13">&nbsp;</td></tr>
+          </tbody>
+        </table>
+
+        <div class="invoice-note-row">
+          <b>Note:</b>
+          <span>Others include: <span id="previewRemarks">NA</span></span>
+          <b>GRAND TOTAL</b>
+          <strong id="previewGrandTotal">₹ 7,000</strong>
+        </div>
+
+        <div class="amount-row">
+          <b>Amount Charged (in words):</b>
+          <strong id="previewWords">Rupees Seven Thousand Only</strong>
+        </div>
+
+        <div class="invoice-footer">
+          <div class="legal">
+            <div><b>PAN CARD:</b> ELKPK3812H &nbsp;&nbsp; <b>SAC CODE:</b> 996511</div>
+            <div><b>Reg No:</b> SEA/SAN/ALO/PC/0607538/2023 &nbsp; (GTA SERVICES)</div>
+            <div>(EXEM_NOTF. 12/2017)</div>
+            <div><b>Udyam:</b> UDYAM-TS-25-0001670</div>
+            <div style="margin-top:3px;">* Note: GST to be paid by Service Recipient under RCM</div>
+            <div>* GST under rcm is not applicable for outward expmted supply</div>
+          </div>
+          <div class="bank">
+            <b>PLEASE PAY BY RTGS/NEFT</b>
+            <p><b>Bank:</b> Kotak Mahindra Bank</p>
+            <p><b>A/C NO:</b> 1720252626</p>
+            <p><b>Branch:</b> Chandanagar</p>
+            <p><b>IFS CODE:</b> KKBK0007489</p>
+          </div>
+          <div class="signature">
+            <b>For SR TRANSPORT</b>
+            <div class="signature-stamp-container">
+              <img src="stamp.png?v=20260913" alt="SR Transport Stamp" class="signature-stamp-img">
+              <img src="SR-Sign.png?v=20260913" alt="Authorised Signatory" class="signature-sign-img">
+            </div>
+            <strong>Authorised Signatory</strong>
+          </div>
+        </div>
+
+        <div class="legal-bottom">
+          <div>(Interest @24%p.a will be charged on all outstanding bills)</div>
+          <div>E.&amp; O.E &nbsp;&nbsp; (SUBJECT TO SANGAREDDY JURISDICTION) &nbsp;&nbsp; <span>*THIS IS COMPUTER GENERATED BILL</span></div>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <!-- Client-side script libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="app.js?v=20260913_2"></script>
+</body>
+</html>
