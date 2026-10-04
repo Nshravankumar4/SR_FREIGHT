@@ -71,7 +71,7 @@ Run-Check "Slide-Over Menu Drawer & Navigation Links" {
 # 6. Auth Module & Foolproof Logout
 Run-Check "Auth Module (Credentials, Safe Logout, selectUser, Role Check)" {
     $auth = Get-Content 'd:\Repo\Lorry\js\auth.js' -Raw
-    $hasAdmin = $auth.Contains('Shravan')
+    $hasAdmin = $auth.Contains('Shravan@2505')
     $hasRudra = $auth.Contains('RudraSarika@2505')
     $hasSelectUser = $auth.Contains('selectUser')
     $hasLogoutSafe = $auth.Contains('closeEditDrawer')

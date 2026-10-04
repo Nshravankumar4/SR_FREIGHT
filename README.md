@@ -39,7 +39,7 @@ Just like in the reference architecture (`D:\Repo\SR_T`), the system operates ac
 
 | Role | Username | Password | View & Export | Add/Edit Trips | Delete Trips | Balance Receipts | Renewals & Alerts | Cloud Settings |
 | :--- | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| **Admin** | `admin` or `shravan` | `Shravan` | ✅ | ✅ | ✅ | Full (Add & Delete) | Full (Add, Edit, Delete) | ✅ |
+| **Admin** | `admin` or `shravan` | `Shravan@2505` | ✅ | ✅ | ✅ | Full (Add & Delete) | Full (Add, Edit, Delete) | ✅ |
 | **Employee** | `rudra` | `RudraSarika@2505` | ✅ | ✅ | ❌ Restricted | Add Only | View Only | ❌ Restricted |
 
 * **UI Layer:** The `🗑️ Delete` button, `⚙️ Settings` button, and renewal mutation controls are hidden for Rudra. Any direct programmatic calls trigger security alert toasts.

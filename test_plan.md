@@ -15,7 +15,7 @@
 ## 2. Test Cases & Verification Results
 
 ### 2.1 Role & Security Enforcement (100% Passed)
-- **TC-AUTH-01 (Admin Full Access):** Log in as `admin` with password `Shravan` ➔ Granted Full Admin access (Add, Edit, Delete trips, Delete receipts, Settings, Full Export).
+- **TC-AUTH-01 (Admin Full Access):** Log in as `admin` with password `Shravan@2505` ➔ Granted Full Admin access (Add, Edit, Delete trips, Delete receipts, Settings, Full Export).
 - **TC-AUTH-02 (Employee Access):** Log in as `rudra` with password `RudraSarika@2505` ➔ Granted Employee operational access.
 - **TC-AUTH-03 (Delete Trip Protection):** For employee `rudra`, the `🗑️ Delete` button on rows is completely hidden. Backend API rejects any unauthorized deletion.
 - **TC-AUTH-04 (Delete Receipt Protection):** In the drawer and receipt table, `Delete` button on installment receipts is hidden for non-admins; non-admins see `Recorded`.
@@ -71,7 +71,7 @@
 - **TC-LOGIN-02 (Dynamic Placeholder & Focus):** Clicking Rudra switches active border highlight and updates password placeholder to `Enter password for Rudra`. Clicking Admin updates to `Enter password for Admin`.
 - **TC-LOGIN-03 (Password Eye Toggle):** Clicking 👁️ toggles between masked password and plain text.
 - **TC-LOGIN-04 (Credentials Verification):**
-  - Admin: accepts `Shravan`, `Shravan@1`, or custom set password.
+  - Admin: accepts `Shravan@2505`, or custom set password.
   - Rudra: accepts `RudraSarika@2505`, `Rudra`, `EShravan@2`, or custom set password.
 - **TC-LOGIN-05 (Foolproof Logout Bugfix):** Fixed `TypeError: Trips.closeEditDrawer is not a function`. Safe execution chain guarantees session reset, token wiping, poller clearance, modal closure, and clean return to `#view-login`.
 - **TC-LOGIN-06 (Password Management):** `🔑 Change` button in drawer and Settings view allows users to securely update passwords in local storage.

@@ -48,7 +48,7 @@ This guide provides the complete documentation for the live production architect
 
 | User | Password | Role | Permissions |
 | :--- | :--- | :--- | :--- |
-| **Admin** | `Shravan` | Administrator | Full access: View, Add, Edit, Delete (Trips, Receipts, Renewals), Settings, Cloud Backups, Excel Export |
+| **Admin** | `Shravan@2505` | Administrator | Full access: View, Add, Edit, Delete (Trips, Receipts, Renewals), Settings, Cloud Backups, Excel Export |
 | **Rudra** | `RudraSarika@2505` | Employee | View, Add, Edit trips/installments, View renewals. **Delete, Renewals Add/Edit/Delete, & Settings strictly blocked.** |
 
 ---

@@ -10,13 +10,13 @@ const Auth = {
       username: 'admin',
       name: 'Administrator',
       role: 'Admin',
-      passwords: ['Shravan', 'Shravan@1']
+      passwords: ['Shravan@2505']
     },
     shravan: {
       username: 'admin',
       name: 'Administrator',
       role: 'Admin',
-      passwords: ['Shravan', 'Shravan@1']
+      passwords: ['Shravan@2505']
     },
     rudra: {
       username: 'rudra',
@@ -99,7 +99,7 @@ const Auth = {
     }
 
     // Check custom password from localStorage or master baseline passwords
-    const customPass = localStorage.getItem(`lorry_custom_${u}_pass`);
+    const customPass = localStorage.getItem(`lorry_custom_${u}_pass_v2`);
     const validPasswords = [...userRecord.passwords];
     if (customPass) {
       validPasswords.unshift(customPass);
@@ -144,7 +144,7 @@ const Auth = {
     }
 
     try {
-      localStorage.setItem(`lorry_custom_${u}_pass`, p);
+      localStorage.setItem(`lorry_custom_${u}_pass_v2`, p);
       if (this.USERS[u]) {
         this.USERS[u].passwords.unshift(p);
       }
